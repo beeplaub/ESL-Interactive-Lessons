@@ -122,7 +122,7 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
     return targetIds.reduce((sum, id) => sum + pronunciationTargetPoints(answer, id), 0);
   }
 
-  if (question.question_type === "SHADOWING" && asRecord(question.options).shadowing_mode === "CHUNK_AB") {
+  if (question.question_type === "SHADOWING" && ["CHUNK_AB", "SENTENCE_AB"].includes(String(asRecord(question.options).shadowing_mode))) {
     const value = asRecord(answer as Json);
     if (value.completed !== true) return 0;
     const coverage = typeof value.word_coverage === "number" ? value.word_coverage : Number.NaN;
@@ -211,7 +211,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
   if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
     const options = asRecord(question.options);
-    if (options.shadowing_mode === "CHUNK_AB") {
+    if (options.shadowing_mode === "CHUNK_AB" || options.shadowing_mode === "SENTENCE_AB") {
       if (rec.completed !== true) return false;
       const coverage = typeof rec.word_coverage === "number" ? rec.word_coverage : Number.NaN;
       // Keep historical and transcription-unavailable completions passing.

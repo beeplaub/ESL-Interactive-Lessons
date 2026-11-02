@@ -8,8 +8,8 @@ import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
 import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
-import { shadowingChunkData, shadowingChunks, shadowingPhaseData, shadowingPhases, type ShadowingChunk, type ShadowingPhase } from "@/lib/shadowing";
-import { ShadowingChunkEditor } from "@/components/ShadowingChunkEditor";
+import { shadowingSentenceText } from "@/lib/shadowing";
+import { ShadowingSentenceEditor } from "@/components/ShadowingSentenceEditor";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading";
@@ -894,7 +894,7 @@ function ActivityPanel({
               {activity.needs_review ? (
                 <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                   {activity.activity_type === "SHADOWING"
-                    ? "This Shadowing activity needs model audio, text for every chunk, and successful automatic matching before it can be published."
+                    ? "This Shadowing activity needs model audio and one complete sentence before it can be published."
                     : "This activity has missing answers. Please fill them in before publishing."}
                 </p>
               ) : null}
@@ -2597,68 +2597,22 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
   const data = asRecord(activity.activity_data);
   const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."));
-  const [mode, setMode] = useState(data.shadowing_mode === "CHUNK_AB" ? "CHUNK_AB" : "LEGACY_PHASES");
   const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
-  const [chunks, setChunks] = useState<ShadowingChunk[]>(() => shadowingChunks(data));
+  const [targetText, setTargetText] = useState(() => shadowingSentenceText(data));
   const [maxAttempts, setMaxAttempts] = useState(Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)));
-  const [phases, setPhases] = useState<ShadowingPhase[]>(() => shadowingPhases(data));
-  const [repeatCount, setRepeatCount] = useState(Math.max(1, Math.min(20, Number(data.repeat_count ?? 3) || 3)));
-  const [showLiveMatch, setShowLiveMatch] = useState(data.show_live_match !== false);
-  const [requireAllGreen, setRequireAllGreen] = useState(data.require_all_green !== false);
-
-  const needsReview = phases.some((phase) => !phase.targetText.trim());
-  const updatePhase = (index: number, patch: Partial<ShadowingPhase>) => setPhases((current) => current.map((phase, phaseIndex) => phaseIndex === index ? { ...phase, ...patch } : phase));
-
-  if (mode === "CHUNK_AB") {
-    const needsChunkReview = !audioUrl || chunks.length === 0
-      || chunks.some((chunk, index) => !chunk.text.trim() || chunk.endMs <= chunk.startMs || (index > 0 && chunk.startMs < chunks[index - 1].endMs));
-    return (
-      <div className="grid gap-4">
-        <label className="text-sm font-medium">
-          Instruction Prompt
-          <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
-        </label>
-        <label className="text-sm font-medium">
-          Recording attempts allowed per learner
-          <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" />
-          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt. Default: 3.</span>
-        </label>
-        <ShadowingChunkEditor audioUrl={audioUrl} chunks={chunks} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={setAudioUrl} onChunksChange={setChunks} />
-        <p className="text-xs text-[var(--br-text-muted)]">Groq transcript words are used only to locate the learner's chunks. The transcript and a pronunciation score are not shown or saved.</p>
-        <div className="flex flex-wrap gap-3">
-          <SaveButton onClick={() => {
-            const targetText = chunks.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ");
-            onSave({ prompt, shadowing_mode: "CHUNK_AB", max_attempts: maxAttempts, audio_url: audioUrl, chunks: shadowingChunkData(chunks), target_text: targetText, correct_answer: targetText } as Json, needsChunkReview);
-          }} />
-        </div>
-      </div>
-    );
-  }
-
+  const needsReview = !targetText.trim() || !audioUrl.trim();
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction Prompt
         <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
-
-      <div className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 sm:grid-cols-2">
-        <label className="text-sm font-semibold">Repeat count<select value={repeatCount} onChange={(e) => setRepeatCount(Number(e.target.value))} className="mt-1 w-full rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2"><option value={1}>1 repetition</option><option value={2}>2 repetitions</option><option value={3}>3 repetitions</option><option value={5}>5 repetitions</option><option value={10}>10 repetitions</option></select></label>
-        <div className="grid gap-2 text-sm font-semibold"><label className="flex items-center gap-2"><input type="checkbox" checked={showLiveMatch} onChange={(e) => setShowLiveMatch(e.target.checked)} /> Show live phrase match</label><label className="flex items-center gap-2"><input type="checkbox" checked={requireAllGreen} onChange={(e) => setRequireAllGreen(e.target.checked)} /> Require all words green</label></div>
-        <p className="text-xs text-[var(--br-text-muted)] sm:col-span-2">Green means strong match, yellow means developing, and red means needs practice. A repeat counts only when every word is green.</p>
-      </div>
-
-      <div className="grid gap-3">
-        <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold">Target phases</p><p className="text-xs text-[var(--br-text-muted)]">Each phase has its own phrase and audio. Repeat count applies to the whole activity.</p></div><button type="button" onClick={() => setPhases((current) => [...current, { id: `phase-${current.length + 1}-${Date.now()}`, targetText: "", audioUrl: "" }])} className="rounded-lg bg-[var(--br-brand)] px-3 py-1.5 text-xs font-bold text-on-dark">+ Add phase</button></div>
-        {phases.map((phase, index) => <div key={phase.id} className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 sm:p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">Phase {index + 1}</p>{phases.length > 1 ? <button type="button" onClick={() => setPhases((current) => current.filter((_, phaseIndex) => phaseIndex !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}</div><MediaRecorderInput label="Target audio" value={phase.audioUrl} onChange={(url) => updatePhase(index, { audioUrl: url })} /><label className="text-sm font-medium">Target phrase<textarea rows={3} value={phase.targetText} onChange={(event) => updatePhase(index, { targetText: event.target.value })} placeholder="e.g. Could I have a glass of water, please?" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-medium" /></label></div>)}
-      </div>
-
-      <button type="button" onClick={() => {
-        const nextChunks = phases.map((phase, index) => ({ id: phase.id || `chunk-${index + 1}`, text: phase.targetText, startMs: 0, endMs: 0 }));
-        setChunks(nextChunks);
-        setAudioUrl(phases.length === 1 ? phases[0].audioUrl : "");
-        setMode("CHUNK_AB");
-      }} className="justify-self-start rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-[var(--br-chart-primary)]">Upgrade to sentence chunk A→B</button>
+      <ShadowingSentenceEditor audioUrl={audioUrl} targetText={targetText} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={setAudioUrl} onTargetTextChange={setTargetText} />
+      <label className="text-sm font-medium">
+        Recording attempts allowed per learner
+        <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" />
+        <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt. Default: 3.</span>
+      </label>
 
       <div className="flex flex-wrap gap-3">
         <SaveButton
@@ -2666,13 +2620,11 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
             onSave(
               {
                 prompt,
-                phases: shadowingPhaseData(phases),
-                audio_url: phases[0]?.audioUrl ?? "",
-                target_text: phases[0]?.targetText ?? "",
-                correct_answer: phases[0]?.targetText ?? "",
-                repeat_count: repeatCount,
-                show_live_match: showLiveMatch,
-                require_all_green: requireAllGreen,
+                shadowing_mode: "SENTENCE_AB",
+                max_attempts: maxAttempts,
+                audio_url: audioUrl,
+                target_text: targetText,
+                correct_answer: targetText,
               } as Json,
               needsReview
             )

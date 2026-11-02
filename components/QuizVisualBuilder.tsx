@@ -14,8 +14,8 @@ import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
 import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
-import { shadowingChunkData, shadowingChunks, shadowingPhaseData, shadowingPhases, type ShadowingPhase } from "@/lib/shadowing";
-import { ShadowingChunkEditor } from "@/components/ShadowingChunkEditor";
+import { shadowingSentenceText } from "@/lib/shadowing";
+import { ShadowingSentenceEditor } from "@/components/ShadowingSentenceEditor";
 
 type BuilderQuestion = {
   id: string;
@@ -190,7 +190,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "PARAPHRASE_ID") return { id, questionType: type, questionText: "Which option best paraphrases the text?", description: "", options: { passage: "Enter the source text here.", choices: { A: "Paraphrase A", B: "Paraphrase B", C: "Paraphrase C", D: "Paraphrase D" } }, correctAnswer: "A", assessment };
   if (type === "DICTATION") return { id, questionType: type, questionText: "Listen to the audio and type what you hear.", description: "", options: { audio_url: "", hint: "", ignore_punctuation: true }, correctAnswer: "The quick brown fox jumps over the lazy dog.", assessment };
   if (type === "LISTEN_AND_SELECT") return { id, questionType: type, questionText: "Listen to the audio clip and select the matching option.", description: "", options: { audio_url: "", choices: [{ id: "0", text: "Option A", image_url: "" }, { id: "1", text: "Option B", image_url: "" }] }, correctAnswer: "0", assessment };
-  if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare the chunks.", description: "", options: { shadowing_mode: "CHUNK_AB", max_attempts: 3, audio_url: "", chunks: [{ id: "chunk-1", text: "", start_ms: 0, end_ms: 0 }] }, correctAnswer: "", assessment };
+  if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare.", description: "", options: { shadowing_mode: "SENTENCE_AB", max_attempts: 3, audio_url: "", target_text: "" }, correctAnswer: "", assessment };
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
   if (type === "LISTEN_AND_GAP_FILL") return { id, questionType: type, questionText: "Listen to the audio and fill in the missing blanks in the transcript.", description: "", options: { audio_url: "", transcript: "I have been working at this ___ for two years." }, correctAnswer: ["company"], assessment };
@@ -450,13 +450,12 @@ export function QuizVisualBuilder({
     if (!questions.length) return "Add at least one question before saving.";
     const incomplete = questions.findIndex((question) => !question.questionText.trim());
     if (incomplete >= 0) return `Question ${incomplete + 1} needs question text.`;
-    const unpreparedShadowing = questions.findIndex((question) => {
-      if (question.questionType !== "SHADOWING" || asRecord(question.options).shadowing_mode !== "CHUNK_AB") return false;
+    const incompleteShadowing = questions.findIndex((question) => {
+      if (question.questionType !== "SHADOWING") return false;
       const options = asRecord(question.options);
-      const chunks = shadowingChunks(options);
-      return !String(options.audio_url ?? "").trim() || !chunks.length || chunks.some((chunk) => !chunk.text.trim() || chunk.endMs <= chunk.startMs);
+      return !String(options.audio_url ?? "").trim() || !shadowingSentenceText(options).trim();
     });
-    if (unpreparedShadowing >= 0) return `Question ${unpreparedShadowing + 1}: add the model audio and match its chunks automatically before saving.`;
+    if (incompleteShadowing >= 0) return `Question ${incompleteShadowing + 1}: add one complete sentence and its model audio.`;
     return null;
   }
 
@@ -1682,47 +1681,16 @@ function QuestionFields({ question, onChange, quizId }: { question: BuilderQuest
   }
 
   if (question.questionType === "SHADOWING") {
-    if (options.shadowing_mode === "CHUNK_AB") {
-      const chunks = shadowingChunks(options);
-      const audioUrl = String(options.audio_url ?? "");
-      const chunkText = chunks.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ");
-      return (
-        <div className="grid gap-3">
-          <label className="text-sm font-semibold">Recording attempts allowed per learner<input type="number" min={1} max={100} value={Math.max(1, Math.min(100, Number(options.max_attempts ?? 3) || 3))} onChange={(event) => onChange({ options: { ...options, max_attempts: Math.max(1, Math.min(100, Number(event.target.value) || 1)) } as Json })} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" /><span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt. Default: 3.</span></label>
-          <ShadowingChunkEditor
-            audioUrl={audioUrl}
-            chunks={chunks}
-            quizId={quizId}
-            voiceSettings={voiceSettings}
-            onAudioUrlChange={(url) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", audio_url: url } as Json })}
-            onChunksChange={(next) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", chunks: shadowingChunkData(next) } as Json, correctAnswer: next.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ") })}
-          />
-          <p className="text-xs text-[var(--br-text-muted)]">No pronunciation score is generated. Groq transcript words are used only to align the learner recording to these chunks.</p>
-          <button type="button" onClick={() => onChange({ options: { ...options, shadowing_mode: "LEGACY_PHASES", target_text: chunkText, phases: [{ id: "phase-1", target_text: chunkText, audio_url: audioUrl }] } as Json, correctAnswer: chunkText })} className="justify-self-start text-xs font-semibold text-[var(--br-text-muted)] underline">Return to legacy phrase practice</button>
-        </div>
-      );
-    }
-    const phases = shadowingPhases(options);
-    const updatePhase = (index: number, patch: Partial<ShadowingPhase>) => {
-      const next = phases.map((phase, phaseIndex) => phaseIndex === index ? { ...phase, ...patch } : phase);
-      onChange({ options: { ...options, phases: shadowingPhaseData(next), audio_url: next[0]?.audioUrl ?? "", target_text: next[0]?.targetText ?? "" } as Json, correctAnswer: next[0]?.targetText ?? "" });
-    };
+    const targetText = shadowingSentenceText(options);
+    const audioUrl = String(options.audio_url ?? "");
     return (
       <div className="grid gap-3">
-        <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold">Target phases</p><p className="text-xs text-[var(--br-text-muted)]">Each phase has its own phrase and audio.</p></div><button type="button" onClick={() => { const next = [...phases, { id: `phase-${phases.length + 1}-${Date.now()}`, targetText: "", audioUrl: "" }]; onChange({ options: { ...options, phases: shadowingPhaseData(next) } as Json }); }} className="rounded-lg bg-[var(--br-brand)] px-3 py-1.5 text-xs font-bold text-on-dark">+ Add phase</button></div>
-        {phases.map((phase, index) => <div key={phase.id} className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 sm:p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">Phase {index + 1}</p>{phases.length > 1 ? <button type="button" onClick={() => { const next = phases.filter((_, phaseIndex) => phaseIndex !== index); onChange({ options: { ...options, phases: shadowingPhaseData(next), audio_url: next[0]?.audioUrl ?? "", target_text: next[0]?.targetText ?? "" } as Json, correctAnswer: next[0]?.targetText ?? "" }); }} className="text-xs font-semibold text-coral">Remove</button> : null}</div><MediaRecorderInput label="Target audio" value={phase.audioUrl} onChange={(url) => updatePhase(index, { audioUrl: url })} /><label className="text-sm font-medium">Target phrase<textarea rows={3} value={phase.targetText} onChange={(event) => updatePhase(index, { targetText: event.target.value })} placeholder="e.g. Excuse me, could you tell me how to get to the station?" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm" /></label></div>)}
-        <button type="button" onClick={() => {
-          const nextChunks = phases.map((phase, index) => ({ id: phase.id || `chunk-${index + 1}`, text: phase.targetText, startMs: 0, endMs: 0 }));
-          onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", audio_url: phases.length === 1 ? phases[0].audioUrl : "", chunks: shadowingChunkData(nextChunks) } as Json, correctAnswer: phases.map((phase) => phase.targetText.trim()).filter(Boolean).join(" ") });
-        }} className="justify-self-start rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-[var(--br-chart-primary)]">Upgrade to sentence chunk A→B</button>
-        <div className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold">Repeat count<select value={Number(options.repeat_count ?? 3)} onChange={(e) => onChange({ options: { ...options, repeat_count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) } as Json })} className="mt-1 w-full rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2"><option value={1}>1 repetition</option><option value={2}>2 repetitions</option><option value={3}>3 repetitions</option><option value={5}>5 repetitions</option><option value={10}>10 repetitions</option></select></label>
-          <div className="grid gap-2 text-sm font-semibold"><label className="flex items-center gap-2"><input type="checkbox" checked={options.show_live_match !== false} onChange={(e) => onChange({ options: { ...options, show_live_match: e.target.checked } as Json })} /> Show live phrase match</label><label className="flex items-center gap-2"><input type="checkbox" checked={options.require_all_green !== false} onChange={(e) => onChange({ options: { ...options, require_all_green: e.target.checked } as Json })} /> Require all words green</label></div>
-          <p className="text-xs text-[var(--br-text-muted)] sm:col-span-2">Green means strong match, yellow means developing, and red means needs practice. A repeat counts only when every word is green.</p>
-        </div>
-        <p className="text-xs text-[var(--br-text-muted)]">
-          Learners will listen to your audio and repeat after you. Groq transcribes each temporary recording and saves the transcript and match result with the attempt; audio is not saved.
-        </p>
+        <label className="text-sm font-semibold">Recording attempts allowed per learner<input type="number" min={1} max={100} value={Math.max(1, Math.min(100, Number(options.max_attempts ?? 3) || 3))} onChange={(event) => onChange({ options: { shadowing_mode: "SENTENCE_AB", audio_url: audioUrl, target_text: targetText, max_attempts: Math.max(1, Math.min(100, Number(event.target.value) || 1)) } as Json })} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" /><span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt. Default: 3.</span></label>
+        <ShadowingSentenceEditor audioUrl={audioUrl} targetText={targetText} voiceSettings={voiceSettings}
+          onAudioUrlChange={(url) => onChange({ options: { shadowing_mode: "SENTENCE_AB", audio_url: url, target_text: targetText, max_attempts: Number(options.max_attempts ?? 3) } as Json })}
+          onTargetTextChange={(text) => onChange({ options: { shadowing_mode: "SENTENCE_AB", audio_url: audioUrl, target_text: text, max_attempts: Number(options.max_attempts ?? 3) } as Json, correctAnswer: text })}
+        />
+        <p className="text-xs text-[var(--br-text-muted)]">Groq word coverage shows how much of the sentence was recognized. It is not a pronunciation score.</p>
       </div>
     );
   }

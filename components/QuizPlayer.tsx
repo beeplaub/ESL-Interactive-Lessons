@@ -20,8 +20,8 @@ import { asWritingValue, evaluationQuota, isAwaitingResolution, isWritingQuestio
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { matchShadowingPhrase, type ShadowingMatchResult } from "@/lib/shadowingMatching";
-import { alignShadowingChunks, type LearnerChunkTimestamp } from "@/lib/shadowingAlignment";
-import { shadowingChunks, shadowingPhases } from "@/lib/shadowing";
+import { shadowingSentenceText, shadowingPhases } from "@/lib/shadowing";
+import { shadowingWordCoverage } from "@/lib/shadowingScoring";
 
 export type QuizQuestion = {
   id: string;
@@ -152,7 +152,6 @@ type ShadowingValue = {
   attempts_used?: number;
   comparison_heard?: boolean;
   word_coverage?: number | null;
-  chunkAvailability?: Array<{ chunkId: string; available: boolean }>;
 };
 
 function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
@@ -233,7 +232,7 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
     const options = asRecord(question.options);
-    if (options.shadowing_mode === "CHUNK_AB") return rec.completed === true;
+    if (options.shadowing_mode === "CHUNK_AB" || options.shadowing_mode === "SENTENCE_AB") return rec.completed === true;
     const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
     const phases = shadowingPhases(options);
     const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];
@@ -3192,8 +3191,8 @@ type ShadowingPlayerProps = {
 };
 
 function ShadowingPlayer(props: ShadowingPlayerProps) {
-  return asRecord(props.question.options).shadowing_mode === "CHUNK_AB"
-    ? <ChunkedShadowingPlayer {...props} />
+  return asRecord(props.question.options).shadowing_mode === "CHUNK_AB" || asRecord(props.question.options).shadowing_mode === "SENTENCE_AB"
+    ? <SentenceShadowingPlayer {...props} />
     : <LegacyShadowingPlayer {...props} />;
 }
 
@@ -3250,14 +3249,13 @@ function playShadowingWindow(
   });
 }
 
-function ChunkedShadowingPlayer({ question, value, disabled, onChange }: ShadowingPlayerProps) {
+function SentenceShadowingPlayer({ question, value, disabled, onChange }: ShadowingPlayerProps) {
   const options = asRecord(question.options);
-  const chunks = shadowingChunks(options);
+  const targetText = shadowingSentenceText(options);
   const audioUrl = String(options.audio_url ?? "");
   const maxAttempts = Math.max(1, Math.min(100, Number(options.max_attempts ?? 3) || 3));
   const [attemptsUsed, setAttemptsUsed] = useState(() => Math.max(0, Number(asRecord(value as Json).attempts_used ?? 0) || 0));
   const [modelListened, setModelListened] = useState(false);
-  const [comparisonMode, setComparisonMode] = useState<"SENTENCE" | "CHUNK">("SENTENCE");
   const [comparisonHeard, setComparisonHeard] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [wordCoverage, setWordCoverage] = useState<number | null>(null);
@@ -3265,30 +3263,28 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [learnerAudioUrl, setLearnerAudioUrl] = useState<string | null>(null);
-  const [alignedChunks, setAlignedChunks] = useState<LearnerChunkTimestamp[]>([]);
-  const [loopingChunkId, setLoopingChunkId] = useState<string | null>(null);
+  const [sentenceLooping, setSentenceLooping] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const attemptsUsedRef = useRef(attemptsUsed);
   const comparisonHeardRef = useRef(false);
   const wordCoverageRef = useRef<number | null>(null);
-  const chunkAvailabilityRef = useRef<Array<{ chunkId: string; available: boolean }>>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
   const loopTokenRef = useRef(0);
-  const loopingChunkIdRef = useRef<string | null>(null);
+  const sentenceLoopingRef = useRef(false);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const modelPreviewRef = useRef<HTMLAudioElement | null>(null);
   const learnerPreviewRef = useRef<HTMLAudioElement | null>(null);
-  const readyToRecord = Boolean(audioUrl && chunks.length > 0 && chunks.every((chunk) => chunk.text.trim() && chunk.endMs > chunk.startMs));
+  const readyToRecord = Boolean(audioUrl && targetText.trim());
 
   const stopLoop = useCallback(() => {
     loopTokenRef.current += 1;
     activeAudioRef.current?.pause();
     activeAudioRef.current = null;
-    loopingChunkIdRef.current = null;
-    setLoopingChunkId(null);
+    sentenceLoopingRef.current = false;
+    setSentenceLooping(false);
   }, []);
 
   useEffect(() => {
@@ -3313,19 +3309,19 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     return () => URL.revokeObjectURL(learnerAudioUrl);
   }, [learnerAudioUrl]);
 
-  async function loopPair(chunkId: string, modelStart: number, modelEnd: number, learnerStart: number, learnerEnd: number, learnerUrl = learnerAudioUrl) {
+  async function loopPair(learnerUrl = learnerAudioUrl) {
     if (!learnerUrl || !audioUrl) return;
-    if (loopingChunkIdRef.current === chunkId) { stopLoop(); return; }
+    if (sentenceLoopingRef.current) { stopLoop(); return; }
     stopLoop();
     modelPreviewRef.current?.pause();
     learnerPreviewRef.current?.pause();
     const token = loopTokenRef.current + 1;
     loopTokenRef.current = token;
-    loopingChunkIdRef.current = chunkId;
-    setLoopingChunkId(chunkId);
+    sentenceLoopingRef.current = true;
+    setSentenceLooping(true);
     setAutoplayBlocked(false);
     while (loopTokenRef.current === token) {
-      const modelPlayed = await playShadowingWindow(audioUrl, modelStart, modelEnd, token, loopTokenRef, activeAudioRef, modelPreviewRef.current);
+      const modelPlayed = await playShadowingWindow(audioUrl, 0, Number.POSITIVE_INFINITY, token, loopTokenRef, activeAudioRef, modelPreviewRef.current);
       if (loopTokenRef.current !== token) break;
       if (!modelPlayed) {
         setAutoplayBlocked(true);
@@ -3334,14 +3330,14 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
       }
       await new Promise((resolve) => window.setTimeout(resolve, 260));
       if (loopTokenRef.current !== token) break;
-      const learnerPlayed = await playShadowingWindow(learnerUrl, learnerStart, learnerEnd, token, loopTokenRef, activeAudioRef, learnerPreviewRef.current);
+      const learnerPlayed = await playShadowingWindow(learnerUrl, 0, Number.POSITIVE_INFINITY, token, loopTokenRef, activeAudioRef, learnerPreviewRef.current);
       if (loopTokenRef.current !== token) break;
       if (!learnerPlayed) {
         setAutoplayBlocked(true);
         stopLoop();
         break;
       }
-      if (chunkId === "full-sentence" && !comparisonHeardRef.current) {
+      if (!comparisonHeardRef.current) {
         comparisonHeardRef.current = true;
         setComparisonHeard(true);
         onChange({
@@ -3349,14 +3345,13 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
           comparison_heard: true,
           word_coverage: wordCoverageRef.current,
           attempts_used: attemptsUsedRef.current,
-          chunkAvailability: chunkAvailabilityRef.current,
         });
       }
       await new Promise((resolve) => window.setTimeout(resolve, 450));
     }
     if (loopTokenRef.current === token) {
-      loopingChunkIdRef.current = null;
-      setLoopingChunkId(null);
+      sentenceLoopingRef.current = false;
+      setSentenceLooping(false);
     }
   }
 
@@ -3364,9 +3359,6 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     setProcessing(true);
     setError(null);
     setRecordingDuration(durationSeconds);
-    setAlignedChunks([]);
-    chunkAvailabilityRef.current = [];
-    setComparisonMode("SENTENCE");
     comparisonHeardRef.current = false;
     wordCoverageRef.current = null;
     setWordCoverage(null);
@@ -3378,43 +3370,38 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     const nextAttemptsUsed = attemptsUsed + 1;
     attemptsUsedRef.current = nextAttemptsUsed;
     setAttemptsUsed(nextAttemptsUsed);
-    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed, chunkAvailability: [] });
+    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
     const form = new FormData();
     form.append("file", blob, `shadowing.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
     form.append("durationSeconds", String(durationSeconds));
-    form.append("wordTimestamps", "true");
     try {
       const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
       const result = await response.json().catch(() => ({})) as {
         transcript?: string;
-        words?: Array<{ word: string; start: number; end: number }>;
         error?: string;
       };
-      if (!response.ok || !result.transcript || !Array.isArray(result.words)) throw new Error(result.error || "Timestamped transcription is temporarily unavailable.");
-      const alignment = alignShadowingChunks(chunks, result.words);
-      setAlignedChunks(alignment.chunks);
-      wordCoverageRef.current = alignment.matchedRatio;
-      setWordCoverage(alignment.matchedRatio);
-      chunkAvailabilityRef.current = alignment.chunks.map(({ chunkId, available }) => ({ chunkId, available }));
-      onChange({ completed: false, comparison_heard: false, word_coverage: alignment.matchedRatio, attempts_used: nextAttemptsUsed, chunkAvailability: chunkAvailabilityRef.current });
-      if (!alignment.reliable) setError("We could not locate every chunk reliably. You can still compare the complete sentence below.");
+      if (!response.ok || !result.transcript) throw new Error(result.error || "Transcription is temporarily unavailable.");
+      const coverage = shadowingWordCoverage(targetText, result.transcript);
+      wordCoverageRef.current = coverage;
+      setWordCoverage(coverage);
+      onChange({ completed: false, comparison_heard: false, word_coverage: coverage, attempts_used: nextAttemptsUsed });
     } catch (caught) {
       wordCoverageRef.current = null;
       setWordCoverage(null);
-      onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed, chunkAvailability: [] });
+      onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
       setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again.");
     } finally {
       setProcessing(false);
       // Try to start the default sentence comparison after transcription. Some
       // browsers and Android WebViews require a fresh tap after an async request.
-      void loopPair("full-sentence", 0, Number.POSITIVE_INFINITY, 0, durationSeconds, learnerUrl);
+      void loopPair(learnerUrl);
     }
   }
 
   async function startRecording() {
     if (disabled || processing || recording || attemptsUsed >= maxAttempts || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
     setError(null);
-    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: attemptsUsedRef.current, chunkAvailability: [] });
+    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: attemptsUsedRef.current });
     stopLoop();
     modelPreviewRef.current?.pause();
     learnerPreviewRef.current?.pause();
@@ -3472,8 +3459,6 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     mediaRecorderRef.current.stop();
   }
 
-  const fullLearnerEnd = recordingDuration || Number.POSITIVE_INFINITY;
-
   return (
     <div className="space-y-4">
       <section className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
@@ -3487,7 +3472,7 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
             <span className="min-w-0 text-sm font-extrabold">{index + 1}. {step.label}</span>
           </div>)}
         </div>
-        {audioUrl ? <audio ref={modelPreviewRef} controls={loopingChunkId === null} preload="metadata" src={audioUrl} onEnded={() => setModelListened(true)} className="w-full" aria-label="Listen to the model sentence" /> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
+        {audioUrl ? <audio ref={modelPreviewRef} controls={!sentenceLooping} preload="metadata" src={audioUrl} onEnded={() => setModelListened(true)} className="w-full" aria-label="Listen to the model sentence" /> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
         <div className="flex flex-col items-center gap-2 py-1">
           <button type="button" onClick={recording ? stopRecording : () => void startRecording()} disabled={!recording && (disabled || processing || !readyToRecord || !modelListened || (Boolean(learnerAudioUrl) && !comparisonHeard) || attemptsUsed >= maxAttempts)} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-chart-primary)] disabled:cursor-not-allowed disabled:opacity-45 ${recording ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500 hover:scale-105"}`} aria-label={recording ? "Stop recording" : learnerAudioUrl ? "Record again" : "Record the sentence"}>
             {processing ? <Loader2 size={28} className="animate-spin" /> : recording ? <MicOff size={28} /> : learnerAudioUrl ? <RotateCcw size={28} /> : <Mic size={28} />}
@@ -3496,42 +3481,20 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
           <span className="text-xs font-semibold text-[var(--br-text-muted)]">{Math.min(attemptsUsed + (recording ? 1 : 0), maxAttempts)} of {maxAttempts} attempts used</span>
         </div>
         {recording ? <p className="text-xs font-semibold text-[var(--br-action-strong)]">Recording the full sentence…</p> : null}
-        {processing ? <p className="flex items-center gap-2 text-sm font-semibold text-[var(--br-chart-primary)]"><Loader2 size={16} className="animate-spin" /> Preparing your chunk comparisons…</p> : null}
+        {processing ? <p className="flex items-center gap-2 text-sm font-semibold text-[var(--br-chart-primary)]"><Loader2 size={16} className="animate-spin" /> Preparing your comparison…</p> : null}
         {recordingDuration > 0 && !processing ? <p className="text-xs text-[var(--br-text-muted)]">Your recording: {recordingDuration}s</p> : null}
       </section>
 
-      {learnerAudioUrl ? <audio ref={learnerPreviewRef} controls={loopingChunkId === null} preload="metadata" src={learnerAudioUrl} className="w-full" aria-label="Your complete sentence recording" /> : null}
-      {learnerAudioUrl ? <div className="grid w-full grid-cols-1 gap-2 rounded-2xl border border-[var(--br-border)] bg-white p-2 sm:grid-cols-2" role="group" aria-label="Comparison mode">
-        <button type="button" aria-pressed={comparisonMode === "SENTENCE"} onClick={() => { stopLoop(); setComparisonMode("SENTENCE"); }} className={`min-h-11 w-full rounded-xl px-3 py-2.5 text-sm font-bold transition ${comparisonMode === "SENTENCE" ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-slate-50"}`}>Full sentence A/B</button>
-        <button type="button" aria-pressed={comparisonMode === "CHUNK"} disabled={!alignedChunks.length || processing} onClick={() => { stopLoop(); setComparisonMode("CHUNK"); }} className={`min-h-11 w-full rounded-xl px-3 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${comparisonMode === "CHUNK" ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-slate-50"}`}>Chunk A/B</button>
-      </div> : null}
-      {learnerAudioUrl && comparisonMode === "SENTENCE" ? <section className="grid justify-items-center gap-3 rounded-2xl border border-[var(--br-border)] bg-white p-4">
+      {learnerAudioUrl ? <audio ref={learnerPreviewRef} controls={!sentenceLooping} preload="metadata" src={learnerAudioUrl} className="w-full" aria-label="Your complete sentence recording" /> : null}
+      {learnerAudioUrl ? <section className="grid justify-items-center gap-3 rounded-2xl border border-[var(--br-border)] bg-white p-4">
         <p className="text-center text-sm font-semibold text-[var(--br-dark-card)]">Hear the complete model sentence, then your recording.</p>
         {comparisonHeard && wordCoverage !== null ? <p className="text-center text-sm font-semibold text-[var(--br-text-muted)]">Word coverage: <span className="font-extrabold text-[var(--br-dark-card)]">{Math.round(wordCoverage * 100)}%</span> recognized by speech-to-text. This is not a pronunciation score.</p> : null}
         {comparisonHeard && wordCoverage === null ? <p className="text-center text-sm font-medium text-[var(--br-text-muted)]">Word coverage could not be calculated for this attempt. You can still compare the recordings.</p> : null}
-        <button type="button" disabled={disabled} onClick={() => void loopPair("full-sentence", 0, Number.POSITIVE_INFINITY, 0, fullLearnerEnd)} className="inline-flex min-h-11 min-w-56 items-center justify-center gap-2 rounded-full border border-[var(--br-border)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--br-dark-card)] transition hover:bg-slate-50 disabled:opacity-50">
-          {loopingChunkId === "full-sentence" ? <Pause size={16} /> : <Play size={16} />}{loopingChunkId === "full-sentence" ? "Stop sentence loop" : autoplayBlocked ? "Play comparison" : "Play sentence A/B loop"}
+        <button type="button" disabled={disabled} onClick={() => void loopPair()} className="inline-flex min-h-11 min-w-56 items-center justify-center gap-2 rounded-full border border-[var(--br-border)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--br-dark-card)] transition hover:bg-slate-50 disabled:opacity-50">
+          {sentenceLooping ? <Pause size={16} /> : <Play size={16} />}{sentenceLooping ? "Stop sentence loop" : autoplayBlocked ? "Play comparison" : "Play sentence A/B loop"}
         </button>
         {autoplayBlocked && !comparisonHeard ? <p role="status" className="text-center text-xs font-medium text-[var(--br-text-muted)]">Tap play to hear the model and your recording. “Record again” unlocks after both finish once.</p> : null}
       </section> : null}
-      {learnerAudioUrl && comparisonMode === "CHUNK" && alignedChunks.length > 0 ? (
-        <section className="space-y-3" aria-label="Sentence chunks">
-          {wordCoverage !== null ? <p className="rounded-xl border border-[var(--br-border)] bg-white px-3 py-2 text-sm font-semibold text-[var(--br-text-muted)]">Word coverage: <span className="font-extrabold text-[var(--br-dark-card)]">{Math.round(wordCoverage * 100)}%</span> recognized by speech-to-text. This is not a pronunciation score.</p> : null}
-          {chunks.map((chunk, index) => {
-            const learnerChunk = alignedChunks.find((item) => item.chunkId === chunk.id);
-            const isLooping = loopingChunkId === chunk.id;
-            return (
-              <div key={chunk.id} className="flex flex-col gap-3 rounded-xl border border-[var(--br-border)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div><p className="text-[10px] font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Chunk {index + 1}</p><p className="mt-1 font-semibold text-[var(--br-dark-card)]">{chunk.text}</p>{learnerChunk ? <p className="mt-1 text-xs font-medium text-[var(--br-text-muted)]">{learnerChunk.matchedWords} of {learnerChunk.totalWords} words recognized</p> : null}</div>
-            <button type="button" disabled={!learnerChunk?.available || disabled} onClick={() => void loopPair(chunk.id, chunk.startMs / 1_000, chunk.endMs / 1_000, (learnerChunk?.startMs ?? 0) / 1_000, (learnerChunk?.endMs ?? 0) / 1_000)} className="inline-flex min-h-11 min-w-44 shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--br-chart-primary)] px-4 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50">
-                  {isLooping ? <Pause size={16} /> : <Play size={16} />}{isLooping ? "Stop A → B loop" : "Loop model → you"}
-                </button>
-                {!learnerChunk?.available ? <p className="text-xs text-amber-700">This chunk could not be isolated reliably.</p> : null}
-              </div>
-            );
-          })}
-        </section>
-      ) : null}
       {error ? <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{error}</p> : null}
       <p className="text-center text-xs font-medium text-[var(--br-text-muted)]">Listen to the model, say it your way, then compare.</p>
     </div>

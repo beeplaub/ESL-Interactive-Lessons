@@ -4,39 +4,17 @@ export type ShadowingPhase = {
   audioUrl: string;
 };
 
-export type ShadowingChunk = {
-  id: string;
-  text: string;
-  startMs: number;
-  endMs: number;
-};
-
-export function shadowingChunks(data: Record<string, unknown>): ShadowingChunk[] {
-  if (!Array.isArray(data.chunks)) return [];
-  return data.chunks.flatMap((item, index) => {
+export function shadowingSentenceText(data: Record<string, unknown>): string {
+  const sentence = String(data.target_text ?? data.targetText ?? data.correct_answer ?? data.correctAnswer ?? "").trim();
+  if (sentence) return sentence;
+  const chunks = Array.isArray(data.chunks) ? data.chunks.flatMap((item) => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return [];
     const row = item as Record<string, unknown>;
     const text = String(row.text ?? row.target_text ?? "").trim();
-    const startMsValue = Number(row.start_ms ?? row.startMs);
-    const endMsValue = Number(row.end_ms ?? row.endMs);
-    const startSeconds = Number(row.start_seconds ?? row.startSeconds);
-    const endSeconds = Number(row.end_seconds ?? row.endSeconds);
-    return [{
-      id: String(row.id ?? `chunk-${index + 1}`),
-      text,
-      startMs: Number.isFinite(startMsValue) ? Math.max(0, Math.round(startMsValue)) : Number.isFinite(startSeconds) ? Math.max(0, Math.round(startSeconds * 1_000)) : 0,
-      endMs: Number.isFinite(endMsValue) ? Math.max(0, Math.round(endMsValue)) : Number.isFinite(endSeconds) ? Math.max(0, Math.round(endSeconds * 1_000)) : 0,
-    }];
-  });
-}
-
-export function shadowingChunkData(chunks: ShadowingChunk[]) {
-  return chunks.map((chunk) => ({
-    id: chunk.id,
-    text: chunk.text,
-    start_ms: chunk.startMs,
-    end_ms: chunk.endMs,
-  }));
+    return text ? [text] : [];
+  }) : [];
+  if (chunks.length) return chunks.join(" ");
+  return shadowingPhases(data).map((phase) => phase.targetText).filter(Boolean).join(" ");
 }
 
 export function shadowingPhases(data: Record<string, unknown>): ShadowingPhase[] {

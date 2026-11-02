@@ -18,7 +18,7 @@ import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { startSpeakTranslation, startLiveConversation } from "@/components/GeminiLiveTranslation";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
-import { shadowingPhases } from "@/lib/shadowing";
+import { shadowingPhases, shadowingSentenceText } from "@/lib/shadowing";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -267,7 +267,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   }
   if (activityType === "SHADOWING") {
     const audioUrl = String(data.audio_url ?? "");
-    const targetText = String(data.target_text ?? data.correct_answer ?? "");
+    const targetText = shadowingSentenceText(data);
     return [{
       id: "1",
       question_number: 1,
@@ -276,8 +276,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       options: {
         audio_url: audioUrl,
         target_text: targetText,
-        shadowing_mode: data.shadowing_mode === "CHUNK_AB" ? "CHUNK_AB" : "LEGACY_PHASES",
-        chunks: Array.isArray(data.chunks) ? data.chunks : [],
+        shadowing_mode: data.shadowing_mode === "CHUNK_AB" || data.shadowing_mode === "SENTENCE_AB" ? String(data.shadowing_mode) : "LEGACY_PHASES",
         max_attempts: Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)),
         phases: shadowingPhases(data).map((phase) => ({ id: phase.id, target_text: phase.targetText, audio_url: phase.audioUrl })),
         repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),

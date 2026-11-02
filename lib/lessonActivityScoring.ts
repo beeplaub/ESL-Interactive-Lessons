@@ -1,5 +1,6 @@
 import type { Json } from "@/types/database.types";
 import { asRecord, type ScoredQuestion } from "@/lib/quizScoring";
+import { shadowingPhases, shadowingSentenceText } from "@/lib/shadowing";
 
 export type LessonScoredQuestion = ScoredQuestion & { id: string; question_number: number };
 
@@ -200,13 +201,12 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
   if (activityType === "DICTATION") return [common(data, 0, "DICTATION", text(data.correct_answer), { ignore_punctuation: data.ignore_punctuation !== false } as Json)];
   if (activityType === "LISTEN_AND_SELECT" || activityType === "SOUND_DISCRIMINATION") return [common(data, 0, activityType, text(data.correct_answer ?? "0"), { choices: data.choices ?? data.pairs ?? [] } as unknown as Json)];
   if (activityType === "SHADOWING") {
-    const targetText = text(data.target_text || data.correct_answer);
+    const targetText = shadowingSentenceText(data);
     const audioUrl = text(data.audio_url);
     return [common(data, 0, "SHADOWING", targetText, {
       audio_url: audioUrl,
       target_text: targetText,
-      shadowing_mode: data.shadowing_mode === "CHUNK_AB" ? "CHUNK_AB" : "LEGACY_PHASES",
-      chunks: Array.isArray(data.chunks) ? data.chunks : [],
+      shadowing_mode: data.shadowing_mode === "CHUNK_AB" || data.shadowing_mode === "SENTENCE_AB" ? String(data.shadowing_mode) : "LEGACY_PHASES",
       max_attempts: Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)),
       phases: Array.isArray(data.phases) ? data.phases : Array.isArray(data.targets) ? data.targets : [{ id: "phase-1", target_text: targetText, audio_url: audioUrl }],
       repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),
