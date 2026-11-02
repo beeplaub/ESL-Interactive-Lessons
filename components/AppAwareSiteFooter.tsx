@@ -22,7 +22,7 @@ export function AppAwareSiteFooter() {
     }
   }, [isHome]);
 
-  if (androidShell && !isHome) return null;
+  if (pathname.startsWith("/ipa-snakes-and-ladders") || (androidShell && !isHome)) return null;
 
   return <SiteFooter />;
 }

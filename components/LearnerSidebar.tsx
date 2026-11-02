@@ -62,6 +62,7 @@ export function LearnerSidebar({
       { href: "/ai-tutor", label: "AI Tutor", icon: Sparkles, key: "ai-tutor" },
       { href: "/ipa-chart", label: "IPA Chart", icon: AudioLines, key: "ipa-chart" },
       { href: "/ipa-quest", label: "IPA Sound Quest", icon: Gamepad2, key: "ipa-quest" },
+      { href: "/games", label: "Games", icon: Gamepad2, key: "games" },
       { href: "/community", label: "Community", icon: MessagesSquare, key: "community" },
       { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
       { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
