@@ -29,6 +29,37 @@
 .playbackMessage{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--br-border);background:var(--br-warning-soft);color:var(--br-text);padding:12px 15px;border-radius:12px;font-size:12px;margin-top:14px}.playbackMessage button{background:transparent;border:0;padding:4px}.srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .mobileDialog{border:1px solid var(--br-border);padding:0;background:var(--br-surface);color:var(--br-text);border-radius:24px;width:min(480px,calc(100vw - 24px));max-height:calc(100dvh - 36px);margin:auto;overflow:auto;overscroll-behavior:contain}.mobileDialog::backdrop{background:#11112580;backdrop-filter:blur(4px)}.dialogInner{position:relative}.closeDialog{position:sticky;top:12px;margin:12px 12px -35px auto;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--br-border);background:var(--br-surface);z-index:2}.mobileDialog .detailsContent{padding:25px}.mobileDialog .detailsContent>.eyebrow{padding-right:40px}
 .workspace button{cursor:pointer}.workspace button:disabled{cursor:default}.workspace button:focus-visible,.workspace select:focus-visible,.workspace summary:focus-visible{outline:3px solid var(--br-chart-primary);outline-offset:3px}
+.referenceChart{overflow-x:auto;overscroll-behavior-inline:contain;border:1px solid #6d6d6d;background:#fff;scrollbar-color:#aaa #f4f4f4}
+.referenceVowels{display:grid;grid-template-columns:48px minmax(680px,4fr) minmax(510px,3fr);grid-template-rows:44px repeat(3,138px);min-width:1240px}
+.referenceRail{display:grid;place-items:center;background:#e8e8e8;border-right:1px solid #777;writing-mode:vertical-rl;rotate:180deg}
+.referenceRail span{font-size:clamp(18px,2vw,26px);font-weight:500;letter-spacing:1px}
+.referenceVowels>.referenceRail{grid-column:1;grid-row:1/5}
+.referenceVowelGroup{grid-row:1/5;display:grid;grid-template-rows:44px repeat(3,138px);min-width:0}
+.referenceVowelGroup:not(.referenceDiphthongs){grid-column:2}
+.referenceDiphthongs{grid-column:3;background:#ddd}
+.referenceVowelGroup>h3{grid-row:1;margin:0;display:grid;place-items:center;border-right:1px solid #777;border-bottom:1px solid #777;background:#f4f4f4;font-size:clamp(19px,2vw,25px);font-weight:500}
+.referenceVowelRows,.referenceDiphRows{grid-row:2/5;display:grid;grid-template-rows:repeat(3,138px)}
+.referenceMonoRow,.referenceDiphRow{display:grid;min-width:0;grid-template-columns:repeat(4,minmax(0,1fr))}
+.referenceDiphthongs>h3{width:66.6667%;background:#ddd}
+.referenceDiphRows{grid-template-columns:minmax(0,1fr)}
+.referenceDiphRow{grid-template-columns:repeat(3,minmax(0,1fr))}
+.referenceDiphRow:first-child{width:66.6667%;grid-template-columns:repeat(2,minmax(0,1fr))}
+.referenceDiphthongs .referenceCell{background:#ddd}
+.referenceCell{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(76px,1fr) 43px;place-items:stretch;border-right:1px solid #777;border-bottom:1px solid #777;background:#f7f7f7}
+.referenceSymbol,.referenceWord{border:0;border-radius:0;background:transparent;color:#111}
+.referenceSymbol{display:grid;place-items:center;min-width:0;padding:8px 2px 0;font-family:Arial,"DejaVu Sans",sans-serif;font-size:clamp(37px,4.2vw,58px);line-height:1;font-weight:400;letter-spacing:-1px}
+.referenceWord{display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;white-space:nowrap;padding:0 4px 7px;font-size:clamp(19px,2.1vw,25px);line-height:1.1;font-weight:400;text-decoration:none}.referenceWord .highlight{font-weight:400;text-decoration-color:currentColor;text-decoration-thickness:1px;text-underline-offset:4px}
+.workspace[data-view="B"] .mainLayout{display:block}.workspace[data-view="B"] .desktopDetails{position:static;margin-top:18px;max-width:none}
+.referenceConsonants{display:grid;grid-template-columns:48px minmax(1200px,1fr);min-width:1248px;background:#ffff91}
+.referenceConsonants>.referenceRail{grid-column:1;grid-row:1/4;background:#ffff91;border-right:1px solid #777}
+.referenceConsonantRows{display:grid;grid-column:2;grid-row:1/4;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(3,138px)}
+.referenceConsonantRows .referenceCell{background:#ffff91}
+.referenceConsonantRows .referenceSymbol{font-size:clamp(39px,4vw,56px)}
+.referenceCell.referenceVoiceless .referenceSymbol,.referenceCell.referenceVoiceless .referenceWord{color:#858585}
+.referenceRhotic{min-width:1248px;display:flex;align-items:center;gap:12px;padding:10px 48px;border-bottom:1px solid #777;background:#f1f1f1}
+.referenceRhotic h3{font-size:14px;margin:0}
+.referenceRhotic>div{display:grid;grid-template-columns:repeat(2,150px)}
+.referenceRhotic .referenceCell{height:100px;border:1px solid #777}
 @media(min-width:1180px) and (max-width:1340px){.mainLayout{grid-template-columns:minmax(0,1fr) 255px;gap:12px}.chart{padding:16px}.detailsContent{padding:17px}.hero h1{font-size:30px}.hero{gap:16px}.accentToggle button{padding:8px}.symbol{font-size:28px}.wordButton{font-size:9px}.tiles{gap:5px}}
 @media(max-width:1099px){.mainLayout{display:block}.desktopDetails{display:none}.hero h1{font-size:34px}.hero p{max-width:440px}.symbol{font-size:36px}.wordButton{font-size:12px}.tileSpeaker{display:inline-flex}.symbolButton{height:66px}}
 @media(max-width:700px){.hero{display:block;padding:11px 2px 20px}.hero h1{font-size:31px;letter-spacing:-.9px}.hero p{font-size:12px;max-width:370px}.accentControl{margin-top:18px}.accentToggle{width:fit-content}.accentToggle button{padding:8px 16px}.controlLabel{font-size:9px}.toolbar{flex-wrap:wrap;gap:10px}.categories{width:100%}.categories button{flex:1;padding:8px 10px}.search{width:100%;height:43px}.chart{padding:15px 11px;border-radius:17px}.chartHeading h2 span{display:block;font-size:11px}.chartHeading h2{font-size:14px}.chartHeading p{max-width:210px}.count{font-size:9px}.legend{gap:10px;font-size:9px}.voicingRow{flex-wrap:wrap;gap:8px}.chartHint{font-size:9px}.groups{gap:20px 10px}.groupTitle h3{font-size:11px}.groupTitle span{font-size:8px;line-height:1.4;min-height:22px}.tiles{gap:5px}.tile{border-radius:9px}.symbol{font-size:27px}.symbolButton{height:52px}.wordButton{font-size:10px;min-height:31px;padding:1px 1px 5px;gap:0}.tileSpeaker{display:none!important}.consonant .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}.consonant .symbol{font-size:30px}.consonant .wordButton{font-size:12px}.learningNotes{grid-template-columns:1fr;gap:18px;padding:22px 4px 15px}.chartFooter{font-size:8px;gap:8px}.voiceBadge{font-size:7px}.mobileDialog .bigSymbol{font-size:64px}.mobileDialog .detailSection p{font-size:13px}.mobileDialog .detailSection .caption{font-size:11px}.mobileDialog .note p{font-size:12px}}

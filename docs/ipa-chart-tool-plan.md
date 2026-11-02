@@ -159,6 +159,10 @@ Run repository typecheck, lint, and production build; check mobile/desktop layou
 
 Add optional learner recording, replay, guided self-monitoring, feedback, and progress only after deciding privacy, retention, scoring, and how accent variation/uncertainty will be handled. The chart and its audio library should remain useful without Phase 2.
 
+### Future activity idea — Phonemic transcription (not part of the chart release)
+
+Create interactive activities in both directions: English words or text → phonemic IPA transcription, and IPA transcription → English words or text. Keep this in the later activity backlog; do not turn the open IPA reference chart into an assigned activity.
+
 ## 10. Key risks and controls
 
 | Risk | Control |

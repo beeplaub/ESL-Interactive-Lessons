@@ -75,6 +75,7 @@ const groups: NavGroup[] = [
       { href: "/admin/activities", label: "Activities", Icon: Boxes, roles: ALL_STAFF },
       { href: "/admin/media", label: "Media Library", Icon: Images, roles: ALL_STAFF },
       { href: "/admin/creator-tools", label: "Creator Tools", Icon: AudioLines, roles: ALL_STAFF },
+      { href: "/admin/ipa-chart", label: "IPA Chart", Icon: AudioLines, roles: PLATFORM_ADMIN },
     ],
   },
   {
