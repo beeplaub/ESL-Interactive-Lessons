@@ -10,6 +10,6 @@ export const metadata: Metadata = {
 };
 
 export default async function IpaChartPage() {
-  const [audio, settings] = await Promise.all([Promise.resolve(getIpaAudioManifest()), getIpaChartSettings()]);
+  const [audio, settings] = await Promise.all([getIpaAudioManifest(), getIpaChartSettings()]);
   return <LearnerAppShell active="ipa-chart" showRightSidebar={false}><IpaChart audio={audio} view={settings.view} /></LearnerAppShell>;
 }

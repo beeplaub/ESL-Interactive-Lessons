@@ -18,6 +18,7 @@ type VoiceoverRequest = {
   pace: string;
   provider?: "auto" | "kokoro" | "google";
   outputFormat?: "opus" | "wav";
+  instruction?: string;
 };
 
 let client: GoogleGenAI | null = null;
@@ -45,6 +46,7 @@ export function voiceoverRequestHash(request: VoiceoverRequest, provider = voice
   return createHash("sha256")
     .update(JSON.stringify({
       script: request.script.trim(),
+      instruction: request.instruction?.trim() || "",
       voiceName: request.voiceName,
       languageCode: request.languageCode,
       style: request.style,
@@ -110,6 +112,7 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
   const styleInstruction = request.style === "Natural" ? "natural and clear" : request.style.toLowerCase();
   const paceInstruction = request.pace === "Natural" ? "a natural speaking pace" : `a ${request.pace.toLowerCase()} speaking pace`;
   const prompt = [
+    request.instruction?.trim(),
     `Read the following script exactly as written in a ${styleInstruction} voice, using ${paceInstruction}.`,
     "Use natural pauses and accurate pronunciation. Do not add, remove, explain, or introduce any words.",
     "SCRIPT:",

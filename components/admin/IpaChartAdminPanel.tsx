@@ -6,13 +6,18 @@ import { Check, Eye, LayoutGrid, PanelsTopLeft, Radio, RefreshCw } from "lucide-
 import { IpaChart, type IpaChartView } from "@/components/ipa/IpaChart";
 import type { IpaAudioManifest } from "@/lib/ipa/chart";
 import { publishIpaChartView } from "@/app/admin/ipa-chart/actions";
+import { IpaChartAudioAdmin } from "@/components/admin/IpaChartAudioAdmin";
+import type { IpaChartAudioAsset, IpaChartAudioSettings } from "@/lib/ipa/audio";
 
-export function IpaChartAdminPanel({ activeView, configured, revision, updatedAt, audio }: {
+export function IpaChartAdminPanel({ activeView, configured, revision, updatedAt, audio, audioConfigured, audioSettings, audioAssets }: {
   activeView: IpaChartView;
   configured: boolean;
   revision: number;
   updatedAt: string | null;
   audio: IpaAudioManifest;
+  audioConfigured: boolean;
+  audioSettings: IpaChartAudioSettings[];
+  audioAssets: IpaChartAudioAsset[];
 }) {
   const [selectedView, setSelectedView] = useState<IpaChartView>(activeView);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -71,6 +76,8 @@ export function IpaChartAdminPanel({ activeView, configured, revision, updatedAt
       <button type="button" disabled={!configured || !changed || pending} onClick={publish} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-5 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{pending ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} />}{pending ? "Publishing…" : `Publish Version ${selectedView}`}</button>
       {message ? <p role="status" className="text-sm text-[var(--br-text-muted)] sm:basis-full">{message}</p> : null}
     </section>
+
+    <IpaChartAudioAdmin configured={audioConfigured} initialSettings={audioSettings} initialAssets={audioAssets} />
 
     <section className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] p-5">
       <button type="button" aria-expanded={previewOpen} onClick={() => setPreviewOpen(open => !open)} className="flex w-full items-center justify-between gap-3 text-left"><span><span className="block font-bold text-[var(--br-text)]">Preview learner experience</span><span className="mt-1 block text-sm text-[var(--br-text-muted)]">Open the full chart preview for your selected version.</span></span><span className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-surface-muted)] px-3 py-2 text-sm font-semibold"><Eye size={16} />{previewOpen ? "Hide preview" : "Preview"}</span></button>
