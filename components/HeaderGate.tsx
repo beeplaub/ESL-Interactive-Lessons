@@ -13,6 +13,7 @@ export function HeaderGate({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/leaderboard") ||
     pathname.startsWith("/level-test") ||
     pathname.startsWith("/language-profile") ||
+    pathname.startsWith("/ipa-chart") ||
     pathname.startsWith("/profile") ||
     pathname.startsWith("/lessons") ||
     pathname.startsWith("/docs") ||
