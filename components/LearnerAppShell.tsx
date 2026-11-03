@@ -582,7 +582,7 @@ function MobileBottomNav({ active }: { active: ActiveItem }) {
     { href: "/account", label: "Home", icon: Home, key: "home" },
     { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
     { href: "/courses", label: "Courses", icon: BookOpen, key: "courses" },
-    { href: "/wordverse", label: "Wordverse", icon: Orbit, key: "wordverse" },
+    { href: "/games", label: "Games", icon: Gamepad2, key: "games" },
     { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
     { href: "/profile", label: "Profile", icon: User, key: "profile" }
   ];
