@@ -95,6 +95,16 @@
     .modal-backdrop { position:fixed; inset:0; z-index:10; display:none; place-items:center; padding:16px; background:#10162990; backdrop-filter:blur(4px) }
     .modal-backdrop.open { display:grid }
     .modal { width:min(510px,100%); border:1px solid #ffffff80; border-radius:24px; background:white; box-shadow:0 24px 80px #10162955; padding:22px }
+    .quit-confirm { width:min(356px,100%); padding:22px 20px 18px; border:1px solid #e8e2f1; border-radius:20px; background:white; box-shadow:0 20px 60px #10162935; text-align:center }
+    .quit-confirm[hidden] { display:none!important }
+    .quit-confirm-icon { display:grid; width:42px; height:42px; margin:0 auto 11px; place-items:center; border:1px solid #eee8f5; border-radius:14px; background:#f7f4fc; color:#6548c7; font-size:21px; font-weight:850 }
+    .quit-confirm h2 { margin:0; color:var(--ink); font-size:18px; letter-spacing:-.02em }
+    .quit-confirm p { margin:7px 0 17px; color:var(--muted); font-size:12px; line-height:1.5 }
+    .quit-confirm-actions { display:flex; justify-content:center; gap:8px }
+    .quit-confirm-actions button { min-height:38px; padding:0 13px; border:1px solid var(--line); border-radius:10px; background:white; color:var(--purple-dark); font:inherit; font-size:12px; font-weight:850; cursor:pointer }
+    .quit-confirm-actions button:focus-visible { outline:2px solid #8a72d4; outline-offset:2px }
+    .quit-confirm-actions .confirm-quit { border-color:#9e3f31; background:#9e3f31; color:white }
+    .quit-confirm-actions .confirm-quit:hover { border-color:#84352b; background:#84352b }
     .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px }
     .modal-kicker { margin:0; color:var(--purple); font-size:10px; font-weight:950; letter-spacing:.14em; text-transform:uppercase }
     .modal h2 { margin:3px 0 0; font-size:22px; letter-spacing:-.03em }
@@ -153,8 +163,8 @@
     </div>
     <div class="save-toast" id="saveToast" role="status" aria-live="polite" aria-hidden="true"><span class="save-toast-icon" aria-hidden="true">✓</span><p><strong>Your progress is saved</strong><small>Come back anytime.</small></p></div>
   </main>
-  <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <section class="modal">
+  <div class="modal-backdrop" id="modal">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal-head"><div><p class="modal-kicker">IPA challenge · <span id="accentLabel">British English</span></p><h2 id="modalTitle">Question <span id="qNumber">1</span> of 1</h2></div><button type="button" class="close" id="closeModal" aria-label="Close question">×</button></div>
       <div class="progress-wrap"><div class="progress" id="progress"></div></div>
       <div class="q-meta" id="qType">HEAR AND IDENTIFY</div><p class="question" id="questionText">Which word contains /iː/?</p>
@@ -163,6 +173,12 @@
       <div class="feedback" id="feedback" role="status"></div>
       <div class="score-breakdown" id="scoreBreakdown" hidden></div>
       <div class="next"><button class="small-cta" type="button" id="nextButton" disabled>Choose an answer</button></div>
+    </section>
+    <section class="quit-confirm" id="quitDialog" role="alertdialog" aria-modal="true" aria-labelledby="quitTitle" aria-describedby="quitDescription" tabindex="-1" hidden>
+      <div class="quit-confirm-icon" aria-hidden="true">↗</div>
+      <h2 id="quitTitle">Leave this game?</h2>
+      <p id="quitDescription">Your saved progress will be here when you return.</p>
+      <div class="quit-confirm-actions"><button type="button" id="stayPlayingButton">Keep playing</button><button type="button" class="confirm-quit" id="confirmQuitButton">Quit game</button></div>
     </section>
   </div>
   <script>
@@ -388,6 +404,13 @@
       requestAnimationFrame(animateSnakeBodies);
     }
     const modal=document.getElementById('modal'),nextButton=document.getElementById('nextButton');
+    const quitDialog=document.getElementById('quitDialog'),questionDialog=modal.querySelector('.modal'),quitButton=document.getElementById('quitButton');
+    function closeQuitConfirmation(){quitDialog.hidden=true;questionDialog.hidden=false;modal.classList.remove('open');quitButton.focus();}
+    function openQuitConfirmation(){
+      const hasUnsavedProgress=turnActive||currentPosition.value!==lastSavedPosition;
+      document.getElementById('quitDescription').textContent=hasUnsavedProgress?'You have unsaved progress. If you leave now, your latest moves will be lost.':'Your saved progress will be here when you return.';
+      questionDialog.hidden=true;quitDialog.hidden=false;modal.classList.add('open');document.getElementById('stayPlayingButton').focus();
+    }
     async function openTurn(){
       if(isMoving||loadingQuestions||currentPosition.value>=100)return;
       getAudioContext();
@@ -483,9 +506,10 @@
     });
     document.getElementById('quitButton').addEventListener('click',()=>{
       if(isMoving||loadingQuestions){document.getElementById('turnStatus').textContent='Wait for the move to finish before quitting.';return;}
-      if((turnActive||currentPosition.value!==lastSavedPosition)&&!window.confirm('You have unsaved progress. Quit without saving?'))return;
-      window.location.assign('/games');
+      openQuitConfirmation();
     });
+    document.getElementById('stayPlayingButton').addEventListener('click',closeQuitConfirmation);
+    document.getElementById('confirmQuitButton').addEventListener('click',()=>window.location.assign('/games'));
     document.getElementById('soundToggle').addEventListener('click',toggleSound);
     document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
     document.getElementById('audioButton').addEventListener('click',async()=>{
@@ -508,7 +532,8 @@
     });
     document.getElementById('rulesButton').addEventListener('click',()=>window.alert('Each turn has one IPA question with a hidden value from one to five points. Answer correctly to reveal its value and move that many squares; an incorrect answer earns no movement. The value is randomly assigned again on your next turn. Landing on a ladder climbs up; landing on a snake slides down.'));
     accentSelect.addEventListener('change',e=>{document.getElementById('accentLabel').textContent=e.target.selectedOptions[0].textContent;});
-    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});
+    modal.addEventListener('click',e=>{if(e.target===modal){if(!quitDialog.hidden)closeQuitConfirmation();else modal.classList.remove('open');}});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open')){if(!quitDialog.hidden)closeQuitConfirmation();else modal.classList.remove('open');}});
   </script>
 </body>
 </html>
