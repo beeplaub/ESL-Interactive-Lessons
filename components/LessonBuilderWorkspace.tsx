@@ -32,6 +32,7 @@ import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor"
 import AiActivityGeneratorModal from "@/components/AiActivityGeneratorModal";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
+import { CalloutLanguageFields } from "@/components/CalloutLanguageFields";
 import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataEditor";
 import { LessonOutcomeManager } from "@/components/LessonOutcomeManager";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
@@ -1802,8 +1803,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   if (blockType === "CALLOUT") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Callout title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Callout text<textarea name="body" rows={5} defaultValue={asString(data.body ?? data.text)} placeholder="Supports line breaks, **bold**, _italic_, __underline__, and lists." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <CalloutLanguageFields data={data} />
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Hide text until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see the callout title and a Reveal button first.</span></span></label>
         <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
       </div>

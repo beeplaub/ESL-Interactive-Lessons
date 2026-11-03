@@ -8,6 +8,7 @@ import type { Json } from "@/types/database.types";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { parseAudioTracks } from "@/lib/audioTracks";
 import { fireCompletionConfetti } from "@/lib/gamification/confetti";
+import { CALLOUT_BACKGROUNDS, calloutBackgroundKey } from "@/lib/calloutBackgrounds";
 
 export type PreviewLessonBlock = {
   id: string;
@@ -203,6 +204,60 @@ export function LessonBlockPreview({
   );
 }
 
+function CalloutBlock({ content, align, alwaysOpen }: { content: Record<string, unknown>; align: string; alwaysOpen: boolean }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const [isOpen, setIsOpen] = useState(false);
+  const englishTitle = asString(content.title);
+  const bengaliTitle = asString(content.title_bn);
+  const englishBody = asString(content.body) || "Add a callout message.";
+  const bengaliBody = asString(content.body_bn);
+  const hasBengali = Boolean(bengaliTitle || bengaliBody);
+  const isBengali = language === "bn" && hasBengali;
+  const title = isBengali ? bengaliTitle : englishTitle;
+  const body = isBengali ? bengaliBody : englishBody;
+  const hidden = content.reveal_hidden === true;
+  const backgroundColor = CALLOUT_BACKGROUNDS[calloutBackgroundKey(content.background_color)].color;
+  const revealed = !hidden || alwaysOpen || isOpen;
+  const actionLabel = isBengali ? (isOpen ? "বন্ধ করুন" : "খুলুন") : (isOpen ? "Close" : "Open");
+  const actions = hasBengali || (hidden && !alwaysOpen) ? (
+    <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-amber-200 bg-white/80 shadow-sm" role="group" aria-label={isBengali ? "কলআউটের ভাষা ও প্রদর্শন নিয়ন্ত্রণ" : "Callout language and reveal controls"}>
+      {hasBengali ? (
+        <button
+          type="button"
+          aria-label={isBengali ? "Switch to English" : "Switch to Bengali"}
+          onClick={() => setLanguage(isBengali ? "en" : "bn")}
+          className="inline-flex h-8 w-[4.5rem] shrink-0 items-center justify-center whitespace-nowrap border-r border-amber-200 bg-[var(--br-brand)] px-2 text-center text-xs font-bold text-on-dark transition hover:brightness-95"
+        >{isBengali ? "বাংলা" : "English"}</button>
+      ) : null}
+      {hidden && !alwaysOpen ? (
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((open) => !open)}
+          className="inline-flex h-8 w-[5.25rem] shrink-0 items-center justify-center whitespace-nowrap bg-[var(--br-action-strong)] px-2 text-center text-xs font-bold text-on-dark transition hover:brightness-95"
+        >{actionLabel}</button>
+      ) : null}
+    </div>
+  ) : null;
+  const bodyContent = <div lang={isBengali ? "bn" : "en"} className="text-base leading-6 text-amber-900"><FormattedText text={body} /></div>;
+  const visibleTitle = title || (hidden ? (isBengali ? "নোট" : "Note") : "");
+
+  return (
+    <div className="rounded-lg border p-3 sm:p-4" style={{ backgroundColor, borderColor: "var(--br-brand)" }}>
+      <div className="flex items-start gap-3">
+        <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
+        <div className={`min-w-0 flex-1 ${align}`} lang={isBengali ? "bn" : "en"}>
+          {visibleTitle || actions ? <div className="flex items-center justify-between gap-2">
+            {visibleTitle ? <h3 className="min-w-0 font-semibold text-amber-950">{visibleTitle}</h3> : <span />}
+            {actions}
+          </div> : null}
+          {revealed ? <div className={`${visibleTitle ? "mt-1" : ""}`}>{bodyContent}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = false }: { block: PreviewLessonBlock; checkedItems?: boolean[]; onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void; alwaysOpen?: boolean }) {
   const content = asRecord(block.content);
 
@@ -269,37 +324,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
 
   if (block.block_type === "CALLOUT") {
     const align = textAlignClass(content.text_align);
-    const hidden = content.reveal_hidden === true;
-    const title = asString(content.title);
-    const bodyContent = <div className="text-base leading-6 text-amber-900"><FormattedText text={asString(content.body) || "Add a callout message."} /></div>;
-    const calloutContent = (
-      <div className={align}>
-        {title ? <h3 className="font-semibold text-amber-950">{title}</h3> : null}
-        <div className="mt-1">{bodyContent}</div>
-      </div>
-    );
-    if (hidden) {
-      return (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
-          <div className="flex items-start gap-3">
-            <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
-            <div className={`min-w-0 flex-1 ${align}`}>
-              <OpenCloseDetails alwaysOpen={alwaysOpen} summary={<span className="min-w-0 flex-1 font-semibold text-amber-950">{title || "Note"}</span>} summaryClassName="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden">
-                <div className="mt-2 border-t border-amber-200 pt-2">{bodyContent}</div>
-              </OpenCloseDetails>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
-        <div className="flex items-start gap-3">
-          <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
-          {calloutContent}
-        </div>
-      </div>
-    );
+    return <CalloutBlock content={content} align={align} alwaysOpen={alwaysOpen} />;
   }
 
   if (block.block_type === "STICKY_NOTE") {

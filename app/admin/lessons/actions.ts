@@ -13,6 +13,7 @@ import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import type { Json, SlideType } from "@/types/database.types";
+import { calloutBackgroundKey } from "@/lib/calloutBackgrounds";
 import { ALL_ACTIVITIES_REFERENCE, ALL_CONTENT_BLOCK_REFERENCE } from "@/lib/allActivitiesReference";
 import { generateIpaPracticeItems, type IpaPracticeMode, type IpaConversionDirection, type IpaSortMode } from "@/lib/ipa/practice";
 import type { IpaAccent } from "@/lib/ipa/chart";
@@ -209,6 +210,9 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     return {
       title: nullableText(formData.get("title")),
       body: String(formData.get("body") || "").trim(),
+      title_bn: nullableText(formData.get("title_bn")),
+      body_bn: String(formData.get("body_bn") || "").trim(),
+      background_color: calloutBackgroundKey(formData.get("callout_background")),
       text_align: textAlignValue(formData.get("text_align")),
       reveal_hidden: formData.get("reveal_hidden") === "on"
     };
@@ -511,7 +515,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "BULLETS") return { title: "Key points", eyebrow: "Key points", items: ["First point", "Second point"], reveal_hidden: false };
   if (blockType === "REVIEW_CHECKLIST") return { title: "I can now…", intro: "Check each statement you can do confidently.", items: ["I can use the target language.", "I can understand the key idea."], require_completion: false };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
-  if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
+  if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", title_bn: "নোট", body_bn: "শিক্ষার্থীদের জন্য একটি সংক্ষিপ্ত নোট লিখুন।", background_color: "ivory", reveal_hidden: false };
   if (blockType === "STICKY_NOTE") return { title: "Remember this", body: "Use ‘could’ for polite requests.", card_size: 100 };
   if (blockType === "CLUES") return { title: "Clues", items: ["although", "however", "for example", "because"] };
   if (blockType === "DIVIDER") return { line_style: "solid", line_width: 100 };
