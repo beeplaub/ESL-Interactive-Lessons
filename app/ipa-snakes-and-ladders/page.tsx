@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { IpaSnakesAndLaddersGame } from "@/components/games/IpaSnakesAndLaddersGame";
 import { requireUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -7,14 +9,20 @@ export const metadata: Metadata = {
 };
 
 export default async function IpaSnakesAndLaddersPage() {
-  await requireUser();
+  const { user } = await requireUser();
 
   return (
-    <iframe
-      title="IPA Snakes and Ladders game"
-      src="/ipa-snakes-and-ladders.html"
-      className="fixed inset-0 z-[100] h-dvh w-screen border-0 bg-[#f5f6fa]"
-      allow="autoplay"
-    />
+    <LearnerAppShell
+      active="games"
+      showRightSidebar={false}
+      contentClassName="flex flex-col gap-4"
+      breadcrumbs={[
+        { label: "Home", href: "/account" },
+        { label: "Games", href: "/games" },
+        { label: "IPA Snakes and Ladders" },
+      ]}
+    >
+      <IpaSnakesAndLaddersGame progressKey={`brenup:ipa-snakes-and-ladders:${user.id}:v1`} />
+    </LearnerAppShell>
   );
 }

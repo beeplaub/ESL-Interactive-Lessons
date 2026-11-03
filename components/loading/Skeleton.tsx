@@ -1,23 +1,14 @@
+import { BrandLogo } from "@/components/BrandLogo";
+
 /**
- * Shared, lightweight loading-skeleton primitives used by route-level
- * `loading.tsx` files across the app. These are pure, static, non-async
- * components — no data fetching, no auth checks — so Next.js can render
- * them instantly as a Suspense fallback while the real (async) page loads.
- *
- * `LearnerShellSkeleton` intentionally re-creates the *shape* of
- * `LearnerAppShell` (sidebar width, topbar height, right-rail width,
- * outer container spacing) using plain CSS, rather than rendering the
- * real shell — the real shell is a server component that awaits
- * Supabase/auth calls, which is exactly the latency this skeleton exists
- * to cover for. Keeping the two visually in sync is a manual convention,
- * not an automatic one: if LearnerAppShell's outer container/sidebar/
- * right-rail dimensions change, update the matching values here too.
+ * Shared, lightweight loading fallbacks used by route-level `loading.tsx`
+ * files. They do no data fetching or auth work, so Next.js can render them
+ * immediately while the real page loads.
  */
 
 export function Bone({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-lg bg-[var(--br-surface-strong)] ${className}`} />;
 }
-
 export function HeroSkeleton({ className = "" }: { className?: string }) {
   return (
     <div className={`overflow-hidden rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 sm:p-7 ${className}`}>
@@ -72,36 +63,30 @@ export function PanelSkeleton({ className = "" }: { className?: string }) {
   );
 }
 
-/**
- * Recreates LearnerAppShell's outer frame (dark sidebar rail, mobile
- * topbar clearance, optional right rail) so a route transition doesn't
- * make the whole app chrome flash away and back — only the inner content
- * area swaps between this skeleton and the real page.
- */
+/** Compatibility wrapper for routes that previously rendered page skeletons. */
 export function LearnerShellSkeleton({
-  children,
-  showRightSidebar = false,
+  children: _children,
+  showRightSidebar: _showRightSidebar = false,
 }: {
   children: React.ReactNode;
   showRightSidebar?: boolean;
 }) {
-  return (
-    <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
-      <div className="fixed inset-x-0 top-0 z-30 h-[60px] animate-pulse bg-gradient-to-br from-[var(--br-dark-card)] to-[var(--br-dark-card)] min-[1180px]:hidden" />
-      <div className="sticky top-6 hidden h-[calc(100vh-48px)] w-[225px] min-w-[225px] animate-pulse rounded-[24px] bg-gradient-to-b from-[var(--br-dark-card)] to-[var(--br-dark-card)] min-[1180px]:block" />
-      <section className="min-w-0 flex-1 pt-[72px] min-[1180px]:pt-0">{children}</section>
-      {showRightSidebar ? (
-        <aside className="sticky top-6 hidden h-[520px] w-[285px] min-w-[285px] animate-pulse rounded-[20px] bg-[var(--br-canvas-elevated)] min-[1180px]:block" />
-      ) : null}
-    </div>
-  );
+  return <CenteredSpinner />;
 }
 
 export function CenteredSpinner({ label }: { label?: string }) {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-[var(--br-text-muted)]">
-      <div className="size-9 animate-spin rounded-full border-[3px] border-[var(--br-surface-strong)] border-t-[var(--br-chart-primary)]" />
-      {label ? <p className="text-sm font-semibold">{label}</p> : null}
+    <div className="br-loading-screen">
+      <div className="br-loading-card" role="status" aria-live="polite" aria-label={label || "Getting your page ready"}>
+        <div className="br-loading-system" aria-hidden="true">
+          <div className="br-loading-orbit br-loading-orbit-one"><span className="br-loading-planet">/iː/</span></div>
+          <div className="br-loading-orbit br-loading-orbit-two"><span className="br-loading-planet">/ʃ/</span></div>
+          <div className="br-loading-orbit br-loading-orbit-three"><span className="br-loading-planet">/uː/</span></div>
+          <span className="br-loading-sun"><BrandLogo variant="icon" alt="" className="size-full" /></span>
+        </div>
+        <p className="br-loading-caption">{label || "Getting your page ready…"}</p>
+        <div className="br-loading-wave" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent } from "react";
-import { ArrowRight, AudioLines, BookOpen, Check, ChevronRight, Ear, Info, Search, Volume2, X, Square } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, AudioLines, BookOpen, Check, ChevronRight, Ear, Gamepad2, Info, Search, Volume2, X, Square } from "lucide-react";
 import { IPA_ACCENTS, IPA_CHARTS, plainWord, spellingParts, type IpaAccent, type IpaAudioManifest, type IpaExample, type IpaGroup, type IpaSound } from "@/lib/ipa/chart";
 import { useIpaPlayback } from "./useIpaPlayback";
 import styles from "./ipa-chart.module.css";
@@ -147,6 +148,7 @@ export function IpaChart({ audio, view = "A" }: { audio: IpaAudioManifest; view?
   return <div className={styles.workspace} data-view={view}>
     <header className={styles.hero}>
       <h1 className={styles.pageTitle}>IPA Chart</h1>
+      <Link href="/ipa-snakes-and-ladders" className={styles.questLink}><Gamepad2 size={16} aria-hidden="true" /><span>Play IPA Snakes &amp; Ladders</span><ArrowRight size={15} aria-hidden="true" /></Link>
     </header>
     <div className={styles.toolbar}>
       <div className={styles.toolbarTop}>
