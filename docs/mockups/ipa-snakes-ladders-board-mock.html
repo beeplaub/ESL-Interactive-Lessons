@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IPA Snakes and Ladders — Board Mock</title>
+  <style>
+    :root { color-scheme: light; --ink:#182338; --muted:#66738a; --line:#dbe1eb; --paper:#f5f6fa; --purple:#6548c7; --purple-dark:#4932a4; --orange:#f16a4c; --mint:#ccefe3; --sky:#cfe8ff; --yellow:#ffedb6; }
+    * { box-sizing:border-box }
+    [hidden] { display:none !important }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif }
+    button,select { font:inherit }
+    .page { width:min(1240px,100%); margin:auto; padding:28px clamp(14px,3vw,38px) 40px }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px }
+    .brand { display:flex; align-items:center; gap:10px; color:var(--ink); font-weight:900; letter-spacing:-.03em }
+    .brand-mark { display:grid; place-items:center; width:38px; height:38px; border-radius:13px; background:var(--purple); color:white; font-size:20px }
+    .top-actions { display:flex; align-items:center; gap:10px }
+    .select-wrap { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; font-weight:750 }
+    select { border:1px solid #c9b8ff; border-radius:11px; background:linear-gradient(135deg,#f4efff,#e8f4ff); color:#4932a4; padding:10px 34px 10px 12px; font-weight:850; box-shadow:0 3px 10px #6548c71a; cursor:pointer }
+    .sound-toggle { border:1px solid #b8a6f5; border-radius:11px; background:linear-gradient(135deg,#f1eaff,#e6f5ff); color:#4932a4; padding:10px 12px; font-weight:850; cursor:pointer }
+    .ghost { border:1px solid #6548c7; border-radius:11px; background:linear-gradient(135deg,#7559d5,#5338b3); color:white; padding:10px 14px; font-weight:850; box-shadow:0 5px 13px #6548c733; cursor:pointer; transition:transform .15s,filter .15s }.ghost:hover { filter:brightness(.94); transform:translateY(-1px) }
+    .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:20px }
+    .eyebrow { margin:0 0 5px; color:var(--purple); font-size:11px; font-weight:900; letter-spacing:.16em; text-transform:uppercase }
+    h1 { margin:0; font-size:clamp(27px,4vw,40px); line-height:1.08; letter-spacing:-.045em }
+    .intro { max-width:650px; margin:8px 0 0; color:var(--muted); font-size:14px }
+    .play-layout { display:block }
+    .board-card { border:1px solid var(--line); border-radius:22px; background:white; box-shadow:0 12px 34px #2029460c }
+    .board-card { padding:clamp(10px,2vw,20px) }
+    .board-toolbar { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 2px 12px }
+    .board-label { font-weight:900; font-size:13px }
+    .score-breakdown { display:grid; gap:7px; margin-top:12px }
+    .score-line { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 11px; border:1px solid var(--line); border-radius:10px; background:#fafaff; color:#46536a; font-size:12px; font-weight:750 }
+    .score-line strong { color:var(--purple-dark) }
+    .score-total { margin-top:4px; padding:12px; border-radius:12px; background:#f1ebff; color:var(--purple-dark); font-size:14px; font-weight:950 }
+    .legend { display:flex; gap:12px; color:var(--muted); font-size:11px; font-weight:750 }
+    .legend span { display:flex; align-items:center; gap:5px }
+    .dot { width:9px; height:9px; border-radius:50%; display:inline-block }
+    .dot.snake-small { background:#9276c5 }.dot.snake-medium { background:#cf8048 }.dot.snake-large { background:#5f8795 }.dot.ladder { background:#ef9f38 }.dot.you { background:var(--purple) }
+    .board { position:relative; isolation:isolate; display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); aspect-ratio:1; overflow:hidden; border:2px solid #b9c2d2; border-radius:13px; background:#fff }
+    .cells { position:absolute; inset:0; display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); grid-template-rows:repeat(10,minmax(0,1fr)); z-index:0 }
+    .cell { position:relative; display:flex; align-items:flex-start; justify-content:flex-start; min-width:0; padding:clamp(2px,.5vw,7px); border-right:1px solid #ffffffa8; border-bottom:1px solid #ffffffa8; color:#29354b; font-size:clamp(8px,1.05vw,13px); font-weight:850 }
+    .cell:nth-child(20n+1),.cell:nth-child(20n+3),.cell:nth-child(20n+5),.cell:nth-child(20n+7),.cell:nth-child(20n+9) { background:#dceeff }
+    .cell:nth-child(20n+2),.cell:nth-child(20n+4),.cell:nth-child(20n+6),.cell:nth-child(20n+8),.cell:nth-child(20n+10) { background:#f5edff }
+    .cell:nth-child(20n+11),.cell:nth-child(20n+13),.cell:nth-child(20n+15),.cell:nth-child(20n+17),.cell:nth-child(20n+19) { background:#fff1c9 }
+    .cell:nth-child(20n+12),.cell:nth-child(20n+14),.cell:nth-child(20n+16),.cell:nth-child(20n+18),.cell:nth-child(20n+20) { background:#dcf4e9 }
+    .cell.current { background:#e7dcff!important; outline:3px solid var(--purple); outline-offset:-3px; z-index:2; cursor:pointer }
+    .cell.current:hover { background:#d8c8ff!important }
+    .cell.start { box-shadow:inset 0 0 0 3px #57b891 }
+    .cell.finish { box-shadow:inset 0 0 0 3px #f0ae38 }
+    .cell-number { position:relative; z-index:2; text-shadow:0 1px 0 #fff }
+    .player-layer { position:absolute; inset:0; z-index:4; pointer-events:none }
+    .player-pin { position:absolute; display:block; width:8%; height:9%; padding:0; transform:translate(-50%,-72%); border:0; border-radius:12px; background:transparent; cursor:pointer; pointer-events:auto; transition:left .2s ease,top .2s ease }
+    .token { position:absolute; inset:0; display:block; transform-origin:50% 82%; animation:avatar-bob 1.3s ease-in-out infinite }
+    .token.token-moving { animation:avatar-hop .38s cubic-bezier(.3,.75,.45,1) both }
+    .avatar-art { display:block; width:100%; height:100%; overflow:visible; filter:drop-shadow(0 2px 2px #19233855) }
+    .quiz-bubble { position:absolute; right:-6%; top:-13%; display:grid; width:24px; height:21px; place-items:center; border:1.5px solid #d9d0ff; border-radius:9px; background:white; color:var(--purple-dark); box-shadow:0 3px 7px #34256e2b; animation:bubble-float 1.1s ease-in-out infinite }
+    .quiz-bubble::after { position:absolute; bottom:-4px; left:5px; width:7px; height:7px; content:""; transform:rotate(45deg); border-right:1.5px solid #d9d0ff; border-bottom:1.5px solid #d9d0ff; background:white }
+    .quiz-dots { position:relative; z-index:1; margin-top:-2px; font-size:10px; font-weight:950; letter-spacing:1px }
+    @keyframes avatar-bob { 0%,100% { transform:translateY(0) rotate(-2deg) } 50% { transform:translateY(-5px) rotate(2deg) } }
+    @keyframes avatar-hop { 0% { transform:translateY(0) scale(.96) } 48% { transform:translateY(-14px) scale(1.04) } 100% { transform:translateY(0) scale(1) } }
+    @keyframes bubble-float { 0%,100% { transform:translateY(1px) } 50% { transform:translateY(-3px) } }
+    .board-art { position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; overflow:visible }
+    .route-under { fill:none; stroke:white; stroke-width:25; stroke-linecap:round; stroke-linejoin:round; opacity:.88 }
+    .snake-body { stroke-width:2; stroke-linejoin:round; filter:drop-shadow(0 3px 2px #18233842) }
+    .snake-highlight { fill:none; stroke-width:3; stroke-linecap:round; opacity:.75 }
+    .snake-scale { fill:none; stroke-width:2.2; stroke-linecap:round; opacity:.7 }
+    .snake-belly-plate { fill:none; stroke-width:3.2; stroke-linecap:round; opacity:.82 }
+    .snake-head { stroke-width:2.6; stroke-linejoin:round; filter:drop-shadow(0 2px 1px #18233844) }
+    .snake-jaw { stroke-width:1.4 }
+    .eye-socket { stroke-width:1.6 }
+    .eye { stroke-width:1.4 }.pupil { fill:#17232d }
+    .nostril { fill:#17232d; opacity:.75 }
+    .tongue { fill:none; stroke:#b74e72; stroke-width:2.7; stroke-linecap:round; stroke-linejoin:round }
+    .ladder-rail { stroke:#d88624; stroke-width:7; stroke-linecap:round; filter:drop-shadow(0 2px 1px #63350033) }
+    .ladder-rung { stroke:#ffc65d; stroke-width:5; stroke-linecap:round }
+    .board-note { display:flex; justify-content:space-between; gap:12px; margin:12px 2px 0; color:var(--muted); font-size:12px }
+    .board-note strong { color:var(--purple-dark) }.board-note #turnStatus { font-weight:800;color:var(--purple-dark) }
+    .modal-backdrop { position:fixed; inset:0; z-index:10; display:none; place-items:center; padding:16px; background:#10162990; backdrop-filter:blur(4px) }
+    .modal-backdrop.open { display:grid }
+    .modal { width:min(510px,100%); border:1px solid #ffffff80; border-radius:24px; background:white; box-shadow:0 24px 80px #10162955; padding:22px }
+    .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px }
+    .modal-kicker { margin:0; color:var(--purple); font-size:10px; font-weight:950; letter-spacing:.14em; text-transform:uppercase }
+    .modal h2 { margin:3px 0 0; font-size:22px; letter-spacing:-.03em }
+    .close { width:34px; height:34px; border:1px solid var(--line); border-radius:10px; background:white; color:var(--muted); font-size:19px; cursor:pointer }
+    .progress-wrap { height:7px; margin:17px 0 20px; overflow:hidden; border-radius:20px; background:#eceff4 }
+    .progress { width:20%; height:100%; border-radius:inherit; background:var(--purple) }
+    .q-meta { color:var(--muted); font-size:11px; font-weight:800 }
+    .question { margin:7px 0 15px; font-size:20px; font-weight:900; line-height:1.3 }
+    .audio-button { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:10px; background:#f8f7fc; color:var(--purple-dark); padding:8px 11px; font-size:12px; font-weight:850; cursor:pointer }
+    .answers { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:15px }
+    .answer { min-height:48px; border:1px solid var(--line); border-radius:12px; background:white; color:var(--ink); font-weight:850; cursor:pointer }
+    .answer:hover { border-color:var(--purple); background:#f6f3ff }
+    .answer.correct { border-color:#4aa883; background:#e4f7ef; color:#166148 }
+    .answer.wrong { border-color:#e58373; background:#fff0ed; color:#9e3f31 }
+    .feedback { min-height:22px; margin-top:12px; color:#237653; font-size:12px; font-weight:800 }
+    .next { display:flex; justify-content:flex-end; margin-top:12px }
+    .small-cta { min-height:42px; border:0; border-radius:11px; background:var(--purple); color:white; padding:0 17px; font-weight:900; cursor:pointer }
+    @media (max-width:900px) { .board-note { font-size:10px } }
+    @media (max-width:680px) { .page { padding:16px 10px 30px }.topbar { margin-bottom:18px }.brand-mark { width:34px;height:34px }.hero { display:block; margin-bottom:15px }.intro { font-size:13px }.board-card { padding:8px; border-radius:17px }.board-toolbar { margin-bottom:8px }.legend { gap:7px; font-size:9px }.cell { padding:2px; font-size:clamp(7px,2.3vw,11px) }.player-pin { width:8.5%;height:9.5% }.board-note { font-size:10px } }
+    @media (max-width:390px) { .top-actions { gap:6px }.select-wrap { font-size:10px }select { padding:8px 24px 8px 8px;font-size:11px }.ghost { padding:8px 9px;font-size:11px }.sound-toggle { padding:8px 9px;font-size:10px }.legend { gap:5px }.dot { width:7px;height:7px } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">ə</span><span>BrenUp <span style="color:#929bad;font-weight:650">/ Practice</span></span></div>
+      <div class="top-actions">
+        <label class="select-wrap" for="accent">Accent
+          <select id="accent"><option>British English</option><option>American English</option></select>
+        </label>
+        <button class="sound-toggle" type="button" id="soundToggle" aria-pressed="false">♫ Start sound</button>
+        <button class="ghost" type="button" id="rulesButton">How to play</button>
+      </div>
+    </header>
+    <section class="hero">
+      <div><p class="eyebrow">Pronunciation board game</p><h1>IPA Snakes and Ladders</h1><p class="intro">Answer five IPA questions. Each correct answer earns a hidden 1–5 points; your total moves your explorer.</p></div>
+    </section>
+    <div class="play-layout">
+      <section class="board-card" aria-label="Snakes and ladders game board">
+        <div class="board-toolbar"><span class="board-label">The sound trail</span><div class="legend"><span><i class="dot snake-small"></i>Small</span><span><i class="dot snake-medium"></i>Medium</span><span><i class="dot snake-large"></i>Large</span><span><i class="dot ladder"></i>Ladder</span><span><i class="dot you"></i>You</span></div></div>
+        <div class="board" id="board">
+          <div class="cells" id="cells"></div>
+          <svg class="board-art" id="art" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="player-layer"><button class="player-pin" id="playerPin" type="button" aria-label="Your sound explorer. Click to take a turn."></button></div>
+        </div>
+        <div class="board-note"><span>Start at <strong>1</strong> · reach <strong>100</strong> to finish</span><span id="turnStatus">Tap your explorer to start</span></div>
+      </section>
+
+    </div>
+  </main>
+  <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <section class="modal">
+      <div class="modal-head"><div><p class="modal-kicker">IPA challenge · <span id="accentLabel">British English</span></p><h2 id="modalTitle">Question <span id="qNumber">1</span> of 5</h2></div><button type="button" class="close" id="closeModal" aria-label="Close question">×</button></div>
+      <div class="progress-wrap"><div class="progress" id="progress"></div></div>
+      <div class="q-meta" id="qType">HEAR AND IDENTIFY</div><p class="question" id="questionText">Which word contains /iː/?</p>
+      <button class="audio-button" type="button" id="audioButton">🔊 <span>Hear the sound</span></button>
+      <div class="answers" id="answers"></div>
+      <div class="feedback" id="feedback" role="status"></div>
+      <div class="score-breakdown" id="scoreBreakdown" hidden></div>
+      <div class="next"><button class="small-cta" type="button" id="nextButton" disabled>Choose an answer</button></div>
+    </section>
+  </div>
+  <script>
+    const cells = document.getElementById('cells');
+    const board = document.getElementById('board');
+    const art = document.getElementById('art');
+    const svgDefs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+    svgDefs.innerHTML='<linearGradient id="snake-gradient-small" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#c2a9e5"/><stop offset=".48" stop-color="#8b70c1"/><stop offset="1" stop-color="#574777"/></linearGradient><linearGradient id="snake-gradient-medium" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#f1bd7a"/><stop offset=".48" stop-color="#c97842"/><stop offset="1" stop-color="#77432f"/></linearGradient><linearGradient id="snake-gradient-large" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#a6c6c7"/><stop offset=".48" stop-color="#557f91"/><stop offset="1" stop-color="#2c4e67"/></linearGradient>';
+    art.appendChild(svgDefs);
+    const playerPin=document.getElementById('playerPin');
+    const currentPosition = { value:1 };
+    const ladders = [[3,22],[8,30],[20,41],[28,55],[36,57],[51,72],[71,92],[80,99]];
+    const snakes = [[17,7],[54,34],[62,19],[64,60],[87,24],[93,73],[95,75],[98,79]];
+    const questions = [
+      {type:'HEAR AND IDENTIFY', text:'Which word contains /iː/?', sound:'/iː/', choices:['ship','sheep','good','bed'], answer:'sheep'},
+      {type:'WORD TO IPA', text:'Choose the phonemic transcription for “ship”.', sound:'Hear “ship”', choices:['/ʃɪp/','/ʃiːp/','/sɪp/','/ʃeɪp/'], answer:'/ʃɪp/'},
+      {type:'SOUND CONTRAST', text:'Which word has the short /ɪ/ sound?', sound:'Compare the words', choices:['seat','sheep','ship','wait'], answer:'ship'},
+      {type:'SOUND FEATURE', text:'Is /θ/ voiced or voiceless?', sound:'/θ/', choices:['Voiced','Voiceless','A vowel','A diphthong'], answer:'Voiceless'},
+      {type:'SPELLING CLUE', text:'Which letters usually represent /ʃ/ in “sheep”?', sound:'Listen to “sheep”', choices:['sh','ee','p','e'], answer:'sh'}
+    ];
+    let qIndex=0, correct=0, answered=false;
+    let isMoving=false, turnActive=false, showSummary=false, turnScore=0, questionPoints=[], questionCorrect=[];
+    let soundOn=true, soundStarted=false, audioContext=null, musicTimer=null, musicIndex=0;
+    function getAudioContext(){
+      if(!soundOn)return null;
+      const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+      if(!AudioContextClass)return null;
+      if(!audioContext)audioContext=new AudioContextClass();
+      soundStarted=true;
+      const toggle=document.getElementById('soundToggle');if(toggle){toggle.textContent='♫ Sound: On · tap to mute';toggle.setAttribute('aria-pressed','true');}
+      if(audioContext.state==='suspended')audioContext.resume();
+      if(!musicTimer)startMusic();
+      return audioContext;
+    }
+    function playNote(frequency,duration=.24,type='triangle',volume=.025,when){
+      const context=getAudioContext();if(!context)return;
+      const start=when??context.currentTime,osc=context.createOscillator(),gain=context.createGain();
+      osc.type=type;osc.frequency.setValueAtTime(frequency,start);
+      gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(volume,start+.025);gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
+      osc.connect(gain);gain.connect(context.destination);osc.start(start);osc.stop(start+duration+.02);
+    }
+    function startMusic(){
+      const context=getAudioContextWithoutMusic();if(!context||musicTimer)return;
+      const melody=[392,494,587,494,440,523,659,523,392,494,587,784,659,587,494,440];
+      musicTimer=window.setInterval(()=>{
+        if(!soundOn||audioContext?.state!=='running')return;
+        const now=context.currentTime,frequency=melody[musicIndex%melody.length];
+        playNote(frequency,.34,'triangle',.078,now);
+        if(musicIndex%4===0)playNote([196,147,174,130][Math.floor(musicIndex/4)%4],.5,'sine',.04,now);
+        musicIndex++;
+      },420);
+    }
+    function getAudioContextWithoutMusic(){
+      const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+      if(!AudioContextClass)return null;
+      if(!audioContext)audioContext=new AudioContextClass();
+      if(audioContext.state==='suspended')audioContext.resume();
+      return audioContext;
+    }
+    function playLadderSound(){
+      const context=getAudioContext();if(!context)return;const now=context.currentTime;
+      [523,659,784,1047].forEach((frequency,index)=>playNote(frequency,.22,'triangle',.075,now+index*.12));
+    }
+    function playSnakeSound(){
+      const context=getAudioContext();if(!context)return;const now=context.currentTime,osc=context.createOscillator(),gain=context.createGain();
+      osc.type='sawtooth';osc.frequency.setValueAtTime(660,now);osc.frequency.exponentialRampToValueAtTime(130,now+.72);
+      gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.085,now+.05);gain.gain.exponentialRampToValueAtTime(.0001,now+.78);
+      osc.connect(gain);gain.connect(context.destination);osc.start(now);osc.stop(now+.8);
+    }
+    function toggleSound(){
+      const button=document.getElementById('soundToggle');
+      if(!soundStarted){soundOn=true;getAudioContext();return;}
+      soundOn=!soundOn;button.textContent=soundOn?'♫ Sound: On · tap to mute':'♫ Sound: Off · tap to play';button.setAttribute('aria-pressed',String(soundOn));
+      if(soundOn)getAudioContext();else if(audioContext?.state==='running')audioContext.suspend();
+    }
+    function avatarMarkup(moving=false){return `<span class="token${moving?' token-moving':''}" aria-hidden="true"><svg class="avatar-art" viewBox="0 0 80 92"><ellipse cx="40" cy="86" rx="24" ry="4" fill="#182338" opacity=".18"/><path d="M49 42 Q65 41 65 57 L62 75 Q59 79 53 75 L50 60 44 56Z" fill="#46328f" stroke="#2f246f" stroke-width="2"/><path d="M28 61 L26 78 Q27 83 34 82 L39 65M47 61 L50 78 Q54 83 60 79 L56 60" fill="#f2bd87" stroke="#7d4c45" stroke-width="2"/><path d="M24 78 Q31 76 36 81 L36 85 Q32 88 23 85Z M49 78 Q56 76 61 80 L64 84 Q61 88 51 85Z" fill="#f5d36d" stroke="#72552a" stroke-width="2"/><path d="M26 39 Q20 44 18 56 L23 63 29 57 30 72 Q40 77 53 70 L51 55 58 62 63 56 Q60 46 52 40Z" fill="#6548c7" stroke="#4932a4" stroke-width="2.5"/><path d="M26 48 Q19 51 17 59 L20 63 28 56M53 49 Q61 51 64 58 L61 63 52 57" fill="none" stroke="#f2bd87" stroke-width="5" stroke-linecap="round"/><path d="M32 51 L40 58 48 51" fill="none" stroke="#f6d979" stroke-width="3" stroke-linecap="round"/><path d="M25 30 Q24 12 40 11 Q57 12 56 32 L53 42 Q48 52 40 52 Q31 51 27 41Z" fill="#f2bd87" stroke="#9b6b5c" stroke-width="2"/><path d="M25 31 Q23 14 38 10 Q53 10 57 24 L52 25 Q46 22 41 18 Q35 27 25 31Z" fill="#342641"/><path d="M29 29 Q33 23 39 22" fill="none" stroke="#342641" stroke-width="4" stroke-linecap="round"/><circle cx="34" cy="34" r="2" fill="#283044"/><circle cx="46" cy="34" r="2" fill="#283044"/><path d="M36 41 Q40 44 44 41" fill="none" stroke="#a54c51" stroke-width="1.8" stroke-linecap="round"/><path d="M29 28 Q39 31 52 27" fill="none" stroke="#8c69df" stroke-width="3" stroke-linecap="round"/></svg><span class="quiz-bubble"><span class="quiz-dots">•••</span></span></span>`;}
+    function square(n) { const rowBottom=Math.floor((n-1)/10), offset=(n-1)%10; const col=rowBottom%2===0?offset:9-offset; const row=9-rowBottom; return {x:50+col*100,y:50+row*100}; }
+    for(let row=0;row<10;row++) {
+      const band=9-row;
+      for(let col=0;col<10;col++) {
+        const value=band*10+1+(band%2===1?9-col:col);
+        const cell=document.createElement('button');
+        cell.type='button'; cell.className='cell'; cell.dataset.cell=String(value); cell.setAttribute('aria-label',`Square ${value}${value===currentPosition.value?', your current position. Click for a five-question IPA turn':''}`);
+        if(value===1) cell.classList.add('start'); if(value===100) cell.classList.add('finish');
+        cell.innerHTML=`<span class="cell-number">${value}</span>`;
+        cell.addEventListener('click',()=>{ if(value===currentPosition.value && !isMoving) openTurn(); });
+        cells.appendChild(cell);
+      }
+    }
+    function line(x1,y1,x2,y2,cls){const el=document.createElementNS('http://www.w3.org/2000/svg','line');el.setAttribute('x1',x1);el.setAttribute('y1',y1);el.setAttribute('x2',x2);el.setAttribute('y2',y2);el.setAttribute('class',cls);art.appendChild(el);}
+    for(const [low,high] of ladders){
+      const a=square(low),b=square(high),dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy),px=-dy/len*12,py=dx/len*12;
+      line(a.x+px,a.y+py,b.x+px,b.y+py,'ladder-rail');line(a.x-px,a.y-py,b.x-px,b.y-py,'ladder-rail');
+      for(let t=.12;t<.96;t+=.16){const x=a.x+dx*t,y=a.y+dy*t;line(x+px,y+py,x-px,y-py,'ladder-rung');}
+    }
+    function snakePoint(head,tail,t){
+      const a=square(head),b=square(tail),mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dir=(head+tail)%2===0?1:-1;
+      const p0=a,p1={x:a.x+dir*115,y:a.y+25},p2={x:mx-dir*90,y:my-55},p3={x:mx,y:my},p4={x:mx+dir*90,y:my+55},p5={x:b.x-dir*120,y:b.y-20},p6=b;
+      const cubic=(q0,q1,q2,q3,u)=>{const v=1-u;return{x:v*v*v*q0.x+3*v*v*u*q1.x+3*v*u*u*q2.x+u*u*u*q3.x,y:v*v*v*q0.y+3*v*v*u*q1.y+3*v*u*u*q2.y+u*u*u*q3.y};};
+      return t<.5?cubic(p0,p1,p2,p3,t*2):cubic(p3,p4,p5,p6,(t-.5)*2);
+    }
+    for(const [head,tail] of snakes){
+      const a=square(head),b=square(tail),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      const dir=(head+tail)%2===0?1:-1;
+      const size=Math.abs(head-tail)<=12?'small':Math.abs(head-tail)<=35?'medium':'large';
+      const palette={
+        small:{edge:'#4f3c70',scale:'#513d70',light:'#e2d1f3',belly:'#e8d9e8',head:'#9276c5',jaw:'#dfc9e7',iris:'#f6d782'},
+        medium:{edge:'#704329',scale:'#704329',light:'#f7d69e',belly:'#f3d8ae',head:'#cf8048',jaw:'#f0c995',iris:'#f6d782'},
+        large:{edge:'#263f57',scale:'#28475e',light:'#d4e2c5',belly:'#d4dfc4',head:'#5f8795',jaw:'#cad9bc',iris:'#e9c76c'}
+      }[size];
+      const p0=a,p1={x:a.x+dir*115,y:a.y+25},p2={x:mx-dir*90,y:my-55},p3={x:mx,y:my};
+      const p4={x:mx+dir*90,y:my+55},p5={x:b.x-dir*120,y:b.y-20},p6=b;
+      const cubic=(q0,q1,q2,q3,t)=>{const u=1-t;return{x:u*u*u*q0.x+3*u*u*t*q1.x+3*u*t*t*q2.x+t*t*t*q3.x,y:u*u*u*q0.y+3*u*u*t*q1.y+3*u*t*t*q2.y+t*t*t*q3.y};};
+      const pointAt=t=>t<.5?cubic(p0,p1,p2,p3,t*2):cubic(p3,p4,p5,p6,(t-.5)*2);
+      const sampleCount=70,centers=[],left=[],right=[];
+      for(let index=0;index<=sampleCount;index++){
+        const t=index/sampleCount,q=pointAt(t),before=pointAt(Math.max(0,t-.002)),after=pointAt(Math.min(1,t+.002));
+        const dx=after.x-before.x,dy=after.y-before.y,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len;
+        const width=(3.5+10.5*Math.pow(1-t,.58))*Math.min(1,.35+t*8);
+        centers.push(q);left.push({x:q.x+nx*width,y:q.y+ny*width});right.push({x:q.x-nx*width,y:q.y-ny*width});
+      }
+      const outline=`M ${left.map(p=>`${p.x} ${p.y}`).join(' L ')} L ${[...right].reverse().map(p=>`${p.x} ${p.y}`).join(' L ')} Z`;
+      const body=document.createElementNS('http://www.w3.org/2000/svg','path');body.setAttribute('d',outline);body.setAttribute('class','snake-body');body.setAttribute('fill',`url(#snake-gradient-${size})`);body.setAttribute('stroke',palette.edge);art.appendChild(body);
+      const highlight=document.createElementNS('http://www.w3.org/2000/svg','path');highlight.setAttribute('d',`M ${centers.slice(4,46).map(p=>`${p.x} ${p.y-3}`).join(' L ')}`);highlight.setAttribute('class','snake-highlight');highlight.setAttribute('stroke',palette.light);art.appendChild(highlight);
+      for(let index=6;index<sampleCount-3;index+=size==='small'?8:5){
+        const q=centers[index],l=left[index],r=right[index],bow=(index%2?1:-1)*2.2;
+        const plate=document.createElementNS('http://www.w3.org/2000/svg','path');plate.setAttribute('d',`M ${l.x} ${l.y} Q ${q.x+bow} ${q.y+bow} ${r.x} ${r.y}`);plate.setAttribute('class','snake-belly-plate');plate.setAttribute('stroke',palette.belly);art.appendChild(plate);
+        const scale=document.createElementNS('http://www.w3.org/2000/svg','path');scale.setAttribute('d',`M ${q.x-4} ${q.y-2} Q ${q.x} ${q.y+3} ${q.x+4} ${q.y-2}`);scale.setAttribute('class','snake-scale');scale.setAttribute('stroke',palette.scale);art.appendChild(scale);
+      }
+      const angle=Math.atan2(p1.y-a.y,p1.x-a.x)*180/Math.PI;
+      const headGroup=document.createElementNS('http://www.w3.org/2000/svg','g');headGroup.setAttribute('transform',`translate(${a.x} ${a.y}) rotate(${angle})`);art.appendChild(headGroup);
+      const shape=(tag,attrs,className,fill)=>{const node=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));node.setAttribute('class',className);if(fill)node.setAttribute('fill',fill);headGroup.appendChild(node);return node;};
+      shape('path',{d:'M -22 -13 Q -14 -24 -1 -21 Q 9 -18 18 -10 Q 27 -5 30 0 Q 27 5 18 10 Q 9 18 -1 21 Q -14 24 -22 13 Q -27 0 -22 -13 Z'},'snake-head',palette.head).setAttribute('stroke',palette.edge);
+      shape('path',{d:'M -11 5 Q 2 12 25 3 Q 20 13 5 14 Q -5 13 -11 5 Z'},'snake-jaw',palette.jaw).setAttribute('stroke',palette.edge);
+      for(const y of [-8,8]){shape('ellipse',{cx:7,cy:y,rx:4.1,ry:4.7},'eye-socket',palette.edge);shape('ellipse',{cx:7,cy:y,rx:3.2,ry:3.8},'eye',palette.iris);shape('ellipse',{cx:8.2,cy:y,rx:1.05,ry:2.6},'pupil','#17232d');shape('circle',{cx:24,cy:y*.42,r:1.5},'nostril','#17232d');}
+      shape('path',{d:'M 29 0 L 38 0 L 44 -4 M 38 0 L 44 4'},'tongue');
+    }
+    const modal=document.getElementById('modal'),nextButton=document.getElementById('nextButton');
+    function openTurn(){
+      if(isMoving||currentPosition.value>=100)return;
+      getAudioContext();
+      if(turnActive){modal.classList.add('open');return;}
+      turnActive=true;showSummary=false;qIndex=0;correct=0;turnScore=0;questionCorrect=[];
+      questionPoints=questions.map(()=>1+Math.floor(Math.random()*5));
+      renderQuestion();modal.classList.add('open');document.getElementById('accentLabel').textContent=document.getElementById('accent').value;
+    }
+    function renderQuestion(){
+      const q=questions[qIndex];answered=false;showSummary=false;
+      document.getElementById('modalTitle').innerHTML=`Question <span id="qNumber">${qIndex+1}</span> of 5`;
+      document.getElementById('qType').hidden=false;document.getElementById('questionText').hidden=false;document.getElementById('audioButton').hidden=false;
+      document.getElementById('answers').hidden=false;document.querySelector('.progress-wrap').hidden=false;document.getElementById('feedback').hidden=false;document.getElementById('scoreBreakdown').hidden=true;
+      document.getElementById('progress').style.width=`${(qIndex+1)*20}%`;document.getElementById('qType').textContent=q.type;document.getElementById('questionText').textContent=q.text;document.querySelector('#audioButton span').textContent=q.sound.startsWith('Hear')?q.sound:`Hear ${q.sound}`;document.getElementById('feedback').textContent='';nextButton.disabled=true;nextButton.textContent=qIndex===4?'See round score':'Next question';
+      const wrap=document.getElementById('answers');wrap.innerHTML='';for(const choice of q.choices){const button=document.createElement('button');button.type='button';button.className='answer';button.textContent=choice;button.addEventListener('click',()=>selectAnswer(button,choice,q.answer));wrap.appendChild(button);}
+    }
+    function selectAnswer(button,choice,answer){
+      if(answered)return;answered=true;const ok=choice===answer;button.classList.add(ok?'correct':'wrong');
+      questionCorrect[qIndex]=ok;
+      if(ok){correct++;turnScore+=questionPoints[qIndex];document.getElementById('feedback').textContent='Correct. Your point value stays hidden until the round ends.';}
+      else{document.getElementById('feedback').textContent=`Not quite. Correct answer: ${answer}`;document.querySelectorAll('.answer').forEach(el=>{if(el.textContent===answer)el.classList.add('correct');});}
+      nextButton.disabled=false;nextButton.textContent=qIndex===4?'See round score':'Next question';
+    }
+    function showRoundScore(){
+      showSummary=true;document.getElementById('modalTitle').textContent='Round score';
+      for(const id of ['qType','questionText','audioButton','answers','progress-wrap','feedback']){const el=id==='progress-wrap'?document.querySelector('.progress-wrap'):document.getElementById(id);if(el)el.hidden=true;}
+      const breakdown=document.getElementById('scoreBreakdown');breakdown.hidden=false;
+      const lines=questionPoints.map((points,index)=>`<div class="score-line"><span>Question ${index+1} · ${questionCorrect[index]?'Correct':'Incorrect'} · worth <strong>${points} points</strong></span><span>${questionCorrect[index]?`+${points}`:'0 points'}</span></div>`).join('');
+      breakdown.innerHTML=`${lines}<div class="score-total">Turn score: ${turnScore} points · move ${turnScore} ${turnScore===1?'square':'squares'}</div>`;
+      nextButton.disabled=false;nextButton.textContent=`Move ${turnScore} ${turnScore===1?'square':'squares'}`;
+    }
+    function setPlayerPoint(point,number=currentPosition.value,moving=false){
+      playerPin.style.left=`${point.x/10}%`;playerPin.style.top=`${point.y/10}%`;
+      const token=playerPin.querySelector('.token');if(token)token.classList.toggle('token-moving',moving);
+      document.querySelectorAll('.cell').forEach(cell=>{const active=Number(cell.dataset.cell)===number;cell.classList.toggle('current',active);cell.setAttribute('aria-label',`Square ${cell.dataset.cell}${active?', your current position. Click for a five-question IPA turn':''}`);});
+    }
+    function setSquare(number,moving=true){currentPosition.value=number;setPlayerPoint(square(number),number,moving);}
+    const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    async function travelSnake(head,tail){for(let step=1;step<=22;step++){setPlayerPoint(snakePoint(head,tail,step/22),head,true);await wait(48);}setSquare(tail,true);}
+    async function finishTurn(){
+      nextButton.disabled=true;modal.classList.remove('open');isMoving=true;
+      const prior=currentPosition.value,scored=Math.min(100,prior+turnScore);
+      for(let n=prior+1;n<=scored;n++){setSquare(n,true);await wait(260);}
+      let landing=scored,special='';
+      const ladder=ladders.find(([low])=>low===landing),snake=snakes.find(([head])=>head===landing);
+      if(ladder){special=` Ladder! ${ladder[0]} → ${ladder[1]}.`;playLadderSound();const a=square(ladder[0]),b=square(ladder[1]);for(let step=1;step<=16;step++){const t=step/16;setPlayerPoint({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},landing,true);await wait(62);}landing=ladder[1];setSquare(landing,true);}
+      else if(snake){special=` Snake! ${snake[0]} → ${snake[1]}.`;playSnakeSound();await travelSnake(snake[0],snake[1]);landing=snake[1];}
+      else setSquare(landing,true);
+      await wait(430);isMoving=false;setPlayerPoint(square(landing),landing,false);
+      turnActive=false;
+      document.getElementById('turnStatus').textContent=landing===100?`Finished! ${correct}/5 correct · ${turnScore} points.`:`${correct}/5 correct · ${turnScore} points · square ${landing}.${special||' Tap your explorer for another turn.'}`;
+    }
+    playerPin.innerHTML=avatarMarkup();
+    setPlayerPoint(square(currentPosition.value),currentPosition.value,false);
+    nextButton.addEventListener('click',()=>{if(showSummary){finishTurn();return;}if(!answered)return;if(qIndex<4){qIndex++;renderQuestion();}else showRoundScore();});
+    playerPin.addEventListener('click',openTurn);
+    document.getElementById('soundToggle').addEventListener('click',toggleSound);
+    document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
+    document.getElementById('audioButton').addEventListener('click',()=>{document.getElementById('feedback').textContent='Audio placeholder in this mock; the game will use reviewed chart recordings.';});
+    document.getElementById('rulesButton').addEventListener('click',()=>window.alert('Each of five IPA questions has a hidden value from one to five points. At the end, points from correct answers are added and move your explorer that many squares. Landing on a ladder climbs up; landing on a snake slides down.'));
+    document.getElementById('accent').addEventListener('change',e=>{document.getElementById('accentLabel').textContent=e.target.value;});
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});
+  </script>
+</body>
+</html>

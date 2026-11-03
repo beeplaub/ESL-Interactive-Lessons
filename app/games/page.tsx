@@ -23,10 +23,10 @@ const games = [
     href: "/ipa-snakes-and-ladders",
     name: "IPA Snakes and Ladders",
     subtitle: "Sound trail",
-    description: "Answer five IPA questions, earn hidden points, and move your explorer up ladders and down snakes.",
+    description: "Answer one IPA question each turn. Its hidden 1–5 point value moves your explorer up ladders and down snakes.",
     icon: Map,
     accent: "from-sky-500 via-violet-500 to-amber-400",
-    tag: "100-square board · 5 questions per turn",
+    tag: "100-square board · 1 question per turn",
   },
 ];
 

@@ -310,8 +310,18 @@ export function AdminAiStudioWorkspace({
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const timer = window.setInterval(() => router.refresh(), 60_000);
-    return () => window.clearInterval(timer);
+    let timer: number | undefined;
+    const schedule = () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = document.hidden ? undefined : window.setInterval(() => router.refresh(), 60_000);
+    };
+    const visibility = () => {
+      if (!document.hidden) router.refresh();
+      schedule();
+    };
+    schedule();
+    document.addEventListener("visibilitychange", visibility);
+    return () => { if (timer !== undefined) window.clearInterval(timer); document.removeEventListener("visibilitychange", visibility); };
   }, [autoRefresh, router]);
 
   const models = useMemo(() => Array.from(new Set([

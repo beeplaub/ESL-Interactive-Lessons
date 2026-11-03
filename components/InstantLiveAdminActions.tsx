@@ -6,7 +6,20 @@ import { ExternalLink, Pause, Play, Square } from "lucide-react";
 
 export function AdminMonitorAutoRefresh() {
   const router = useRouter();
-  useEffect(() => { const timer = window.setInterval(() => router.refresh(), 12000); return () => window.clearInterval(timer); }, [router]);
+  useEffect(() => {
+    let timer: number | undefined;
+    const schedule = () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = document.hidden ? undefined : window.setInterval(() => router.refresh(), 12000);
+    };
+    const visibility = () => {
+      if (!document.hidden) router.refresh();
+      schedule();
+    };
+    schedule();
+    document.addEventListener("visibilitychange", visibility);
+    return () => { if (timer !== undefined) window.clearInterval(timer); document.removeEventListener("visibilitychange", visibility); };
+  }, [router]);
   return null;
 }
 

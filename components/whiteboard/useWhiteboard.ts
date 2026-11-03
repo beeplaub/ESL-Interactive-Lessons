@@ -52,19 +52,27 @@ export function useWhiteboard(sessionId: string, pageId?: string | null) {
     finally { request.clear(); if (reading.current === scope) reading.current = null; }
   }, [apply, sessionId, pageId, scope]);
   useEffect(() => {
-    mounted.current = true; state.current = null; mutationError.current = false; setError(""); failed.current = null; saving.current = false; setBusy(false); setHasPending(false); setCursors({}); setData(null); undoStack.current = []; setUndoCount(0);
+    mounted.current = true; state.current = null; mutationError.current = false; setError(""); failed.current = null; saving.current = false; setBusy(false); setHasPending(false); setCursors({}); setData(null); setConnected(false); undoStack.current = []; setUndoCount(0);
     void refresh();
-    // Realtime broadcast is the fast path. This short, revision-aware poll is
-    // only a recovery path for missed websocket events and reconnects.
-    const interval = window.setInterval(() => { if (!document.hidden && !saving.current) void refresh(); }, 1000);
     const online = () => void refresh();
+    const visibility = () => { if (!document.hidden) void refresh(); };
     window.addEventListener("online", online);
-    return () => { mounted.current = false; window.clearInterval(interval); window.removeEventListener("online", online); };
+    document.addEventListener("visibilitychange", visibility);
+    return () => { mounted.current = false; window.removeEventListener("online", online); document.removeEventListener("visibilitychange", visibility); };
   }, [refresh]);
+  useEffect(() => {
+    // Realtime events are the fast path. Keep a slower revision-aware watchdog
+    // for missed broadcasts, and check more often only while the channel is
+    // disconnected. Channel status changes and browser reconnects refresh at once.
+    const pollInterval = connected ? 15_000 : 5_000;
+    const interval = window.setInterval(() => { if (!document.hidden && !saving.current) void refresh(); }, pollInterval);
+    return () => window.clearInterval(interval);
+  }, [refresh, connected]);
   const userId = data?.userId;
   const name = data?.name;
   useEffect(() => {
     if (!userId || !name) return;
+    setConnected(false);
     let client: ReturnType<typeof createClient> | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let room: RealtimeChannel | null = null;

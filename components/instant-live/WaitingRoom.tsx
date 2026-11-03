@@ -16,9 +16,19 @@ export function WaitingRoom({ roomId, title }: { roomId: string; title: string }
         else if (data.status === "ENDED" || data.status === "REMOVED") setStatus(data.status);
       } catch { /* Retry on the next interval. */ }
     };
+    let timer: number | undefined;
+    const schedule = () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = document.hidden ? undefined : window.setInterval(() => void poll(), 2500);
+    };
+    const visibility = () => {
+      if (!document.hidden) void poll();
+      schedule();
+    };
     void poll();
-    const timer = window.setInterval(() => void poll(), 2500);
-    return () => { alive = false; window.clearInterval(timer); };
+    schedule();
+    document.addEventListener("visibilitychange", visibility);
+    return () => { alive = false; if (timer !== undefined) window.clearInterval(timer); document.removeEventListener("visibilitychange", visibility); };
   }, [roomId]);
   const ended = status === "ENDED" || status === "REMOVED";
   return <main className={`${styles.root} live-waiting-page`}><section className="live-waiting-card">
