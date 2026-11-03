@@ -2222,6 +2222,7 @@ function revalidateLessonBuilder(lessonId: string) {
 
 function defaultActivityPrompt(activityType: string) {
   if (activityType === "IPA_PRACTICE") return "Use the chart sounds to complete this IPA practice round.";
+  if (activityType === "IPA_LISTEN_BUILD") return "Listen to the word and build its IPA.";
   if (activityType === "MULTIPLE_SELECT") return "Choose all correct answers.";
   if (activityType === "GAP_FILL") return "Complete the sentences.";
   if (activityType === "TABLE_COMPLETION") return "Complete the missing information in the table.";
@@ -2258,6 +2259,9 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     const config = { accent: "uk" as IpaAccent, mode: "conversion" as IpaPracticeMode, direction: "both" as IpaConversionDirection, sortMode: "kind" as IpaSortMode, count: 1, seed: crypto.randomUUID(), selectedWords: [] as string[] };
     const items = generateIpaPracticeItems(config);
     return { prompt, ...config, items, correct_answer: Object.fromEntries(items.map(item => [item.id, item.expected])) } as unknown as Json;
+  }
+  if (activityType === "IPA_LISTEN_BUILD") {
+    return { title: "Listen & Build IPA", prompt: "Listen to the word and build its IPA.", accent: "uk", items: Array.from({ length: 5 }, (_, index) => ({ id: `word-${index + 1}`, word: "", ipa_uk: "", ipa_us: "", audio_url: "" })) } as unknown as Json;
   }
   if (activityType === "MULTIPLE_SELECT") {
     return {

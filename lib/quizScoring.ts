@@ -110,6 +110,11 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
     const mode = String(options.mode ?? "conversion");
     return Object.entries(correct).filter(([itemId, expected]) => {
       const raw = String(given[itemId] ?? "").trim();
+      if (mode === "listen-build") {
+        const byAccent = asRecord(asRecord(options.correct_by_accent as Json)[itemId] as Json);
+        const chosenAccent = String(given[`__accent:${itemId}`] ?? "uk") === "us" ? "us" : "uk";
+        return normalizeIpaAnswer(raw) === normalizeIpaAnswer(String(byAccent[chosenAccent] ?? expected));
+      }
       if (mode === "conversion") {
         const item = Array.isArray(options.items) ? asRecord(options.items.find(item => String(asRecord(item as Json).id) === itemId) as Json) : {};
         return normalizeIpaAnswer(raw) === normalizeIpaAnswer(String(expected)) || normalizeWordAnswer(raw) === normalizeWordAnswer(String(expected)) || String(item.direction) === "ipa-to-word" && normalizeWordAnswer(raw) === normalizeWordAnswer(String(expected));

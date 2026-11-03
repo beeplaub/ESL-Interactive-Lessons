@@ -49,6 +49,7 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "NOTE_TAKING_CHALLENGE", label: "Note-Taking Challenge", description: "Capture useful details while listening.", skills: ["LISTENING", "WRITING"] },
   { type: "SOUND_DISCRIMINATION", label: "Sound Discrimination", description: "Identify differences between sounds.", skills: ["LISTENING", "SPEAKING"] },
   { type: "IPA_PRACTICE", label: "IPA Practice Lab", description: "Build transcription, sound comparison, and phoneme sorting rounds from the IPA chart.", skills: ["CORE", "LISTENING", "SPEAKING"] },
+  { type: "IPA_LISTEN_BUILD", label: "Listen & Build IPA", description: "Listen to a word and build its IPA transcription with sounds from the chart.", skills: ["CORE", "LISTENING"] },
   { type: "LISTEN_AND_GAP_FILL", label: "Listening Gap Fill", description: "Complete gaps while listening.", skills: ["LISTENING", "WRITING"] },
   { type: "PRONUNCIATION", label: "Pronunciation Practice", description: "Record and compare spoken language.", skills: ["SPEAKING", "LISTENING"] },
   { type: "TONGUE_TWISTER", label: "Tongue Twister Practice", description: "Listen to the model, record yourself, then choose a self-grade out of three.", skills: ["SPEAKING", "LISTENING"] },

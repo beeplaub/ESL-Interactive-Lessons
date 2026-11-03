@@ -331,6 +331,18 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: correctAnswer as Json,
     }];
   }
+  if (activityType === "IPA_LISTEN_BUILD") {
+    const items = (Array.isArray(data.items) ? data.items : []).map((value, index) => {
+      const row = asRecord(value as Json);
+      return { id: String(row.id ?? `word-${index + 1}`), prompt: String(row.word ?? ""), expected: String(row.ipa_uk ?? ""), expected_by_accent: { uk: String(row.ipa_uk ?? ""), us: String(row.ipa_us ?? "") }, audio_url: String(row.audio_url ?? "") };
+    });
+    return [{
+      id: "1", question_number: 1, question_type: "IPA_PRACTICE",
+      question_text: String(data.prompt ?? "Listen to the word and build its IPA."),
+      options: { mode: "listen-build", accent: "uk", title: String(data.title ?? ""), items, correct_by_accent: Object.fromEntries(items.map(item => [item.id, item.expected_by_accent])) } as unknown as Json,
+      correct_answer: Object.fromEntries(items.map(item => [item.id, item.expected])) as Json,
+    }];
+  }
   if (activityType === "LISTEN_AND_GAP_FILL") {
     const audioUrl = String(data.audio_url ?? data.media_url ?? "");
     const transcript = String(data.transcript ?? data.sentence ?? "");

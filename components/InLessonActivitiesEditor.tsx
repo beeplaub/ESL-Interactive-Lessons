@@ -700,6 +700,38 @@ function IpaPracticeEditor({ activity, onSave }: { activity: Activity; onSave: (
   </div>;
 }
 
+type ListenBuildItem = { id: string; word: string; ipa_uk: string; ipa_us: string; audio_url: string };
+function IpaListenBuildEditor({ activity, lessonId, onSave }: { activity: Activity; lessonId: string; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [title, setTitle] = useState(String(data.title ?? "Listen & Build IPA"));
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the word and build its IPA."));
+  const initialItems = Array.isArray(data.items) ? data.items.map((item, index) => {
+    const row = asRecord(item as Json);
+    return { id: String(row.id ?? `word-${index + 1}`), word: String(row.word ?? ""), ipa_uk: String(row.ipa_uk ?? ""), ipa_us: String(row.ipa_us ?? ""), audio_url: String(row.audio_url ?? "") };
+  }) : [];
+  const [items, setItems] = useState<ListenBuildItem[]>(() => Array.from({ length: 5 }, (_, index) => initialItems[index] ?? ({ id: `word-${index + 1}`, word: "", ipa_uk: "", ipa_us: "", audio_url: "" })));
+  const updateItem = (index: number, patch: Partial<ListenBuildItem>) => setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  const readyItems = items.filter(item => item.word.trim() && item.ipa_uk.trim() && item.ipa_us.trim() && item.audio_url.trim());
+  const complete = readyItems.length === 5;
+  return <div className="grid gap-3 rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] p-3 sm:p-4">
+    <div className="grid gap-2 sm:grid-cols-2">
+      <label className="text-sm font-bold">Activity title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={title} onChange={event => setTitle(event.target.value)} placeholder="Listen & Build IPA" className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2 text-sm" /></label>
+      <label className="text-sm font-bold">Instruction <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="Listen to the word and build its IPA." className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2 text-sm" /></label>
+    </div>
+    <p className="text-xs leading-5 text-[var(--br-text-muted)]">Add five words, each with its model audio and British and American IPA. Learners build the transcription from IPA Chart tiles.</p>
+    {items.map((item, index) => <details key={item.id} open={index === 0} className="rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-3">
+      <summary className="cursor-pointer text-sm font-bold">Word {index + 1}{item.word.trim() ? ` · ${item.word.trim()}` : " · Add word"}</summary>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <label className="text-xs font-bold">Target word<input value={item.word} onChange={event => updateItem(index, { word: event.target.value })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-white px-2.5 py-2 text-sm" /></label>
+        <label className="text-xs font-bold">British IPA<input value={item.ipa_uk} onChange={event => updateItem(index, { ipa_uk: event.target.value })} placeholder="/ʃɪp/" className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-white px-2.5 py-2 font-data text-base" /></label>
+        <label className="text-xs font-bold">American IPA<input value={item.ipa_us} onChange={event => updateItem(index, { ipa_us: event.target.value })} placeholder="/ʃɪp/" className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-white px-2.5 py-2 font-data text-base" /></label>
+        <div className="sm:col-span-3"><MediaRecorderInput value={item.audio_url} onChange={audio_url => updateItem(index, { audio_url })} type="audio" lessonId={lessonId} label={`Word ${index + 1} model audio`} /></div>
+      </div>
+    </details>)}
+    <SaveButton disabled={!complete} onClick={() => onSave({ title: title.trim(), prompt: prompt.trim(), accent: "uk", items: readyItems } as unknown as Json, false)} />
+  </div>;
+}
+
 function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const current = asRecord(activity.activity_data);
   const [context, setContext] = useState(String(current.interview_context ?? ""));
@@ -935,6 +967,7 @@ function ActivityPanel({
               {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "IPA_PRACTICE" ? <IpaPracticeEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "IPA_LISTEN_BUILD" ? <IpaListenBuildEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SENTENCE_COMPLETION" ? <SentenceCompletionEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "ESSAY_WRITING" ? <EssayWritingEditor activity={activity} onSave={save} /> : null}
@@ -948,7 +981,7 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "IPA_LISTEN_BUILD", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>

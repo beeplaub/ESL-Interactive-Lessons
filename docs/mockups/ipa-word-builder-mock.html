@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IPA Word Builder · BrenUp mockup</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #19313c;
+      --muted: #6d7e82;
+      --teal: #176c68;
+      --teal-dark: #125955;
+      --mint: #eaf7f3;
+      --line: #e1ece8;
+      --canvas: #f4f8f6;
+      --gold: #fff5d8;
+      --brand: #3e3a72;
+      --brand-strong: #28235a;
+      --action: #ff7a59;
+      --action-strong: #d95335;
+      --shadow: 0 24px 70px rgba(29, 66, 57, .13);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 28px 16px;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 15% 8%, rgba(172, 225, 208, .34), transparent 34%),
+        radial-gradient(ellipse at 92% 88%, rgba(255, 221, 155, .24), transparent 31%),
+        var(--canvas);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button { font: inherit; }
+    .activity-card {
+      width: min(100%, 720px);
+      overflow: hidden;
+      border: 1px solid rgba(205, 225, 218, .9);
+      border-radius: 28px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      animation: card-in .48s cubic-bezier(.2,.75,.25,1) both;
+    }
+    @keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .card-content { padding: clamp(20px, 4.5vw, 34px); }
+    .heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .eyebrow { display: flex; align-items: center; gap: 7px; color: var(--teal); font-size: 11px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .eyebrow-mark { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 8px; color: white; background: linear-gradient(135deg, #198378, #55b99b); font-size: 14px; letter-spacing: 0; }
+    h1 { margin: 11px 0 0; font-size: clamp(24px, 4vw, 31px); line-height: 1.08; letter-spacing: -.045em; }
+    .subtitle { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .accent-control { display: flex; flex: 0 0 auto; padding: 4px; gap: 2px; border: 1px solid var(--line); border-radius: 13px; background: #f7faf9; }
+    .accent-control button { min-height: 34px; padding: 0 10px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .accent-control button.active { color: #fff; background: var(--teal); box-shadow: 0 3px 8px rgba(23,108,104,.2); }
+    .challenge-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding: 13px 15px; border: 1px solid #f2e5bf; border-radius: 15px; background: linear-gradient(100deg, #fffaf0, var(--gold)); }
+    .challenge-copy { display: flex; align-items: center; gap: 10px; }
+    .challenge-icon { display: grid; width: 35px; height: 35px; flex: 0 0 auto; place-items: center; border-radius: 11px; color: #8b6819; background: #ffebae; font-size: 17px; }
+    .challenge-title { font-size: 13px; font-weight: 850; }
+    .challenge-note { margin-top: 2px; color: #8b7b58; font-size: 11px; }
+    .progress { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .progress-dot { width: 9px; height: 9px; border-radius: 50%; background: #eadfbf; transition: transform .25s, background .25s; }
+    .progress-dot.done { background: #d79a25; transform: scale(1.12); }
+    .progress-label { margin-left: 4px; color: #75694d; font-size: 11px; font-weight: 800; }
+    .word-panel { margin-top: 16px; padding: 15px; border: 1.5px solid #b9ddd2; border-radius: 18px; background: linear-gradient(145deg, #f2fbf7, #f8fcfa); transition: border-color .2s, box-shadow .2s; }
+    .word-panel:focus-within { border-color: var(--teal); box-shadow: 0 0 0 4px rgba(23,108,104,.08); }
+    .panel-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .panel-label { color: #57736c; font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    .panel-hint { color: #82928e; font-size: 10px; }
+    .word-output { display: flex; min-height: 66px; align-items: center; gap: 7px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: thin; }
+    .empty-output { color: #9aaba6; font-size: 14px; }
+    .selected-sound { position: relative; display: inline-grid; min-width: 48px; height: 48px; flex: 0 0 auto; place-items: center; padding: 0 9px; border: 1px solid #cde5dc; border-radius: 13px; color: #155d58; background: #fff; box-shadow: 0 3px 9px rgba(25,88,75,.07); font-family: "Charis SIL", "Doulos SIL", "Noto Sans", ui-sans-serif, sans-serif; font-size: 23px; font-weight: 700; animation: tile-pop .2s cubic-bezier(.2,.8,.2,1.4) both; }
+    @keyframes tile-pop { from { opacity: 0; transform: scale(.78) translateY(5px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .word-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 4px; }
+    .symbol-count { color: #859591; font-size: 11px; }
+    .text-actions { display: flex; gap: 6px; }
+    .quiet-button { padding: 6px 9px; border: 0; border-radius: 8px; color: #627874; background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; transition: background .15s, color .15s; }
+    .quiet-button:hover { color: var(--teal); background: #e8f4f0; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 19px 1px 9px; }
+    .toolbar-label { font-size: 13px; font-weight: 850; }
+    .toolbar-hint { color: var(--muted); font-size: 11px; }
+    .bank { padding: 12px; border: 1px solid var(--line); border-radius: 17px; background: #fbfdfc; }
+    .bank-tabs { display: flex; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid #edf2f0; }
+    .bank-tab { min-height: 31px; padding: 0 12px; border: 0; border-radius: 9px; color: #758581; background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .bank-tab.active { color: var(--teal); background: #e7f4ef; }
+    .bank-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 7px; padding-top: 11px; }
+    .sound-tile { min-width: 0; height: 43px; border: 1px solid #e7efec; border-radius: 11px; color: #29454a; background: #fff; box-shadow: 0 1px 3px rgba(20,52,43,.035); font-family: "Charis SIL", "Doulos SIL", "Noto Sans", ui-sans-serif, sans-serif; font-size: 19px; font-weight: 700; cursor: pointer; transition: border-color .15s, background .15s, color .15s, transform .15s, box-shadow .15s; }
+    .sound-tile:hover { z-index: 1; transform: translateY(-2px); border-color: #9fcec1; color: var(--teal); background: #f0faf6; box-shadow: 0 5px 12px rgba(23,108,104,.1); }
+    .sound-tile:active { transform: scale(.94); }
+    .sound-tile.added { animation: added .22s ease-out; }
+    @keyframes added { 50% { background: #ddf3ea; transform: scale(.94); } }
+    .submit-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 15px; }
+    .helper { display: flex; align-items: flex-start; gap: 7px; max-width: 340px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .helper-icon { color: #d2a13a; font-size: 14px; }
+    .submit-button { min-height: 44px; flex: 0 0 auto; padding: 0 18px; border: 0; border-radius: 13px; color: #fff; background: linear-gradient(135deg, #19736d, #249184); box-shadow: 0 6px 15px rgba(23,108,104,.2); font-size: 12px; font-weight: 850; cursor: pointer; transition: transform .15s, box-shadow .15s, opacity .15s; }
+    .submit-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 9px 18px rgba(23,108,104,.25); }
+    .submit-button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    .result { display: none; align-items: center; gap: 11px; margin-top: 14px; padding: 12px 14px; border: 1px solid #cbe8dc; border-radius: 14px; background: #eff9f4; animation: result-in .25s ease-out both; }
+    .result.show { display: flex; }
+    @keyframes result-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .result-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 11px; color: #13766a; background: #d9f1e7; font-size: 17px; }
+    .result-word { font-size: 14px; font-weight: 900; }
+    .result-ipa { margin-left: 5px; color: #578079; font-family: "Charis SIL", "Doulos SIL", "Noto Sans", ui-sans-serif, sans-serif; font-size: 13px; font-weight: 700; }
+    .result-message { margin-top: 2px; color: #648079; font-size: 11px; }
+    .result.try-again { border-color: #f0dfbd; background: #fffaf0; }
+    .result.try-again .result-icon { color: #956b1a; background: #fff0c8; }
+    .result.try-again .result-word { font-size: 12px; }
+    .found-words { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .found-chip { padding: 5px 9px; border: 1px solid #dcece5; border-radius: 9px; color: #39675b; background: #f8fcfa; font-size: 11px; font-weight: 750; }
+    .mock-switch { display: flex; justify-content: center; margin: 0 auto 18px; padding: 4px; width: fit-content; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 4px 14px rgba(29,66,57,.06); }
+    .mock-switch button { min-height: 36px; padding: 0 14px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .mock-switch button.active { color: #fff; background: var(--teal); }
+    .listening-card { display: none; }
+    .listening-card.active { display: block; }
+    .listening-card .card-content { padding: 14px clamp(20px,4.5vw,30px) 20px; }
+    .listening-card .eyebrow { color: var(--brand); }
+    .listening-card .eyebrow-mark { background: linear-gradient(135deg,var(--brand),#7772bd); }
+    .listening-card h1 { margin: 0; font-size: clamp(19px,3vw,24px); line-height: 1.15; }
+    .listening-card .subtitle { margin: 3px 0 0; font-size: 12px; line-height: 1.35; }
+    .listen-control-row { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 8px; width: 100%; margin: 11px 0 8px; padding: 7px 9px; border: 1px solid #e5e2f0; border-radius: 13px; background: #faf9fd; }
+    .play-audio { min-height: 34px; justify-self: start; padding: 0 11px; border: 0; border-radius: 10px; color: #fff; background: var(--action); font-size: 10px; font-weight: 850; cursor: pointer; box-shadow: 0 4px 10px rgba(255,122,89,.18); }
+    .play-audio:hover { background: var(--action-strong); transform: translateY(-1px); }
+    .audio-wave { display: none; align-items: center; gap: 3px; height: 12px; }
+    .audio-wave.playing { display: flex; }
+    .audio-wave i { width: 3px; height: 6px; border-radius: 4px; background: var(--action); animation: wave .7s ease-in-out infinite alternate; }
+    .audio-wave i:nth-child(2n) { animation-delay: .15s; }.audio-wave i:nth-child(3n) { animation-delay: .3s; }
+    @keyframes wave { to { height: 13px; } }
+    .listening-card .challenge-strip { margin-top: 12px; padding: 9px 12px; border-color: #e5e2f0; background: #faf9fd; }
+    .listening-card .challenge-icon { width: 29px; height: 29px; color: var(--brand); background: #eeecf7; font-size: 14px; }
+    .listening-card .challenge-title { color: var(--brand); font-size: 12px; }
+    .listening-card .challenge-note { color: var(--muted); font-size: 10px; }
+    .listening-card .progress-dot.done { background: #aaa6c9; }
+    .listening-card .word-panel { width: min(100%, 540px); margin: 11px auto 0; padding: 7px 11px; border: 1px solid #e5e2f0; border-radius: 12px; background: #fff; }
+    .listening-card .word-output { min-height: 38px; padding: 4px 0 1px; }
+    .listening-card .selected-sound { min-width: 44px; height: 43px; border-color: #e3e0ef; border-radius: 11px; color: var(--brand); box-shadow: none; font-size: 22px; }
+    .listening-card .word-panel:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(62,58,114,.08); }
+    .listening-card .panel-label { color: var(--brand); }
+    .listening-card .selected-sound { background: #f7f6fb; }
+    .listening-card .quiet-button { color: var(--brand); }
+    .listening-card .quiet-button:hover { color: var(--brand-strong); background: #eeecf7; }
+    .listening-card .symbol-count { color: #77728e; }
+    .listening-card .toolbar { margin: 12px 1px 7px; }
+    .listening-card .bank { padding: 9px; border-color: #e8e6f0; border-radius: 14px; }
+    .listening-card .bank-grid { min-height: 321px; align-content: start; grid-auto-rows: 41px; gap: 5px; padding-top: 8px; }
+    .listening-card .sound-tile { height: 41px; border-color: #e5e2f0; border-radius: 10px; color: var(--brand); font-size: 19px; }
+    .listening-card .sound-tile:hover { border-color: var(--brand); color: var(--brand-strong); background: #f4f2fb; }
+    .listening-card .bank-tab { font-size: 12px; }
+    .listening-card .bank-tab.active { color: var(--brand); background: #eeecf7; }
+    .listening-card .submit-row { margin-top: 9px; }
+    .listening-card .submit-button { min-height: 38px; padding: 0 14px; background: var(--action); box-shadow: 0 4px 12px rgba(255,122,89,.2); }
+    .listening-card .submit-button:hover:not(:disabled) { background: var(--action-strong); }
+    .listen-accent { justify-self: end; width: fit-content; gap: 3px; padding: 3px; border-color: #dedbea; border-radius: 12px; background: #f1eff7; }
+    .listen-accent button { width: auto; min-width: 62px; min-height: 32px; padding: 0 9px; border-radius: 9px; color: #625e78; font-size: 11px; transition: color .16s, background .16s, box-shadow .16s; }
+    .listen-accent button.active { color: #fff; background: var(--brand); box-shadow: 0 2px 6px rgba(40,35,90,.22); }
+    .listen-dot-nav { justify-content: center; gap: 9px; min-height: 38px; padding: 0 10px; border: 1px solid #e5e2f0; border-radius: 12px; background: #f8f7fb; }
+    .listen-dot-nav .progress-dot { display: block; width: 11px; height: 11px; flex: 0 0 auto; padding: 0; border: 0; cursor: pointer; }
+    .listen-dot-nav .progress-dot.current { background: var(--action); transform: scale(1.2); outline: 2px solid color-mix(in srgb,var(--action) 28%,transparent); outline-offset: 3px; }
+    .listen-dot-nav .progress-dot:focus-visible { outline: 2px solid var(--action); outline-offset: 3px; }
+    .nav-button { display: inline-flex; min-height: 35px; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #e5e2f0; border-radius: 11px; color: var(--brand); background: #fff; font-size: 11px; font-weight: 850; cursor: pointer; transition: transform .15s, background .15s, border-color .15s; }
+    .nav-button:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--brand); background: #f7f6fb; }
+    .nav-button.next { border-color: var(--action); color: #fff; background: var(--action); }
+    .nav-button.next:hover:not(:disabled) { border-color: var(--action-strong); background: var(--action-strong); }
+    .nav-button:disabled { opacity: .42; cursor: not-allowed; }
+    .nav-center { color: var(--muted); font-size: 11px; font-weight: 800; }
+    .listen-result { display: none; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px; border: 1px solid #cbe8dc; border-radius: 14px; color: #27685b; background: #eff9f4; animation: result-in .25s ease-out both; }
+    .listen-result.show { display: flex; }
+    .listen-result.wrong { border-color: #f0dfbd; color: #85621c; background: #fffaf0; }
+    .listen-result strong { color: var(--ink); }
+    .listen-work-area { display: flex; flex-direction: column; gap: 0; margin-top: 7px; }
+    .listen-build-column { width: 100%; min-width: 0; }
+    .listen-build-column .word-panel { width: 100%; min-height: 66px; margin: 0; }
+    .listen-build-column .toolbar { margin-top: 10px; }
+    .listen-build-column .submit-row { align-items: end; }
+    .listen-footer { margin-top: 12px; }
+    .listen-footer .listen-result { margin-top: 0; }
+    button:focus-visible { outline: 3px solid #66bba7; outline-offset: 2px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+    @media (max-width: 560px) {
+      body { padding: 12px; }
+      .activity-card { border-radius: 22px; }
+      .card-content { padding: 19px 16px 18px; }
+      .heading-row { gap: 8px; }
+      .eyebrow { font-size: 9px; }
+      .eyebrow-mark { width: 21px; height: 21px; }
+      h1 { margin-top: 9px; font-size: 24px; }
+      .subtitle { max-width: 245px; font-size: 12px; }
+      .accent-control { padding: 3px; }
+      .accent-control button { min-height: 31px; padding: 0 7px; font-size: 10px; }
+      .challenge-strip { margin-top: 17px; padding: 11px; }
+      .challenge-icon { width: 31px; height: 31px; }
+      .challenge-title { font-size: 12px; }
+      .challenge-note { max-width: 150px; font-size: 10px; }
+      .progress { gap: 4px; }
+      .progress-dot { width: 8px; height: 8px; }
+      .progress-label { font-size: 10px; }
+      .word-panel { padding: 12px; }
+      .panel-hint { max-width: 115px; text-align: right; }
+      .word-output { min-height: 58px; }
+      .selected-sound { min-width: 43px; height: 43px; font-size: 21px; }
+      .toolbar { align-items: flex-end; margin-top: 16px; }
+      .toolbar-hint { max-width: 130px; text-align: right; line-height: 1.35; }
+      .bank { padding: 9px; }
+      .bank-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+      .sound-tile { height: 41px; font-size: 18px; }
+      .submit-row { align-items: center; }
+      .helper { font-size: 10px; }
+      .submit-button { min-height: 42px; padding: 0 14px; }
+      .mock-switch { margin-bottom: 12px; }.mock-switch button { padding: 0 10px; font-size: 10px; }
+      .listening-card .card-content { padding: 17px 15px; }
+      .listen-control-row { grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 5px; margin: 8px 0 6px; padding: 5px; }
+      .listen-control-row > div:first-child { min-width: 0; gap: 3px !important; }
+      .play-audio { min-height: 30px; max-width: 100%; overflow: hidden; padding: 0 5px; font-size: 8px; white-space: nowrap; }
+      .listen-control-row .listen-accent { justify-self: end; width: fit-content; max-width: 100%; gap: 2px; padding: 2px; }
+      .listen-control-row .listen-accent button { min-width: 47px; min-height: 28px; padding: 0 5px; font-size: 9px; }
+      .listen-dot-nav { gap: 7px; min-height: 32px; padding: 0 7px; }
+      .listen-dot-nav .progress-dot { width: 9px; height: 9px; }
+      .listening-card .word-panel { padding: 8px 10px; }
+      .listening-card .selected-sound { min-width: 43px; height: 43px; font-size: 21px; }
+      .listening-card .sound-tile { height: 40px; font-size: 19px; }
+      .listening-card .bank-grid { min-height: 400px; grid-auto-rows: 40px; }
+      .nav-button { min-height: 33px; padding: 0 9px; font-size: 10px; }
+      .listen-work-area { gap: 9px; margin-top: 11px; }
+      .listen-build-column .word-panel { min-height: 62px; }
+      .listen-accent { padding: 2px; }
+      .listen-accent button { min-height: 27px; padding: 0 6px; font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="mock-switch" aria-label="Mockup activity view">
+    <button type="button" class="active" data-view="builder">Word Builder</button>
+    <button type="button" data-view="listening">Listen &amp; Build IPA</button>
+  </nav>
+  <main class="activity-card builder-card" aria-labelledby="activity-title">
+    <div class="card-content">
+      <header class="heading-row">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-mark" aria-hidden="true">ə</span> IPA Puzzle</div>
+          <h1 id="activity-title">IPA Word Builder</h1>
+          <p class="subtitle">Tap sounds. Discover real words.</p>
+        </div>
+        <div class="accent-control" role="group" aria-label="Pronunciation accent">
+          <button type="button" class="active" aria-pressed="true">British</button>
+          <button type="button" aria-pressed="false">American</button>
+        </div>
+      </header>
+
+      <section class="challenge-strip" aria-label="Challenge progress">
+        <div class="challenge-copy">
+          <span class="challenge-icon" aria-hidden="true">✦</span>
+          <div><div class="challenge-title">Find 3 words</div><div class="challenge-note">Build one word at a time from sound tiles.</div></div>
+        </div>
+        <div class="progress" aria-label="0 of 3 words found">
+          <span class="progress-dot"></span><span class="progress-dot"></span><span class="progress-dot"></span>
+          <span class="progress-label"><span id="found-count">0</span> / 3</span>
+        </div>
+      </section>
+
+      <section class="word-panel" aria-labelledby="word-label">
+        <div class="panel-label-row"><span id="word-label" class="panel-label">Your word</span><span class="panel-hint">Each tile is one IPA sound</span></div>
+        <div id="word-output" class="word-output" aria-live="polite"><span class="empty-output">Tap the sounds in order…</span></div>
+        <div class="word-actions"><span id="symbol-count" class="symbol-count">0 sounds</span><div class="text-actions"><button id="undo" class="quiet-button" type="button" disabled>↶ Undo</button><button id="clear" class="quiet-button" type="button" disabled>Clear</button></div></div>
+      </section>
+
+      <div class="toolbar"><span class="toolbar-label">Choose IPA sounds</span><span class="toolbar-hint">Tap a tile to add it above</span></div>
+      <section class="bank" aria-label="IPA sound tiles">
+        <div class="bank-tabs" role="tablist" aria-label="Sound group">
+          <button class="bank-tab active" type="button" role="tab" aria-selected="true" data-group="vowels">Vowels</button>
+          <button class="bank-tab" type="button" role="tab" aria-selected="false" data-group="consonants">Consonants</button>
+          <button class="bank-tab" type="button" role="tab" aria-selected="false" data-group="all">All sounds</button>
+        </div>
+        <div id="sound-grid" class="bank-grid"></div>
+      </section>
+
+      <div class="submit-row">
+        <p class="helper"><span class="helper-icon" aria-hidden="true">✦</span><span>Found words stay here as you build your set. Duplicate words don’t count twice.</span></p>
+        <button id="submit" class="submit-button" type="button" disabled>Check word <span aria-hidden="true">→</span></button>
+      </div>
+
+      <section id="result" class="result" role="status" aria-live="polite">
+        <span id="result-icon" class="result-icon" aria-hidden="true">✓</span>
+        <div><div><span id="result-word" class="result-word"></span><span id="result-ipa" class="result-ipa"></span></div><div id="result-message" class="result-message"></div><div id="found-words" class="found-words"></div></div>
+      </section>
+      <p id="live-message" class="sr-only" aria-live="polite"></p>
+    </div>
+  </main>
+
+  <main class="activity-card listening-card" aria-labelledby="listen-activity-title">
+    <div class="card-content">
+      <header class="heading-row">
+        <div>
+          <h1 id="listen-activity-title">Listen &amp; Build IPA</h1>
+          <p class="subtitle">Listen to the word, then build the sounds you hear.</p>
+        </div>
+      </header>
+
+      <div class="listen-work-area">
+      <div class="listen-build-column">
+        <div class="listen-control-row" aria-label="Listen and question navigation">
+          <div style="display:flex;align-items:center;gap:7px;justify-self:start">
+            <button class="play-audio" id="play-word" type="button">▶ Play target word</button>
+            <div class="audio-wave" id="audio-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="progress listen-dot-nav" role="group" aria-label="Choose question">
+            <button type="button" class="progress-dot done current" data-round="0" aria-label="Question 1" aria-current="step"></button><button type="button" class="progress-dot" data-round="1" aria-label="Question 2"></button><button type="button" class="progress-dot" data-round="2" aria-label="Question 3"></button><button type="button" class="progress-dot" data-round="3" aria-label="Question 4"></button><button type="button" class="progress-dot" data-round="4" aria-label="Question 5"></button>
+          </div>
+          <div class="accent-control listen-accent" role="group" aria-label="Audio accent">
+            <button type="button" class="active" aria-pressed="true">British</button>
+            <button type="button" aria-pressed="false">American</button>
+          </div>
+        </div>
+      <section class="word-panel" aria-labelledby="listen-answer-label">
+        <div class="panel-label-row"><span id="listen-answer-label" class="panel-label">Build the IPA</span><span class="panel-hint">One tile = one sound</span></div>
+        <div id="listen-output" class="word-output" aria-live="polite"><span class="empty-output">Tap the sounds in order…</span></div>
+        <div class="word-actions"><span id="listen-count" class="symbol-count">0 sounds</span><div class="text-actions"><button id="listen-undo" class="quiet-button" type="button" disabled>↶ Undo</button><button id="listen-clear" class="quiet-button" type="button" disabled>Clear</button></div></div>
+      </section>
+
+      <div class="toolbar"><span class="toolbar-label">Choose IPA sounds</span><span class="toolbar-hint">Tap to add a sound above</span></div>
+      <section class="bank" aria-label="IPA sound tiles for listening activity">
+        <div class="bank-tabs" role="tablist" aria-label="Sound group for listening activity">
+          <button class="bank-tab active" type="button" role="tab" aria-selected="true" data-listen-group="all">All sounds</button>
+          <button class="bank-tab" type="button" role="tab" aria-selected="false" data-listen-group="consonants">Consonants</button>
+          <button class="bank-tab" type="button" role="tab" aria-selected="false" data-listen-group="vowels">Vowels</button>
+        </div>
+        <div id="listen-grid" class="bank-grid"></div>
+      </section>
+      <div class="submit-row">
+        <p class="helper"><span class="helper-icon" aria-hidden="true">✦</span><span>Listen first, then arrange the IPA sounds you hear.</span></p>
+        <button id="listen-submit" class="submit-button" type="button" disabled>Check answer <span aria-hidden="true">→</span></button>
+      </div>
+      </div>
+      </div>
+      <div class="listen-footer"><section id="listen-result" class="listen-result" role="status" aria-live="polite"></section></div>
+    </div>
+  </main>
+
+  <script>
+    const sounds = {
+      vowels: ["iː", "ɪ", "ʊ", "uː", "e", "ə", "ɜː", "ɔː", "æ", "ʌ", "ɑː", "ɒ", "ɪə", "eɪ", "ʊə", "ɔɪ", "əʊ", "eə", "aɪ", "aʊ", "ɚ", "ɝ", "ɑ", "ɔ", "oʊ"],
+      consonants: ["p", "b", "t", "d", "k", "ɡ", "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ", "h", "tʃ", "dʒ", "m", "n", "ŋ", "l", "r", "j", "w"]
+    };
+    const accentSounds = {
+      British: { vowels: sounds.vowels.filter(symbol => !["ɚ", "ɝ", "ɑ", "ɔ", "oʊ"].includes(symbol)), consonants: sounds.consonants.filter(symbol => symbol !== "r") },
+      American: { vowels: sounds.vowels.filter(symbol => !["ɜː", "ɔː", "ɑː", "ɒ", "ɪə", "ʊə", "eə", "əʊ"].includes(symbol)), consonants: sounds.consonants.filter(symbol => symbol !== "r").concat("ɹ") }
+    };
+    const lexicon = {
+      "sɪt": ["sit"], "ʃɪp": ["ship"], "ʃiːp": ["sheep"], "kæt": ["cat"],
+      "sʌn": ["sun"], "fɪʃ": ["fish"], "bed": ["bed"], "bʊk": ["book"],
+      "dɔɡ": ["dog"], "pɪɡ": ["pig"], "bæɡ": ["bag"], "hæt": ["hat"],
+      "mɪlk": ["milk"], "tɔɪ": ["toy"], "bɔɪ": ["boy"], "sɪŋ": ["sing"],
+      "kʊk": ["cook"], "rɛd": ["red"], "bɪɡ": ["big"], "wɛt": ["wet"],
+      "sɪt": ["sit"], "siː": ["see"], "nɒt": ["not"], "kɔː": ["core", "cor"],
+      "deɪ": ["day"], "naɪt": ["night"], "haʊs": ["house"], "mʊn": ["moon"]
+    };
+    const normalize = value => value.replace(/[ˈˌ.\s/]/g, "").toLowerCase();
+    const selected = [];
+    const found = new Set();
+    let activeGroup = "vowels";
+    const grid = document.getElementById("sound-grid");
+    const output = document.getElementById("word-output");
+    const submit = document.getElementById("submit");
+    const undo = document.getElementById("undo");
+    const clear = document.getElementById("clear");
+    const result = document.getElementById("result");
+
+    function renderGrid() {
+      grid.innerHTML = "";
+      const list = activeGroup === "all" ? [...sounds.vowels, ...sounds.consonants] : sounds[activeGroup];
+      list.forEach((symbol, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "sound-tile";
+        button.textContent = symbol;
+        button.setAttribute("aria-label", `Add ${symbol}`);
+        button.title = `Add /${symbol}/`;
+        button.style.animationDelay = `${Math.min(index * 9, 120)}ms`;
+        button.addEventListener("click", () => {
+          selected.push(symbol);
+          button.classList.remove("added");
+          void button.offsetWidth;
+          button.classList.add("added");
+          renderOutput();
+          result.classList.remove("show");
+        });
+        grid.append(button);
+      });
+    }
+
+    function renderOutput() {
+      output.innerHTML = "";
+      if (!selected.length) {
+        const placeholder = document.createElement("span");
+        placeholder.className = "empty-output";
+        placeholder.textContent = "Tap the sounds in order…";
+        output.append(placeholder);
+      } else {
+        selected.forEach((symbol, index) => {
+          const chip = document.createElement("span");
+          chip.className = "selected-sound";
+          chip.textContent = symbol;
+          chip.style.animationDelay = `${index * 20}ms`;
+          output.append(chip);
+        });
+      }
+      const hasSounds = selected.length > 0;
+      document.getElementById("symbol-count").textContent = `${selected.length} ${selected.length === 1 ? "sound" : "sounds"}`;
+      submit.disabled = !hasSounds;
+      undo.disabled = !hasSounds;
+      clear.disabled = !hasSounds;
+    }
+
+    function showResult(success, word, ipa, message) {
+      result.classList.toggle("try-again", !success);
+      result.classList.add("show");
+      document.getElementById("result-icon").textContent = success ? "✓" : "↻";
+      document.getElementById("result-word").textContent = word;
+      document.getElementById("result-ipa").textContent = ipa;
+      document.getElementById("result-message").textContent = message;
+      const chips = document.getElementById("found-words");
+      chips.innerHTML = "";
+      [...found].forEach(item => {
+        const chip = document.createElement("span");
+        chip.className = "found-chip";
+        chip.textContent = item;
+        chips.append(chip);
+      });
+      document.getElementById("live-message").textContent = `${word} ${message}`;
+    }
+
+    document.querySelectorAll(".bank-tab").forEach(tab => tab.addEventListener("click", () => {
+      document.querySelectorAll(".bank-tab").forEach(item => {
+        item.classList.toggle("active", item === tab);
+        item.setAttribute("aria-selected", String(item === tab));
+      });
+      activeGroup = tab.dataset.group;
+      renderGrid();
+    }));
+
+    document.querySelectorAll(".accent-control button").forEach(button => button.addEventListener("click", () => {
+      document.querySelectorAll(".accent-control button").forEach(item => {
+        item.classList.toggle("active", item === button);
+        item.setAttribute("aria-pressed", String(item === button));
+      });
+    }));
+    document.querySelectorAll(".listen-accent button").forEach(button => button.addEventListener("click", () => {
+      document.querySelectorAll(".listen-accent button").forEach(item => {
+        item.classList.toggle("active", item === button);
+        item.setAttribute("aria-pressed", String(item === button));
+      });
+    }));
+
+    undo.addEventListener("click", () => { selected.pop(); renderOutput(); result.classList.remove("show"); });
+    clear.addEventListener("click", () => { selected.length = 0; renderOutput(); result.classList.remove("show"); });
+    submit.addEventListener("click", () => {
+      const sequence = normalize(selected.join(""));
+      const words = lexicon[sequence];
+      if (!words) {
+        showResult(false, "No match yet", `/${selected.join("")}/`, "Try changing a sound, or undo the last tile.");
+        return;
+      }
+      const newWords = words.filter(word => !found.has(word));
+      if (!newWords.length) {
+        showResult(false, "Already found", `/${selected.join("")}/`, "Build a different word to fill the next spot.");
+        return;
+      }
+      newWords.forEach(word => found.add(word));
+      document.getElementById("found-count").textContent = found.size;
+      document.querySelectorAll(".progress-dot").forEach((dot, index) => dot.classList.toggle("done", index < found.size));
+      document.querySelector(".progress").setAttribute("aria-label", `${found.size} of 3 words found`);
+      showResult(true, words.join(" · "), `/${selected.join("")}/`, found.size >= 3 ? "Puzzle complete — beautiful sound building!" : `${found.size} of 3 words found. Keep going!`);
+      if (found.size >= 3) document.getElementById("result-icon").textContent = "✦";
+      selected.length = 0;
+      renderOutput();
+    });
+
+    renderGrid();
+
+    // The listening version is a separate mock view. It uses sample audio and
+    // answer data only to demonstrate the learner flow; lesson content supplies these in product.
+    const sampleRounds = [
+      { word: "ship", ipa: "ʃɪp" }, { word: "cat", ipa: "kæt" }, { word: "sheep", ipa: "ʃiːp" },
+      { word: "fish", ipa: "fɪʃ" }, { word: "bed", ipa: "bed" }
+    ];
+    let roundIndex = 0;
+    let listenGroup = "all";
+    let advanceTimer = null;
+    const listenSelected = [];
+    const solvedRounds = new Set();
+    const roundAnswers = new Map();
+    const listenGrid = document.getElementById("listen-grid");
+    const listenOutput = document.getElementById("listen-output");
+    const listenSubmit = document.getElementById("listen-submit");
+    const listenResult = document.getElementById("listen-result");
+    const listenUndo = document.getElementById("listen-undo");
+    const listenClear = document.getElementById("listen-clear");
+    const playWord = document.getElementById("play-word");
+
+    document.querySelectorAll(".mock-switch button").forEach(button => button.addEventListener("click", () => {
+      const listening = button.dataset.view === "listening";
+      document.querySelector(".builder-card").style.display = listening ? "none" : "block";
+      document.querySelector(".listening-card").classList.toggle("active", listening);
+      document.querySelectorAll(".mock-switch button").forEach(item => item.classList.toggle("active", item === button));
+    }));
+
+    function renderListenGrid() {
+      listenGrid.innerHTML = "";
+      const list = listenGroup === "all" ? [...accentSounds[getListenAccent()].vowels, ...accentSounds[getListenAccent()].consonants] : accentSounds[getListenAccent()][listenGroup];
+      list.forEach(symbol => {
+        const button = document.createElement("button");
+        button.type = "button"; button.className = "sound-tile"; button.textContent = symbol;
+        button.setAttribute("aria-label", `Add ${symbol}`); button.title = `Add /${symbol}/`;
+        button.addEventListener("click", () => { listenSelected.push(symbol); speakPhoneme(symbol); renderListenOutput(); listenResult.classList.remove("show"); });
+        listenGrid.append(button);
+      });
+    }
+    function renderListenOutput() {
+      listenOutput.innerHTML = "";
+      if (!listenSelected.length) {
+        const placeholder = document.createElement("span"); placeholder.className = "empty-output"; placeholder.textContent = "Tap the sounds in order…"; listenOutput.append(placeholder);
+      } else listenSelected.forEach((symbol, index) => { const chip = document.createElement("span"); chip.className = "selected-sound"; chip.textContent = symbol; chip.style.animationDelay = `${index * 20}ms`; listenOutput.append(chip); });
+      const hasSounds = listenSelected.length > 0;
+      document.getElementById("listen-count").textContent = `${listenSelected.length} ${listenSelected.length === 1 ? "sound" : "sounds"}`;
+      listenSubmit.disabled = !hasSounds; listenUndo.disabled = !hasSounds; listenClear.disabled = !hasSounds;
+    }
+    document.querySelectorAll("[data-listen-group]").forEach(tab => tab.addEventListener("click", () => {
+      document.querySelectorAll("[data-listen-group]").forEach(item => { item.classList.toggle("active", item === tab); item.setAttribute("aria-selected", String(item === tab)); });
+      listenGroup = tab.dataset.listenGroup; renderListenGrid();
+    }));
+    function getListenAccent() { return document.querySelector(".listen-accent button.active")?.textContent.trim() === "American" ? "American" : "British"; }
+    document.querySelectorAll(".listen-accent button").forEach(button => button.addEventListener("click", () => {
+      document.querySelectorAll(".listen-accent button").forEach(item => { item.classList.toggle("active", item === button); item.setAttribute("aria-pressed", String(item === button)); });
+      renderListenGrid();
+    }));
+    listenUndo.addEventListener("click", () => { listenSelected.pop(); renderListenOutput(); listenResult.classList.remove("show"); });
+    listenClear.addEventListener("click", () => { listenSelected.length = 0; renderListenOutput(); listenResult.classList.remove("show"); });
+    function selectedVoice() {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      const wanted = getListenAccent() === "American" ? "en-US" : "en-GB";
+      return voices.find(voice => voice.lang === wanted) || voices.find(voice => voice.lang.toLowerCase().startsWith(wanted.toLowerCase())) || null;
+    }
+    function playSpeech(text, rate = 0.82) {
+      if (!("speechSynthesis" in window)) { listenResult.textContent = "Audio playback is not supported in this browser."; listenResult.classList.add("show", "wrong"); return; }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voice = selectedVoice();
+      if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
+      else utterance.lang = getListenAccent() === "American" ? "en-US" : "en-GB";
+      utterance.rate = rate;
+      return utterance;
+    }
+    function speakPhoneme(symbol) {
+      // Browser TTS has no reliable API for isolated IPA phoneme playback.
+      // Use a best-effort mapped grapheme cue for this visual prototype only.
+      const cueMap = { "ʃ":"sh", "θ":"th", "ð":"th", "ŋ":"ng", "tʃ":"ch", "dʒ":"j", "ɪ":"ih", "iː":"ee", "ʊ":"oo", "uː":"oo", "æ":"a", "ə":"uh", "ɜː":"er", "ɔː":"aw", "ɑː":"ah", "ɒ":"o", "ʌ":"uh", "eɪ":"ay", "aɪ":"eye", "aʊ":"ow", "ɔɪ":"oy", "əʊ":"oh", "ɚ":"er", "ɝ":"er" };
+      const utterance = playSpeech(cueMap[symbol] || symbol, 0.72);
+      if (utterance) window.speechSynthesis.speak(utterance);
+    }
+    function speakTarget() {
+      if (!("speechSynthesis" in window)) { listenResult.textContent = "Audio playback is not supported in this browser."; listenResult.classList.add("show", "wrong"); return; }
+      const utterance = playSpeech(sampleRounds[roundIndex].word, 0.82);
+      const wave = document.getElementById("audio-wave");
+      wave.classList.add("playing"); playWord.textContent = "Playing…"; playWord.disabled = true;
+      utterance.onend = utterance.onerror = () => { wave.classList.remove("playing"); playWord.textContent = "↻ Play again"; playWord.disabled = false; };
+      window.speechSynthesis.speak(utterance);
+    }
+    playWord.addEventListener("click", speakTarget);
+    listenSubmit.addEventListener("click", () => {
+      const target = sampleRounds[roundIndex];
+      const correct = normalize(listenSelected.join("")) === normalize(target.ipa);
+      roundAnswers.set(roundIndex, listenSelected.join(""));
+      listenResult.classList.toggle("wrong", !correct); listenResult.classList.add("show");
+      listenResult.innerHTML = correct ? `<span aria-hidden="true">✦</span><span>That's it! <strong>${target.word}</strong> <span class="result-ipa">/${target.ipa}/</span></span>` : `<span aria-hidden="true">↻</span><span>Not quite yet. Listen again and adjust your sounds.</span>`;
+      if (correct) solvedRounds.add(roundIndex); else solvedRounds.delete(roundIndex);
+      updateNavigation();
+      if (correct) {
+        clearTimeout(advanceTimer);
+        if (roundIndex < sampleRounds.length - 1) {
+          advanceTimer = setTimeout(() => moveRound(roundIndex + 1), 1100);
+        } else {
+          listenResult.innerHTML = `<span aria-hidden="true">✦</span><span>Challenge complete! You matched all ${sampleRounds.length} words.</span>`;
+        }
+      }
+    });
+    function updateNavigation() {
+      document.querySelectorAll(".listen-dot-nav .progress-dot").forEach((dot, index) => {
+        dot.classList.toggle("done", solvedRounds.has(index));
+        dot.classList.toggle("current", index === roundIndex);
+        if (index === roundIndex) dot.setAttribute("aria-current", "step");
+        else dot.removeAttribute("aria-current");
+      });
+    }
+    function moveRound(index) {
+      if (index < 0 || index >= sampleRounds.length) return;
+      clearTimeout(advanceTimer);
+      roundIndex = index;
+      listenSelected.length = 0;
+      const saved = roundAnswers.get(roundIndex) || "";
+      if (saved) listenSelected.push(...Array.from(saved));
+      renderListenOutput();
+      const wasSolved = solvedRounds.has(roundIndex);
+      listenResult.classList.remove("show", "wrong");
+      if (wasSolved) {
+        const target = sampleRounds[roundIndex];
+        listenResult.innerHTML = `<span aria-hidden="true">✦</span><span>That's it! <strong>${target.word}</strong> <span class="result-ipa">/${target.ipa}/</span></span>`;
+        listenResult.classList.add("show");
+      }
+      playWord.disabled = false; playWord.textContent = "▶ Play word";
+      updateNavigation();
+      speakTarget();
+    }
+    document.querySelectorAll(".listen-dot-nav .progress-dot").forEach(dot => {
+      dot.addEventListener("click", () => moveRound(Number(dot.dataset.round)));
+    });
+    updateNavigation();
+    renderListenGrid();
+  </script>
+</body>
+</html>

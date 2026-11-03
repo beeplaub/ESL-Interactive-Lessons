@@ -223,6 +223,26 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
       items,
     } as unknown as Json)];
   }
+  if (activityType === "IPA_LISTEN_BUILD") {
+    const items = Array.isArray(data.items) ? data.items : [];
+    const correct = Object.fromEntries(items.map((item, index) => {
+      const row = asRecord(item as Json);
+      return [text(row.id || `word-${index + 1}`), text(row.ipa_uk)];
+    }));
+    return [common(data, 0, "IPA_PRACTICE", correct, {
+      mode: "listen-build",
+      accent: "uk",
+      title: text(data.title),
+      items: items.map((item, index) => {
+        const row = asRecord(item as Json);
+        return { id: text(row.id || `word-${index + 1}`), prompt: text(row.word), expected: text(row.ipa_uk), expected_by_accent: { uk: text(row.ipa_uk), us: text(row.ipa_us) }, audio_url: text(row.audio_url) };
+      }),
+      correct_by_accent: Object.fromEntries(items.map((item, index) => {
+        const row = asRecord(item as Json);
+        return [text(row.id || `word-${index + 1}`), { uk: text(row.ipa_uk), us: text(row.ipa_us) }];
+      })),
+    } as unknown as Json)];
+  }
   if (activityType === "SHADOWING") {
     const targetText = shadowingSentenceText(data);
     const audioUrl = text(data.audio_url);
