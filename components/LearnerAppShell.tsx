@@ -550,7 +550,6 @@ function MobileTopbar({
               <MobileDrawerLink href="/wordverse" label="Wordverse" icon={Orbit} active={active === "wordverse"} />
               <MobileDrawerLink href="/ai-tutor" label="AI Tutor" icon={Sparkles} active={active === "ai-tutor"} />
               <MobileDrawerLink href="/ipa-chart" label="IPA Chart" icon={AudioLines} active={active === "ipa-chart"} />
-              <MobileDrawerLink href="/ipa-quest" label="IPA Sound Quest" icon={Gamepad2} active={active === "ipa-quest"} />
               <MobileDrawerLink href="/games" label="Games" icon={Gamepad2} active={active === "games"} />
               <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />
               <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 const learnerRoutes = [
   "/account", "/quizzes", "/quiz-attempts", "/courses", "/live-classes", "/assignments",
-  "/certificates", "/level-test", "/language-profile", "/leaderboard", "/profile", "/ipa-chart", "/ipa-quest", "/games", "/ipa-snakes-and-ladders",
+  "/certificates", "/level-test", "/language-profile", "/leaderboard", "/profile", "/ipa-chart", "/games", "/ipa-snakes-and-ladders",
 ];
 
 /** Warm learner navigation in idle time so menu changes feel immediate. */
