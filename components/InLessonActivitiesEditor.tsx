@@ -922,6 +922,7 @@ function ActivityPanel({
               {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "DRAG_DROP" || activity.activity_type === "CATEGORIZATION" ? <DragDropEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "TONGUE_TWISTER" ? <TongueTwisterPracticeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "ORAL_RESPONSE" ? <OralResponseEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SUMMARIZATION" ? <SummarizationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "INFERENCE_DETECTION" ? <InferenceDetectionEditor activity={activity} onSave={save} /> : null}
@@ -947,7 +948,7 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -2366,6 +2367,25 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
       </div>
     </div>
   );
+}
+
+function TongueTwisterPracticeEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [title, setTitle] = useState(String(data.title ?? "Tongue Twister Challenge"));
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the model, then try saying it aloud."));
+  const [passage, setPassage] = useState(String(data.passage ?? ""));
+  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
+  const needsReview = !passage.trim() || !audioUrl.trim();
+  return <div className="grid gap-4 rounded-2xl border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand-soft)]/40 via-white to-[var(--br-success-soft)]/40 p-4 sm:p-5">
+    <div><p className="text-xs font-black uppercase tracking-wide text-[var(--br-brand)]">Learner self-grade</p><p className="mt-1 text-sm text-[var(--br-text-muted)]">Learners listen to their recording and choose a score from 1 to 3. Their audio stays in the browser and is not uploaded.</p></div>
+    <label className="text-sm font-bold">Activity title<input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
+    <label className="text-sm font-bold">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
+    <label className="text-sm font-bold">Tongue twister<textarea value={passage} onChange={(event) => setPassage(event.target.value)} rows={3} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
+    <label className="text-sm font-bold">Model audio URL<input type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="Paste or reuse the Learn audio URL" className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
+    {audioUrl.trim() ? <audio controls preload="metadata" src={audioUrl.trim()} className="w-full" /> : null}
+    <p className="rounded-xl bg-white/80 p-3 text-xs leading-5 text-[var(--br-text-muted)]">This estimates similarity between the two audio patterns. It does not identify phonemes or certify pronunciation accuracy. The activity is ready to publish when it has both text and model audio.</p>
+    <SaveButton onClick={() => onSave({ title, prompt, level: "sentence", max_attempts: 3, max_recording_seconds: 30, passage, audio_url: audioUrl.trim(), score_mode: "self_grade_3", targets: [{ id: "twister", text: passage, color: "var(--br-achievement)" }] } as unknown as Json, needsReview)} />
+  </div>;
 }
 
 type TableColumn = { id: string; label: string };

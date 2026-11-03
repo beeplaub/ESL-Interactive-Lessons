@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BrenUp · Tongue Twister</title>
+  <style>
+    :root{--ink:#19313c;--muted:#687d84;--brand:#176c68;--soft:#eaf5f2;--line:#e1ebe8;--bg:#f5f8f7;--gold:#f5d36f}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid #e8b940;outline-offset:3px}
+    header{height:62px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 max(20px,calc((100vw - 900px)/2));font-weight:850;letter-spacing:-.03em}.logo{display:grid;place-items:center;width:32px;height:32px;margin-right:9px;border-radius:11px;background:var(--brand);color:white}
+    main{max-width:760px;margin:54px auto;padding:0 22px}.back{border:0;background:transparent;padding:0;color:var(--muted);font-size:13px;font-weight:700}.title{margin:22px 0 5px;font-size:clamp(26px,5vw,36px);line-height:1.15;letter-spacing:-.04em}.subtitle{margin:0;color:var(--muted)}
+    .card{margin-top:24px;padding:clamp(20px,5vw,34px);border:1px solid var(--line);border-radius:23px;background:#fff;box-shadow:0 14px 40px #1c41320c}.target{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:var(--soft);color:var(--brand);font-size:12px;font-weight:800}.prompt{margin:14px 0 22px;color:var(--muted);font-size:14px}.twister{margin:0;padding:22px 20px;border-radius:17px;background:#f7faf9;font-size:clamp(23px,5vw,34px);font-weight:800;line-height:1.48;letter-spacing:-.025em}.mark{padding:0 2px;border-radius:5px;background:#ffedb1;box-decoration-break:clone;-webkit-box-decoration-break:clone}.tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:20px}.btn{min-height:42px;padding:9px 15px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font-size:13px;font-weight:750}.btn:hover{background:#f6faf8}.btn.primary{border-color:var(--brand);background:var(--brand);color:#fff}.btn.primary:hover{background:#105451}.audio{display:none}.note{margin:19px 0 0;padding-top:15px;border-top:1px solid #edf1f0;color:var(--muted);font-size:13px}.message{min-height:20px;margin:9px 0 0;color:var(--brand);font-size:12px;font-weight:700}.chunk-line{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.chunk{padding:8px 11px;border-radius:10px;background:var(--soft);color:var(--brand);font-size:14px;font-weight:750;animation:fade .18s ease-out}@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+    @media(max-width:560px){header{height:56px;padding:0 16px}main{margin:30px auto;padding:0 15px}.title{margin-top:19px}.card{margin-top:19px;padding:20px 17px;border-radius:19px}.twister{padding:18px 15px}.tools .btn{flex:1}.note{font-size:12px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <header><span class="logo" aria-hidden="true">B</span>BrenUp</header>
+  <main>
+    <button class="back" type="button">← &nbsp;Back to lesson</button>
+    <h1 class="title">Tongue twister</h1>
+    <p class="subtitle">Take it slowly. Clear sounds come first.</p>
+    <section class="card" aria-label="Tongue twister practice">
+      <span class="target">Practise /s/ and /ʃ/</span>
+      <p class="prompt">Read it once, then try saying it aloud.</p>
+      <p class="twister"><span class="mark">She sells</span> <span class="mark">sea shells</span> by the <span class="mark">sea shore.</span></p>
+      <div class="tools">
+        <button class="btn" id="listen" type="button">▶ &nbsp;Listen</button>
+        <button class="btn" id="chunks" type="button">Practise in phrases</button>
+        <button class="btn primary" id="done" type="button">I practised ✓</button>
+      </div>
+      <div class="chunk-line" id="chunkLine" aria-live="polite"></div>
+      <p class="message" id="message" aria-live="polite"></p>
+      <p class="note">Tip: keep the two sounds clear—speed can come later.</p>
+    </section>
+  </main>
+  <script>
+    const chunksButton=document.querySelector('#chunks');
+    const chunkLine=document.querySelector('#chunkLine');
+    const message=document.querySelector('#message');
+    let phrasesVisible=false;
+    chunksButton.addEventListener('click',()=>{
+      phrasesVisible=!phrasesVisible;
+      chunkLine.innerHTML=phrasesVisible?['She sells','sea shells','by the sea shore.'].map((phrase)=>`<span class="chunk">${phrase}</span>`).join(''):'';
+      chunksButton.textContent=phrasesVisible?'Hide phrases':'Practise in phrases';
+    });
+    document.querySelector('#listen').addEventListener('click',()=>{message.textContent='Optional model audio can be attached to this activity.'});
+    document.querySelector('#done').addEventListener('click',(event)=>{message.textContent='Nice work. Clear and steady is great practice.';event.currentTarget.textContent='Practised ✓';event.currentTarget.disabled=true});
+  </script>
+</body>
+</html>

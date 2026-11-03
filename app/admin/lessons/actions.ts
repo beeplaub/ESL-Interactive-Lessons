@@ -1910,13 +1910,34 @@ export async function addLessonSlideActivity(lessonId: string, slideId: string, 
 
     const activityType = String(formData.get("activityType") || "MCQ");
     const prompt = String(formData.get("prompt") || defaultActivityPrompt(activityType)).trim();
+    const activityDataRaw = String(formData.get("activityData") || "").trim();
+    let activityData = defaultActivityData(activityType, prompt);
+    if (activityType === "TONGUE_TWISTER" && activityDataRaw) {
+      const parsed: unknown = JSON.parse(activityDataRaw);
+      const source = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+      const text = typeof source.passage === "string" ? source.passage.slice(0, 2000) : "";
+      const audioUrl = typeof source.audio_url === "string" ? source.audio_url.slice(0, 2000) : "";
+      const title = typeof source.title === "string" ? source.title.slice(0, 120) : "Tongue Twister Challenge";
+      const instruction = typeof source.prompt === "string" ? source.prompt.slice(0, 240) : prompt;
+      activityData = {
+        title,
+        prompt: instruction,
+        level: "sentence",
+        max_attempts: 3,
+        max_recording_seconds: 30,
+        passage: text,
+        audio_url: audioUrl,
+        score_mode: "self_grade_3",
+        targets: [{ id: "twister", text, color: "var(--br-achievement)" }],
+      } as unknown as Json;
+    }
 
     const { error } = await supabase.from("lesson_slide_activities").insert({
       lesson_id: lessonId,
       slide_id: slideId,
       slide_number: slideNumber,
       activity_type: activityType,
-      activity_data: defaultActivityData(activityType, prompt),
+      activity_data: activityData,
       needs_review: true,
       raw_text: prompt
     });
@@ -2270,6 +2291,9 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   }
   if (activityType === "PRONUNCIATION") {
     return { prompt, level: "word", max_attempts: 3, passage: "", targets: [{ id: "1", text: "pronunciation", color: "var(--br-achievement)" }] };
+  }
+  if (activityType === "TONGUE_TWISTER") {
+    return { prompt, level: "sentence", max_attempts: 3, max_recording_seconds: 30, passage: "", audio_url: "", score_mode: "self_grade_3", targets: [{ id: "twister", text: "", color: "var(--br-achievement)" }] } as unknown as Json;
   }
   if (activityType === "ORAL_RESPONSE") {
     return {

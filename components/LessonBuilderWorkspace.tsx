@@ -1153,9 +1153,10 @@ function PreviewActivitySequence({ activities, onNextSlide }: { activities: Acti
   return <div className="space-y-3">{activities.length > 1 ? <div className="flex items-center gap-2" role="tablist" aria-label="Activities on this slide">{activities.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={index === activityIndex} onClick={() => setActivityIndex(index)} className={`min-w-0 flex-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-extrabold transition sm:px-3 ${index === activityIndex ? "border-[var(--br-chart-secondary)] bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-secondary)]/40 hover:bg-[var(--br-success-soft)] hover:text-[var(--br-chart-secondary)]"}`}>Activity {index + 1}</button>)}</div> : null}<LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={handleNext} nextLabel={activityIndex < activities.length - 1 ? "Next activity" : "Next slide"} previewOnly /></div>;
 }
 
-function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }: {
+function ActivityPickerModal({ lessonId, slide, blocks, onClose, onOpenBank, onOpenAi }: {
   lessonId: string;
   slide: Slide;
+  blocks: LessonBlock[];
   onClose: () => void;
   onOpenBank: () => void;
   onOpenAi: () => void;
@@ -1170,6 +1171,17 @@ function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }:
     return !query || `${activity.label} ${activity.description} ${activity.skills.join(" ")}`.toLowerCase().includes(query);
   });
   const selected = lessonActivityDefinition(selectedType);
+  const tongueTwisterBlock = blocks.find((block) => block.block_type === "TONGUE_TWISTER");
+  const tongueTwisterContent = asRecord(tongueTwisterBlock?.content);
+  const tongueTwisterItem = Array.isArray(tongueTwisterContent.items) ? asRecord(tongueTwisterContent.items[0]) : {};
+  const tongueTwisterText = asString(tongueTwisterItem.text ?? tongueTwisterContent.text);
+  const tongueTwisterAudio = asString(tongueTwisterItem.audio_path ?? tongueTwisterContent.audio_path);
+  const tongueTwisterActivityData = selectedType === "TONGUE_TWISTER" ? JSON.stringify({
+    title: asString(tongueTwisterContent.title) || "Tongue Twister Challenge",
+    prompt: "Listen to the model, then try saying it aloud.",
+    passage: tongueTwisterText,
+    audio_url: tongueTwisterAudio,
+  }) : null;
 
   function skillIcon(activitySkills: LessonActivitySkill[]) {
     if (activitySkills.includes("LISTENING")) return Headphones;
@@ -1218,6 +1230,7 @@ function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }:
           </div>
           <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message={`Adding ${selected?.label ?? "activity"}...`} onSubmit={onClose}>
             <input type="hidden" name="activityType" value={selectedType} />
+            {tongueTwisterActivityData ? <input type="hidden" name="activityData" value={tongueTwisterActivityData} /> : null}
             <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-4 py-2.5 text-sm font-black text-on-dark sm:w-auto"><Plus size={15} /> Add {selected?.label ?? "activity"}</button>
           </form>
         </div>
@@ -1305,7 +1318,7 @@ function SelectedSlideEditor({
       </section> : null}
 
         {openBlock ? <BlockEditModal lessonId={lessonId} slideId={slide.id} block={openBlock} blockIndex={openBlockIndex} blockCount={localBlocks.length} onClose={() => setOpenBlockId(null)} /> : null}
-        {isActivityPickerOpen ? <ActivityPickerModal lessonId={lessonId} slide={slide} onClose={() => setIsActivityPickerOpen(false)} onOpenBank={() => setIsActivityBankOpen(true)} onOpenAi={() => setIsAiGenOpen(true)} /> : null}
+        {isActivityPickerOpen ? <ActivityPickerModal lessonId={lessonId} slide={slide} blocks={localBlocks} onClose={() => setIsActivityPickerOpen(false)} onOpenBank={() => setIsActivityBankOpen(true)} onOpenAi={() => setIsAiGenOpen(true)} /> : null}
         {isActivityBankOpen ? (
           <ActivityBankModal lessonId={lessonId} slide={slide} slides={slides} activities={activities} onClose={() => setIsActivityBankOpen(false)} />
         ) : null}
@@ -1639,11 +1652,10 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   const [imagePairPaths, setImagePairPaths] = useState(() => [asString(data.left_path), asString(data.right_path)]);
   const [tongueTwisters, setTongueTwisters] = useState(() => {
     const items = Array.isArray(data.items) ? data.items as Record<string, unknown>[] : [];
-    return (items.length ? items : [{}]).map((item) => ({
-      title: asString(item.title), context: asString(item.context), text: asString(item.text), targetSound: asString(item.target_sound),
-      highlights: Array.isArray(item.highlights) ? item.highlights.map(String).join(", ") : "", chunks: Array.isArray(item.chunks) ? item.chunks.map(String).join("\n") : "",
-      note: asString(item.pronunciation_note), audioPath: asString(item.audio_path), hideReveal: item.hide_reveal_enabled === true,
-      difficultWords: Array.isArray(item.difficult_words) ? (item.difficult_words as Record<string, unknown>[]).map((word) => ({ word: asString(word.word), phonetic: asString(word.phonetic), note: asString(word.note) })) : []
+    return (items.length ? items.slice(0, 1) : [{}]).map((item) => ({
+      text: asString(item.text),
+      highlights: Array.isArray(item.highlights) ? item.highlights.map(String).join(", ") : "",
+      audioPath: asString(item.audio_path),
     }));
   });
   const [tongueAudioPaths, setTongueAudioPaths] = useState(() => tongueTwisters.map((item) => item.audioPath));
@@ -1835,17 +1847,13 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   }
   if (blockType === "TONGUE_TWISTER") {
     const updateTwister = (index: number, key: string, value: unknown) => setTongueTwisters((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
-    const addWord = (index: number) => updateTwister(index, "difficultWords", [...tongueTwisters[index].difficultWords, { word: "", phonetic: "", note: "" }]);
-    const updateWord = (itemIndex: number, wordIndex: number, key: string, value: string) => setTongueTwisters((current) => current.map((item, index) => index === itemIndex ? { ...item, difficultWords: item.difficultWords.map((word, index) => index === wordIndex ? { ...word, [key]: value } : word) } : item));
     return <div className="grid gap-4">
       <label className="text-sm">Block title<input name="title" defaultValue={asString(data.title)} placeholder="Tongue Twister Challenge" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       <label className="text-sm">Instruction <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="instruction" rows={2} defaultValue={asString(data.instruction)} placeholder="Start slowly, then build up your speed." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-      <input type="hidden" name="items_json" value={JSON.stringify(tongueTwisters.map((item, index) => ({ ...item, audio_path: tongueAudioPaths[index] || "", highlights: item.highlights.split(",").map((value) => value.trim()).filter(Boolean), chunks: item.chunks.split(/\r?\n/).map((value) => value.trim()).filter(Boolean), difficult_words: item.difficultWords.filter((word) => word.word.trim()).map((word) => ({ ...word, word: word.word.trim() })) })))} />
-      {tongueTwisters.map((item, index) => <div key={index} className="rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)]/20 p-3 sm:p-4">
-        <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-black text-[var(--br-brand)]">Twister {index + 1}</p>{tongueTwisters.length > 1 ? <button type="button" onClick={() => { setTongueTwisters((current) => current.filter((_, itemIndex) => itemIndex !== index)); setTongueAudioPaths((current) => current.filter((_, itemIndex) => itemIndex !== index)); }} className="text-xs font-semibold text-coral">Remove</button> : null}</div>
-        <div className="grid gap-3"><label className="text-sm">Title<input value={item.title} onChange={(event) => updateTwister(index, "title", event.target.value)} placeholder="Sea Shells" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Pronunciation objective <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={item.context} onChange={(event) => updateTwister(index, "context", event.target.value)} placeholder="Practise /s/ and /ʃ/." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Tongue-twister text<textarea value={item.text} onChange={(event) => updateTwister(index, "text", event.target.value)} rows={3} placeholder="She sells sea shells by the sea shore." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Target sound <input value={item.targetSound} onChange={(event) => updateTwister(index, "targetSound", event.target.value)} placeholder="/s/ and /ʃ/" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Highlight text <span className="font-normal text-[var(--br-text-muted)]">(comma-separated)</span><input value={item.highlights} onChange={(event) => updateTwister(index, "highlights", event.target.value)} placeholder="s, sh" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></div><label className="text-sm">Chunks <span className="font-normal text-[var(--br-text-muted)]">(one per line; optional)</span><textarea value={item.chunks} onChange={(event) => updateTwister(index, "chunks", event.target.value)} rows={3} placeholder="She sells\nsea shells\nby the sea shore" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Pronunciation note <textarea value={item.note} onChange={(event) => updateTwister(index, "note", event.target.value)} rows={2} placeholder="Keep the target sounds clear." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><div><p className="text-sm">Reference audio <span className="font-normal text-[var(--br-text-muted)]">(optional)</span></p><BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={tongueAudioPaths[index] || ""} onUploaded={(url) => setTongueAudioPaths((current) => current.map((value, audioIndex) => audioIndex === index ? url : value))} /></div><label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={item.hideReveal} onChange={(event) => updateTwister(index, "hideReveal", event.target.checked)} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Enable hide and reveal</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners can practise from memory.</span></span></label><div className="rounded-lg border border-[var(--br-border)] bg-surface p-3"><p className="text-sm font-semibold">Difficult words</p>{item.difficultWords.map((word, wordIndex) => <div key={wordIndex} className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_1.5fr_auto]"><input value={word.word} onChange={(event) => updateWord(index, wordIndex, "word", event.target.value)} placeholder="Word" className="rounded-md border border-[var(--br-border)] px-2 py-1.5 text-sm" /><input value={word.phonetic} onChange={(event) => updateWord(index, wordIndex, "phonetic", event.target.value)} placeholder="/phonetic/" className="rounded-md border border-[var(--br-border)] px-2 py-1.5 text-sm" /><input value={word.note} onChange={(event) => updateWord(index, wordIndex, "note", event.target.value)} placeholder="Tip" className="rounded-md border border-[var(--br-border)] px-2 py-1.5 text-sm" /><button type="button" onClick={() => updateTwister(index, "difficultWords", item.difficultWords.filter((_, difficultIndex) => difficultIndex !== wordIndex))} className="text-xs font-semibold text-coral">Remove</button></div>)}<button type="button" onClick={() => addWord(index)} className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold">+ Add difficult word</button></div></div>
+      <input type="hidden" name="items_json" value={JSON.stringify(tongueTwisters.slice(0, 1).map((item, index) => ({ text: item.text, audio_path: tongueAudioPaths[index] || "", highlights: item.highlights.split(",").map((value) => value.trim()).filter(Boolean) })))} />
+      {tongueTwisters.slice(0, 1).map((item, index) => <div key={index} className="rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)]/20 p-3 sm:p-4">
+        <div className="grid gap-3"><label className="text-sm">Tongue-twister text<textarea value={item.text} onChange={(event) => updateTwister(index, "text", event.target.value)} rows={3} placeholder="She sells sea shells by the sea shore." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Words to highlight <span className="font-normal text-[var(--br-text-muted)]">(comma-separated)</span><input value={item.highlights} onChange={(event) => updateTwister(index, "highlights", event.target.value)} placeholder="s, sh" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></div><div><p className="text-sm font-semibold">Model audio</p><p className="mb-1 text-xs text-[var(--br-text-muted)]">Record or upload the example learners will hear at three speeds.</p><BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={tongueAudioPaths[index] || ""} onUploaded={(url) => setTongueAudioPaths((current) => current.map((value, audioIndex) => audioIndex === index ? url : value))} /></div></div>
       </div>)}
-      <button type="button" onClick={() => { setTongueTwisters((current) => [...current, { title: "", context: "", text: "", targetSound: "", highlights: "", chunks: "", note: "", audioPath: "", hideReveal: false, difficultWords: [] }]); setTongueAudioPaths((current) => [...current, ""]); }} className="w-fit rounded-md border border-[var(--br-brand)]/30 px-4 py-2 text-sm font-semibold text-[var(--br-brand)]">+ Add tongue twister</button>
     </div>;
   }
   if (blockType === "IMAGE_TEXT") {

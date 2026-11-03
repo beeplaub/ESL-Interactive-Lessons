@@ -70,6 +70,7 @@ function baseQuestionTotal(question: ScoredQuestion): number {
   }
 
   if (question.question_type === "PRONUNCIATION") {
+    if (["self_grade_3", "reference_audio_similarity"].includes(String(asRecord(question.options).score_mode))) return 3;
     return (Array.isArray(question.correct_answer) ? question.correct_answer.length : 0) || 1;
   }
 
@@ -135,6 +136,11 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
   }
 
   if (question.question_type === "PRONUNCIATION") {
+    if (["self_grade_3", "reference_audio_similarity"].includes(String(asRecord(question.options).score_mode))) {
+      const targetId = Array.isArray(question.correct_answer) ? String(question.correct_answer[0] ?? "") : "";
+      const score = Number(asRecord(asRecord(answer as Json).targetScores as Json)[targetId]);
+      return Number.isFinite(score) ? Math.max(0, Math.min(3, score)) : 0;
+    }
     const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
     return targetIds.reduce((sum, id) => sum + pronunciationTargetPoints(answer, id), 0);
   }
@@ -345,6 +351,10 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
   }
 
   if (question.question_type === "PRONUNCIATION") {
+    if (["self_grade_3", "reference_audio_similarity"].includes(String(asRecord(question.options).score_mode))) {
+      const targetId = Array.isArray(question.correct_answer) ? String(question.correct_answer[0] ?? "") : "";
+      return Number(asRecord(asRecord(value as Json).targetScores as Json)[targetId]) === 3;
+    }
     const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
     if (targetIds.length === 0) return false;
     return targetIds.every((id) => pronunciationTargetPoints(value, id) === 1);

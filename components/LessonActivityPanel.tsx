@@ -516,7 +516,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: correctAnswer as Json,
     }];
   }
-  if (activityType === "PRONUNCIATION") {
+  if (activityType === "PRONUNCIATION" || activityType === "TONGUE_TWISTER") {
     const rawTargets: unknown[] = Array.isArray(data.targets) ? data.targets : [];
     const targets = rawTargets.map((item, index) => {
       const row = asRecord(item as Json);
@@ -533,14 +533,16 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       id: "1",
       question_number: 1,
       question_type: "PRONUNCIATION",
-      question_text: String(data.prompt ?? "Say each word clearly."),
+      question_text: String(data.prompt ?? (activityType === "TONGUE_TWISTER" ? "Listen to the model, then try saying it aloud." : "Say each word clearly.")),
       options: {
         level,
+        title: String(data.title ?? "Tongue Twister Challenge"),
         passage: String(data.passage ?? ""),
         targets,
         max_attempts: maxAttempts,
         max_recording_seconds: Math.max(5, Math.min(30, Math.round(Number(data.max_recording_seconds ?? 30) || 30))),
         audio_url: String(data.audio_url ?? ""),
+        score_mode: activityType === "TONGUE_TWISTER" ? "self_grade_3" : undefined,
       } as Json,
       correct_answer: targets.map((t) => t.id) as Json,
     }];
@@ -2158,7 +2160,7 @@ export function LessonActivityPanel({
               ? "Saved. Choose how each response should be evaluated below — your result isn't final until grading is complete."
               : message ?? "Review your feedback, then continue."
             : isPronunciationActivity
-            ? "Your pronunciation is graded automatically."
+            ? "Record your response to continue."
             : isShadowingActivity
             ? isPending ? "Saving your Shadowing practice…" : shadowingComparisonHeard ? "Comparison complete — finish when you’re ready." : "Listen to the model and your recording once to finish."
             : allAnswered

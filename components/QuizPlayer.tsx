@@ -25,6 +25,7 @@ import { shadowingWordCoverage } from "@/lib/shadowingScoring";
 import { IpaPracticePlayer } from "@/components/ipa/IpaPracticePlayer";
 import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 import { makeIpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
+import { TongueTwisterPracticeCard } from "@/components/LessonBlockPreview";
 
 export type QuizQuestion = {
   id: string;
@@ -1026,7 +1027,7 @@ export function QuizPlayer({
           return (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)]">
               <p className="text-sm font-semibold text-[var(--br-text-muted)]">
-                {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : isPronunciationOnly ? "Your pronunciation is graded automatically." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
+                {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : isPronunciationOnly ? "Record your response to continue." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
               </p>
               <div className="flex gap-2">
                 {submitted ? (
@@ -2736,7 +2737,7 @@ function Pronunciation({
   disabled: boolean;
   onChange: (value: PronunciationValue) => void;
 }) {
-  const opts = asRecord(question.options) as { level?: string; passage?: string; targets?: unknown[]; max_attempts?: number; max_recording_seconds?: number; audio_url?: string };
+  const opts = asRecord(question.options) as { level?: string; title?: string; passage?: string; targets?: unknown[]; max_attempts?: number; max_recording_seconds?: number; audio_url?: string; score_mode?: string };
   const level = opts.level === "sentence" || opts.level === "paragraph" ? "sentence" : "word";
   const recordingLimitSeconds = level === "word" ? 5 : Math.max(5, Math.min(30, Math.round(Number(opts.max_recording_seconds ?? 30) || 30)));
   const targets: PronunciationTarget[] = Array.isArray(opts.targets)
@@ -2748,6 +2749,7 @@ function Pronunciation({
   const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
   const passage = String(opts.passage ?? "");
   const referenceAudioUrl = String(opts.audio_url ?? "").trim();
+  const isSelfGradedTwister = opts.score_mode === "self_grade_3" || opts.score_mode === "reference_audio_similarity";
   const results = value?.results ?? {};
   const targetScores = value?.targetScores ?? {};
   const attemptsUsed = value?.attemptsUsed ?? {};
@@ -2916,6 +2918,38 @@ function Pronunciation({
   const scoreMessage = averageScore == null ? "Ready when you are" : averageScore >= 85 ? "Strong start" : averageScore >= 70 ? "Good progress" : "Let’s focus on one sound";
   const scoreCopy = averageScore == null ? "Listen once, then record your voice for precise word and sound feedback." : averageScore >= 85 ? "Clear and natural overall. Focus on the highlighted sounds to sound even more fluent." : "You’re building a good foundation. A focused retry will help the highlighted sounds land more clearly.";
   const scoreBadge = averageScore == null ? "Not attempted" : averageScore >= 85 ? "Great clarity" : averageScore >= 70 ? "Keep building" : "Focus next";
+
+  if (isSelfGradedTwister) {
+    const target = targets[0];
+    const targetId = target?.id ?? "twister";
+    const score = targetScores[targetId];
+    return <TongueTwisterPracticeCard
+      item={{ text: passage, audio_path: referenceAudioUrl, highlights: [] }}
+      title={String(opts.title ?? "Tongue Twister Challenge")}
+      score={Number.isFinite(score) ? score : undefined}
+      disabled={disabled}
+      onScore={(nextScore) => {
+        const nextTargetScores = { ...targetScores };
+        const nextResults = { ...results };
+        const nextAssessments = { ...assessments };
+        if (nextScore === undefined) {
+          delete nextTargetScores[targetId];
+          delete nextResults[targetId];
+          delete nextAssessments.__passage__;
+        } else {
+          nextTargetScores[targetId] = nextScore;
+          nextResults[targetId] = nextScore === 3;
+          nextAssessments.__passage__ = { overallScore: nextScore, accuracyScore: nextScore };
+        }
+        onChange({
+          results: nextResults,
+          targetScores: nextTargetScores,
+          attemptsUsed: nextScore === undefined ? attemptsUsed : { ...attemptsUsed, __passage__: (attemptsUsed.__passage__ ?? 0) + 1 },
+          assessments: nextAssessments,
+        });
+      }}
+    />;
+  }
 
   if (level === "word") {
     if (!targets.length) {

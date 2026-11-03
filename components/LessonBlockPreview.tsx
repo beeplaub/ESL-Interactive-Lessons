@@ -1,12 +1,13 @@
 "use client";
 
-import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Loader2, Maximize, Minimize, MessageSquareQuote, Mic, MicOff, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Json } from "@/types/database.types";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { parseAudioTracks } from "@/lib/audioTracks";
+import { fireCompletionConfetti } from "@/lib/gamification/confetti";
 
 export type PreviewLessonBlock = {
   id: string;
@@ -779,29 +780,221 @@ function ContrastSide({ variant, color, term, meaning, pattern, examples }: { va
   return <div className="rounded-xl border p-3 text-on-dark shadow-sm sm:p-4" style={{ backgroundColor: color || fallbackColor, borderColor: color || fallbackColor }}><h4 className="text-lg font-semibold text-on-dark">{term || "Term"}</h4>{meaning ? <p className="mt-1 text-sm leading-6 text-on-dark/85">{meaning}</p> : null}{pattern ? <p className={`mt-3 rounded-md border bg-surface px-2.5 py-1.5 font-mono text-xs ${patternClass}`}>{pattern}</p> : null}{asArray(examples).length ? <div className="mt-3 space-y-1.5">{asArray(examples).map((example, index) => <p key={index} className="rounded-md bg-white/15 px-2.5 py-1.5 text-sm leading-6 text-on-dark">{String(example)}</p>)}</div> : null}</div>;
 }
 
-function TongueTwisterBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {
-  const items = asArray(content.items).map((item) => asRecord(item as Json));
-  return <section className="overflow-hidden rounded-xl border border-[var(--br-brand)]/25 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-achievement)]/10 shadow-sm"><div className="border-b border-[var(--br-brand)]/15 bg-[var(--br-brand)]/10 px-4 py-3 sm:px-5"><h3 className="font-semibold text-ink">{asString(content.title) || "Tongue Twister Challenge"}</h3>{asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}</div><div className="space-y-3 p-3 sm:p-4">{items.length ? items.map((item, index) => <TongueTwisterItem key={index} item={item} index={index} alwaysOpen={alwaysOpen} />) : <p className="text-sm text-[var(--br-text-muted)]">Add a tongue twister.</p>}</div></section>;
+function TongueTwisterBlock({ content }: { content: Record<string, unknown> }) {
+  const items = asArray(content.items).slice(0, 1).map((item) => asRecord(item as Json));
+  return (
+    <div className="mx-auto max-w-[760px]">
+      <TongueTwisterItem
+        item={items[0] ?? {}}
+        title={asString(content.title) || "Tongue Twister Challenge"}
+        instruction={asString(content.instruction)}
+      />
+    </div>
+  );
 }
 
-function TongueTwisterItem({ item, index, alwaysOpen = false }: { item: Record<string, unknown>; index: number; alwaysOpen?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"full" | "chunks">("full");
-  const [speed, setSpeed] = useState(1);
-  const [checked, setChecked] = useState<boolean[]>([false, false, false]);
-  const audioRef = useRef<HTMLAudioElement>(null);
+export function TongueTwisterPracticeCard({ item, title, score, onScore, disabled }: {
+  item: Record<string, unknown>;
+  title: string;
+  score?: number;
+  onScore: (score: number | undefined) => void;
+  disabled?: boolean;
+}) {
+  return <TongueTwisterItem item={item} title={title} instruction="" scoreMode={{ score, onScore }} disabled={disabled} />;
+}
+
+function TongueTwisterItem({ item, title, instruction, scoreMode, disabled }: {
+  item: Record<string, unknown>;
+  title: string;
+  instruction: string;
+  scoreMode?: { score?: number; onScore: (score: number | undefined) => void };
+  disabled?: boolean;
+}) {
+  const [recording, setRecording] = useState(false);
+  const [recordingStarting, setRecordingStarting] = useState(false);
+  const [selectedSpeed, setSelectedSpeed] = useState(1);
+  const [recordedUrl, setRecordedUrl] = useState("");
+  const [recordingError, setRecordingError] = useState("");
+  const [localScore, setLocalScore] = useState<number | undefined>(scoreMode?.score);
+  const [showGradeOptions, setShowGradeOptions] = useState(false);
+  const modelAudioRef = useRef<HTMLAudioElement>(null);
+  const recordingAudioRef = useRef<HTMLAudioElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordedUrlRef = useRef("");
   const text = asString(item.text);
   const highlights = asArray(item.highlights).map(String).filter(Boolean);
-  const chunks = asArray(item.chunks).map(String).filter(Boolean);
-  const words = asArray(item.difficult_words).map((word) => asRecord(word as Json));
   const audio = asString(item.audio_path);
+  const speeds = [
+    { label: "Very slow", rate: 0.65, style: "border-[#b8e5dc] bg-[#eaf7f3] text-[#176c68]" },
+    { label: "Natural", rate: 1, style: "border-[#176c68] bg-[#176c68] text-white shadow-[0_5px_14px_rgba(23,108,104,0.2)]" },
+    { label: "Fast", rate: 1.3, style: "border-[#f0d788] bg-[#fff7dc] text-[#765914]" },
+  ];
+
+  useEffect(() => () => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    if (recordedUrlRef.current) URL.revokeObjectURL(recordedUrlRef.current);
+  }, []);
+
   const highlightedText = (value: string) => {
     if (!highlights.length) return value;
-    const pattern = new RegExp(`(${highlights.map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
-    return value.split(pattern).map((part, partIndex) => highlights.some((highlight) => highlight.toLowerCase() === part.toLowerCase()) ? <mark key={partIndex} className="rounded bg-[var(--br-achievement)]/45 px-0.5 text-ink">{part}</mark> : <span key={partIndex}>{part}</span>);
+    const orderedHighlights = [...highlights].sort((left, right) => right.length - left.length);
+    const pattern = /([\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*)/gu;
+    return value.split(pattern).map((part, partIndex) => orderedHighlights.some((highlight) => part.toLowerCase().includes(highlight.toLowerCase()))
+      ? <mark key={partIndex} className="rounded bg-[#ffedb1] px-0.5 text-ink">{part}</mark>
+      : <span key={partIndex}>{part}</span>);
   };
-  const setPlayback = (next: number) => { setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; };
-  return <details open={alwaysOpen || !item.hide_reveal_enabled || open} onToggle={(event) => { if (!alwaysOpen) setOpen(event.currentTarget.open); }} className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm"><summary className={`flex list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4 ${alwaysOpen ? "" : "cursor-pointer"}`}><span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--br-achievement)]/40 text-xs font-black text-amber-950">{index + 1}</span>{asString(item.title) || "Tongue twister"}</span>{!alwaysOpen ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{item.hide_reveal_enabled ? (open ? "Close" : "Open") : "Open"}</span> : null}</summary><div className="border-t border-amber-200 p-3 sm:p-4">{asString(item.context) ? <p className="mb-3 text-sm leading-6 text-amber-950">{asString(item.context)}</p> : null}{asString(item.target_sound) ? <span className="inline-flex rounded-full bg-[var(--br-brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--br-brand)]">Target: {asString(item.target_sound)}</span> : null}<div className="mt-3 rounded-xl border border-[var(--br-brand)]/20 bg-surface p-4"><div className="text-lg font-semibold leading-8 text-ink">{mode === "chunks" && chunks.length ? chunks.map((chunk, chunkIndex) => <span key={chunkIndex} className="mr-2 inline-block rounded-md bg-[var(--br-brand)]/10 px-2 py-1">{highlightedText(chunk)}</span>) : highlightedText(text)}</div></div><div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => setMode("full")} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "full" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)]"}`}>Full sentence</button><button type="button" onClick={() => setMode("chunks")} disabled={!chunks.length} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "chunks" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-text-muted)] disabled:opacity-40"}`}>Chunks</button>{audio ? <><audio ref={audioRef} src={mediaUrl(audio, "audio")} preload="metadata" /><button type="button" onClick={() => { if (audioRef.current) { audioRef.current.playbackRate = speed; void audioRef.current.play(); } }} className="rounded-md bg-[var(--br-info)] px-3 py-1.5 text-xs font-semibold text-on-dark">Play audio</button></> : null}<span className="ml-auto text-xs font-semibold text-[var(--br-text-muted)]">Speed</span>{[0.75, 1, 1.25].map((value) => <button key={value} type="button" onClick={() => setPlayback(value)} className={`rounded-md px-2 py-1 text-xs font-semibold ${speed === value ? "bg-[var(--br-achievement)] text-ink" : "bg-surface-muted text-[var(--br-text-muted)]"}`}>{value === 1 ? "Natural" : value === 0.75 ? "Slow" : "Fast"}</button>)}</div>{asString(item.pronunciation_note) ? <p className="mt-3 rounded-md bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Tip:</span> {asString(item.pronunciation_note)}</p> : null}{words.length ? <div className="mt-3"><p className="text-sm font-semibold text-ink">Difficult words</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{words.map((word, wordIndex) => <div key={wordIndex} className="rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><p className="font-semibold text-[var(--br-brand)]">{asString(word.word)} {asString(word.phonetic) ? <span className="font-mono text-xs text-[var(--br-text-muted)]">{asString(word.phonetic)}</span> : null}</p>{asString(word.note) ? <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">{asString(word.note)}</p> : null}</div>)}</div></div> : null}<div className="mt-4 border-t border-[var(--br-border)] pt-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Self-check</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{["I kept the target sounds clear.", "I maintained the rhythm.", "I completed it without stopping."] .map((label, checkIndex) => <label key={label} className="flex items-start gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={checked[checkIndex]} onChange={(event) => setChecked((current) => current.map((value, index) => index === checkIndex ? event.target.checked : value))} className="mt-0.5 size-4 rounded border-[var(--br-border)]" />{label}</label>)}</div></div></div></details>;
+
+  async function playModelAudio(rate: number) {
+    const player = modelAudioRef.current;
+    if (!player || !audio) return;
+    player.pause();
+    player.currentTime = 0;
+    player.playbackRate = rate;
+    setSelectedSpeed(rate);
+    try {
+      await player.play();
+    } catch {
+      setRecordingError("Model audio could not play. Try again or check your device volume.");
+    }
+  }
+
+  async function startRecording() {
+    setRecordingError("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setRecordingError("Recording is not supported in this browser. Try a current version of Chrome, Edge, or Safari.");
+      return;
+    }
+    try {
+      setRecordingStarting(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      const mimeType = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus"]
+        .find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        if (streamRef.current === stream) streamRef.current = null;
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        chunksRef.current = [];
+        if (blob.size) {
+          const nextUrl = URL.createObjectURL(blob);
+          if (recordedUrlRef.current) URL.revokeObjectURL(recordedUrlRef.current);
+          recordedUrlRef.current = nextUrl;
+          setRecordedUrl(nextUrl);
+          setLocalScore(undefined);
+          setShowGradeOptions(false);
+        } else {
+          setRecordingError("No audio was recorded. Please try again.");
+        }
+        setRecording(false);
+      };
+      recorder.onerror = () => {
+        setRecordingError("Recording stopped unexpectedly. Please try again.");
+        stream.getTracks().forEach((track) => track.stop());
+        setRecording(false);
+      };
+      recorder.start();
+      if (scoreMode) {
+        setLocalScore(undefined);
+        setShowGradeOptions(false);
+        scoreMode.onScore(undefined);
+      }
+      setRecording(true);
+      if (recordedUrlRef.current) {
+        URL.revokeObjectURL(recordedUrlRef.current);
+        recordedUrlRef.current = "";
+        setRecordedUrl("");
+      }
+    } catch {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setRecordingError("Microphone access was not allowed. Check your browser permission and try again.");
+    } finally {
+      setRecordingStarting(false);
+    }
+  }
+
+  function stopRecording() {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }
+
+  return (
+    <article className="overflow-hidden rounded-[23px] border border-[#dcece7] bg-white shadow-[0_14px_40px_rgba(28,65,50,0.08)]">
+      <div className="p-5 sm:p-8">
+        {!scoreMode ? <div className="mb-6 sm:mb-7">
+          <h3 className="text-xl font-extrabold tracking-tight text-[#19313c] sm:text-2xl">{title}</h3>
+          <p className="mt-1.5 text-sm text-[var(--br-text-muted)]">Listen to the model, then try saying it aloud.</p>
+          {instruction.trim() && instruction.trim() !== "Start slowly, then build up your speed." ? <p className="mt-2 text-sm text-[var(--br-text-muted)]">{instruction}</p> : null}
+        </div> : null}
+        <div className="rounded-[17px] bg-[#f2f8f6] px-5 py-5 text-[clamp(1.4rem,4vw,2.1rem)] font-extrabold leading-[1.48] tracking-tight text-[#19313c] sm:px-6 sm:py-6">
+          {text ? highlightedText(text) : <span className="text-sm font-normal text-[var(--br-text-muted)]">Add the tongue-twister text to preview it here.</span>}
+        </div>
+
+        {audio ? <audio ref={modelAudioRef} src={mediaUrl(audio, "audio")} preload="metadata" /> : null}
+        <div className="mt-4 grid grid-cols-3 gap-2" aria-label="Play model audio at a selected speed">
+          {speeds.map(({ label, rate, style }) => <button key={label} type="button" aria-pressed={selectedSpeed === rate} disabled={!audio} onClick={() => void playModelAudio(rate)} className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-extrabold transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176c68] disabled:cursor-not-allowed disabled:opacity-60 ${style}`}>{label}</button>)}
+        </div>
+        {!audio ? <p className="mt-2 text-xs text-[var(--br-text-muted)]">Add model audio to enable playback.</p> : null}
+
+        <section aria-labelledby="tongue-twister-your-turn" className="mt-6 border-t border-[#e7efed] pt-5 text-center">
+          <h4 id="tongue-twister-your-turn" className="text-base font-extrabold text-ink">Your turn</h4>
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">Record yourself, then listen to your recording.</p>
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <div className="relative grid place-items-center">
+              {recording ? <><span className="absolute size-24 animate-ping rounded-full bg-orange-400/20 [animation-duration:1.6s] motion-reduce:animate-none" /><span className="absolute size-28 animate-pulse rounded-full border border-orange-400/30 motion-reduce:animate-none" /></> : recordedUrl ? <span className="absolute size-24 rounded-full bg-emerald-500/15" /> : <span className="absolute size-24 rounded-full bg-orange-500/15" />}
+              <button
+                type="button"
+                disabled={recordingStarting || disabled}
+                onClick={() => recording ? stopRecording() : void startRecording()}
+                aria-label={recording ? "Tap to finish recording" : recordedUrl ? "Record again" : "Record yourself"}
+                className={`relative z-10 grid size-20 place-items-center rounded-full text-white shadow-lg transition duration-150 hover:scale-105 active:scale-95 motion-reduce:transform-none disabled:cursor-wait disabled:opacity-70 ${recording ? "bg-gradient-to-br from-orange-500 to-rose-500" : recordedUrl ? "bg-emerald-600" : "bg-gradient-to-br from-orange-400 to-rose-500"}`}
+              >
+                {recordingStarting ? <Loader2 size={30} className="animate-spin" /> : recording ? <MicOff size={30} /> : recordedUrl ? <CheckCircle2 size={31} /> : <Mic size={30} />}
+              </button>
+            </div>
+            {recording ? <div className="space-y-2" role="status"><div className="flex h-5 items-center justify-center gap-1" aria-hidden="true">{[0, 1, 2, 3, 4].map((bar) => <span key={bar} className="w-1 animate-pulse rounded-full bg-orange-500 motion-reduce:animate-none" style={{ height: `${10 + (bar % 3) * 5}px`, animationDelay: `${bar * 100}ms` }} />)}</div><p className="text-sm font-bold text-orange-700">Recording · Tap to finish</p></div> : <p className="text-sm font-semibold text-[var(--br-text-muted)]">{recordingStarting ? "Getting your microphone ready…" : recordedUrl ? "Recorded · Tap to record again" : "Tap the microphone to record"}</p>}
+          </div>
+          {recordedUrl ? <audio ref={recordingAudioRef} src={recordedUrl} controls className="mx-auto mt-4 h-10 w-full max-w-md" aria-label="Your recording" /> : null}
+          {recordingError ? <p className="mt-2 text-xs font-semibold text-coral" role="alert">{recordingError}</p> : null}
+        </section>
+
+        {scoreMode && recordedUrl ? <section className="mt-5 border-t border-[#e7efed] pt-4 text-center" aria-live="polite">
+          {!showGradeOptions && !Number.isFinite(localScore) ? <button type="button" onClick={() => setShowGradeOptions(true)} className="min-h-11 rounded-xl bg-[#176c68] px-6 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#125b58] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176c68] focus-visible:ring-offset-2">Grade</button> : null}
+          {showGradeOptions ? <>
+            <p className="text-sm font-bold text-[#19313c]">Choose one</p>
+            <div className="mt-3 flex items-center justify-center gap-3" role="group" aria-label="Choose your self-grade">
+              {[
+                { value: 1, emoji: "😕", label: "1 out of 3" },
+                { value: 2, emoji: "🙂", label: "2 out of 3" },
+                { value: 3, emoji: "🤩", label: "3 out of 3" },
+              ].map(({ value, emoji, label }) => <button key={value} type="button" aria-label={label} aria-pressed={localScore === value} onClick={() => {
+                setLocalScore(value);
+                setShowGradeOptions(false);
+                scoreMode.onScore(value);
+                if (value === 3) fireCompletionConfetti();
+              }} className={`grid size-14 place-items-center rounded-2xl border text-3xl shadow-sm transition duration-200 hover:-translate-y-1 hover:scale-110 hover:shadow-md active:scale-95 motion-reduce:transform-none ${localScore === value ? "border-[#176c68] bg-[#eaf7f3] ring-2 ring-[#176c68]/25" : "border-[#e2ece9] bg-white hover:border-[#9bcfc3]"}`}>
+                <span className="transition-transform duration-200 group-hover:scale-110" aria-hidden="true">{emoji}</span>
+              </button>)}
+            </div>
+          </> : null}
+          {Number.isFinite(localScore) ? <div className="mt-2" role="status"><p className="text-2xl font-black text-[#19313c]">{localScore === 1 ? "😕" : localScore === 2 ? "🙂" : "🤩"}</p><p className="text-xs font-extrabold text-[#176c68]">{localScore} / 3</p><button type="button" onClick={() => setShowGradeOptions(true)} className="mt-1 text-xs font-bold text-[var(--br-text-muted)] underline decoration-dotted underline-offset-4">Change</button></div> : null}
+        </section> : null}
+
+      </div>
+    </article>
+  );
 }
 
 function TableBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {

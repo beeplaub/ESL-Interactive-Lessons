@@ -170,7 +170,7 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
     } as Json)];
   }
 
-  if (activityType === "PRONUNCIATION") {
+  if (activityType === "PRONUNCIATION" || activityType === "TONGUE_TWISTER") {
     const targets = Array.isArray(data.targets) ? data.targets.map((item, index) => {
       const row = asRecord(item as Json);
       return { id: text(row.id || index + 1), text: text(row.text), color: text(row.color) };
@@ -180,6 +180,7 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
       level: data.level ?? "word",
       passage: text(data.passage),
       audio_url: text(data.audio_url),
+      score_mode: activityType === "TONGUE_TWISTER" ? "self_grade_3" : undefined,
     } as unknown as Json)];
   }
 
