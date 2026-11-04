@@ -33,6 +33,7 @@ import AiActivityGeneratorModal from "@/components/AiActivityGeneratorModal";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { CalloutLanguageFields } from "@/components/CalloutLanguageFields";
+import { BilingualBlockFields } from "@/components/BilingualBlockFields";
 import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataEditor";
 import { LessonOutcomeManager } from "@/components/LessonOutcomeManager";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
@@ -1727,10 +1728,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   if (blockType === "HEADING") {
     return (
       <div className="grid gap-3">
-        <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-          <label className="text-sm">Heading text<textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-          <label className="text-sm">Heading type<select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="H1">H1</option><option value="H2">H2</option><option value="H3">H3</option><option value="H4">H4</option></select></label>
-        </div>
+        <BilingualBlockFields kind="heading" data={data} />
         <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
       </div>
     );
@@ -1738,7 +1736,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   if (blockType === "TEXT") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <BilingualBlockFields kind="text" data={data} />
         <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
       </div>
     );
@@ -1763,17 +1761,14 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   if (blockType === "INSTRUCTION") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Before you begin" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Instruction text <span className="font-normal text-[var(--br-text-muted)]">(supports **bold** and _italic_)</span><textarea name="body" rows={5} defaultValue={asString(data.body)} placeholder="Read the dialogue, then choose the best response." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <BilingualBlockFields kind="instruction" data={data} />
       </div>
     );
   }
   if (blockType === "BULLETS") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Section label <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="eyebrow" defaultValue={asString(data.eyebrow)} placeholder="Key points, Review, or your own label" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">List title<input name="title" defaultValue={asString(data.title)} placeholder="Key points" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Bullet points <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="items" rows={5} defaultValue={lines(data.items)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <BilingualBlockFields kind="bullets" data={data} />
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Hide bullets until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see the title and a Reveal button first.</span></span></label>
       </div>
     );

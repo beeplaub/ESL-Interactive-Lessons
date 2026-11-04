@@ -167,27 +167,44 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "HEADING") {
     return {
       text: String(formData.get("text") || "").trim().replace(/\r\n?/g, "\n"),
+      text_bn: String(formData.get("text_bn") || "").trim().replace(/\r\n?/g, "\n"),
       level: String(formData.get("level") || "H2"),
+      text_color: hexColorValue(formData.get("text_color"), "") || null,
+      block_background_color: hexColorValue(formData.get("block_background_color"), "") || null,
       text_align: textAlignValue(formData.get("text_align"))
     };
   }
   if (blockType === "TEXT") {
     return {
+      title: nullableText(formData.get("title")),
       body: String(formData.get("body") || "").trim(),
+      title_bn: nullableText(formData.get("title_bn")),
+      body_bn: String(formData.get("body_bn") || "").trim(),
+      text_color: hexColorValue(formData.get("text_color"), "") || null,
+      block_background_color: hexColorValue(formData.get("block_background_color"), "") || null,
       text_align: textAlignValue(formData.get("text_align"))
     };
   }
   if (blockType === "INSTRUCTION") {
     return {
       title: nullableText(formData.get("title")),
-      body: String(formData.get("body") || "").trim()
+      body: String(formData.get("body") || "").trim(),
+      title_bn: nullableText(formData.get("title_bn")),
+      body_bn: String(formData.get("body_bn") || "").trim(),
+      text_color: hexColorValue(formData.get("text_color"), "") || null,
+      block_background_color: hexColorValue(formData.get("block_background_color"), "") || null
     };
   }
   if (blockType === "BULLETS") {
     return {
       title: nullableText(formData.get("title")),
+      title_bn: nullableText(formData.get("title_bn")),
       eyebrow: nullableText(formData.get("eyebrow")),
+      eyebrow_bn: nullableText(formData.get("eyebrow_bn")),
       items: splitLines(formData.get("items")),
+      items_bn: splitLines(formData.get("items_bn")),
+      text_color: hexColorValue(formData.get("text_color"), "") || null,
+      block_background_color: hexColorValue(formData.get("block_background_color"), "") || null,
       reveal_hidden: formData.get("reveal_hidden") === "on"
     };
   }
@@ -509,10 +526,10 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
 }
 
 function defaultBlockContent(blockType: string): Json {
-  if (blockType === "HEADING") return { text: "New heading", level: "H2" };
-  if (blockType === "TEXT") return { body: "Add lesson text here." };
-  if (blockType === "INSTRUCTION") return { title: null, body: "Read the instruction carefully, then complete the task." };
-  if (blockType === "BULLETS") return { title: "Key points", eyebrow: "Key points", items: ["First point", "Second point"], reveal_hidden: false };
+  if (blockType === "HEADING") return { text: "New heading", text_bn: "", level: "H2", text_color: null, block_background_color: null };
+  if (blockType === "TEXT") return { title: "", body: "Add lesson text here.", title_bn: "", body_bn: "", text_color: null, block_background_color: null };
+  if (blockType === "INSTRUCTION") return { title: null, body: "Read the instruction carefully, then complete the task.", title_bn: null, body_bn: "নির্দেশনাটি মনোযোগ দিয়ে পড়ুন, তারপর কাজটি সম্পন্ন করুন।", text_color: null, block_background_color: null };
+  if (blockType === "BULLETS") return { title: "Key points", title_bn: "মূল বিষয়গুলো", eyebrow: "Key points", eyebrow_bn: "মূল বিষয়", items: ["First point", "Second point"], items_bn: ["প্রথম বিষয়", "দ্বিতীয় বিষয়"], text_color: null, block_background_color: null, reveal_hidden: false };
   if (blockType === "REVIEW_CHECKLIST") return { title: "I can now…", intro: "Check each statement you can do confidently.", items: ["I can use the target language.", "I can understand the key idea."], require_completion: false };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", title_bn: "নোট", body_bn: "শিক্ষার্থীদের জন্য একটি সংক্ষিপ্ত নোট লিখুন।", background_color: "ivory", reveal_hidden: false };

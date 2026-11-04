@@ -25,11 +25,58 @@ function asString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function previewHexColor(value: unknown) {
+  const color = asString(value);
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color : undefined;
+}
+
 function asArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
+const LEARNER_ACTION_GROUP_CLASS = "inline-flex shrink-0 overflow-hidden rounded-lg border border-amber-200 bg-white/80 shadow-sm";
+const LANGUAGE_ACTION_CLASS = "inline-flex h-7 w-16 shrink-0 items-center justify-center whitespace-nowrap border-r border-amber-200 bg-[var(--br-brand)] px-1.5 text-center text-xs font-bold text-on-dark transition hover:brightness-95";
+const REVEAL_ACTION_CLASS = "inline-flex h-7 w-[4.75rem] shrink-0 items-center justify-center whitespace-nowrap bg-[var(--br-action-strong)] px-1.5 text-center text-xs font-bold text-on-dark transition hover:brightness-95";
 const OPEN_CLOSE_CONTROL_CLASS = "shrink-0 rounded-md border border-[var(--br-action)]/40 bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-action)]";
+
+function LearnerActionGroup({
+  language,
+  onLanguageChange,
+  revealOpen,
+  onRevealToggle,
+}: {
+  language?: "en" | "bn";
+  onLanguageChange?: (language: "en" | "bn") => void;
+  revealOpen?: boolean;
+  onRevealToggle?: () => void;
+}) {
+  const hasLanguageAction = Boolean(language && onLanguageChange);
+  const hasRevealAction = Boolean(onRevealToggle && revealOpen !== undefined);
+  if (!hasLanguageAction && !hasRevealAction) return null;
+  const isBengali = language === "bn";
+  return (
+    <div className={LEARNER_ACTION_GROUP_CLASS} role="group" aria-label={isBengali ? "ভাষা ও প্রদর্শন নিয়ন্ত্রণ" : "Language and reveal controls"}>
+      {hasLanguageAction ? (
+        <button
+          type="button"
+          aria-label={isBengali ? "Switch to English" : "Switch to Bengali"}
+          title={isBengali ? "View in English" : "বাংলায় দেখুন"}
+          onClick={(event) => { event.preventDefault(); event.stopPropagation(); onLanguageChange?.(isBengali ? "en" : "bn"); }}
+          className={LANGUAGE_ACTION_CLASS}
+        >{isBengali ? "English" : "বাংলা"}</button>
+      ) : null}
+      {hasRevealAction ? (
+        <button
+          type="button"
+          aria-expanded={revealOpen}
+          aria-label={isBengali ? (revealOpen ? "বন্ধ করুন" : "খুলুন") : (revealOpen ? "Close" : "Open")}
+          onClick={(event) => { event.preventDefault(); event.stopPropagation(); onRevealToggle?.(); }}
+          className={hasLanguageAction ? REVEAL_ACTION_CLASS : `${REVEAL_ACTION_CLASS} border-l border-amber-200`}
+        >{isBengali ? (revealOpen ? "বন্ধ করুন" : "খুলুন") : (revealOpen ? "Close" : "Open")}</button>
+      ) : null}
+    </div>
+  );
+}
 
 function OpenCloseDetails({
   summary,
@@ -37,6 +84,8 @@ function OpenCloseDetails({
   className = "",
   summaryClassName = "",
   labelClassName = OPEN_CLOSE_CONTROL_CLASS,
+  language,
+  onLanguageChange,
   alwaysOpen = false,
 }: {
   summary: ReactNode;
@@ -44,6 +93,8 @@ function OpenCloseDetails({
   className?: string;
   summaryClassName?: string;
   labelClassName?: string;
+  language?: "en" | "bn";
+  onLanguageChange?: (language: "en" | "bn") => void;
   alwaysOpen?: boolean;
 }) {
   const [open, setOpen] = useState(alwaysOpen);
@@ -51,7 +102,7 @@ function OpenCloseDetails({
     <details open={alwaysOpen || open} onToggle={(event) => { if (!alwaysOpen) setOpen(event.currentTarget.open); }} className={className}>
       <summary className={summaryClassName}>
         {summary}
-        {!alwaysOpen ? <span className={labelClassName}>{open ? "Close" : "Open"}</span> : null}
+        {language ? <LearnerActionGroup language={language} onLanguageChange={onLanguageChange} revealOpen={!alwaysOpen ? open : undefined} onRevealToggle={!alwaysOpen ? () => setOpen((current) => !current) : undefined} /> : !alwaysOpen ? <span className={labelClassName}>{open ? "Close" : "Open"}</span> : null}
       </summary>
       {children}
     </details>
@@ -218,32 +269,17 @@ function CalloutBlock({ content, align, alwaysOpen }: { content: Record<string, 
   const hidden = content.reveal_hidden === true;
   const backgroundColor = CALLOUT_BACKGROUNDS[calloutBackgroundKey(content.background_color)].color;
   const revealed = !hidden || alwaysOpen || isOpen;
-  const actionLabel = isBengali ? (isOpen ? "বন্ধ করুন" : "খুলুন") : (isOpen ? "Close" : "Open");
-  const actions = hasBengali || (hidden && !alwaysOpen) ? (
-    <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-amber-200 bg-white/80 shadow-sm" role="group" aria-label={isBengali ? "কলআউটের ভাষা ও প্রদর্শন নিয়ন্ত্রণ" : "Callout language and reveal controls"}>
-      {hasBengali ? (
-        <button
-          type="button"
-          aria-label={isBengali ? "Switch to English" : "Switch to Bengali"}
-          onClick={() => setLanguage(isBengali ? "en" : "bn")}
-          className="inline-flex h-8 w-[4.5rem] shrink-0 items-center justify-center whitespace-nowrap border-r border-amber-200 bg-[var(--br-brand)] px-2 text-center text-xs font-bold text-on-dark transition hover:brightness-95"
-        >{isBengali ? "বাংলা" : "English"}</button>
-      ) : null}
-      {hidden && !alwaysOpen ? (
-        <button
-          type="button"
-          aria-expanded={isOpen}
-          onClick={() => setIsOpen((open) => !open)}
-          className="inline-flex h-8 w-[5.25rem] shrink-0 items-center justify-center whitespace-nowrap bg-[var(--br-action-strong)] px-2 text-center text-xs font-bold text-on-dark transition hover:brightness-95"
-        >{actionLabel}</button>
-      ) : null}
-    </div>
-  ) : null;
+  const actions = <LearnerActionGroup
+    language={hasBengali ? language : undefined}
+    onLanguageChange={hasBengali ? setLanguage : undefined}
+    revealOpen={hidden && !alwaysOpen ? isOpen : undefined}
+    onRevealToggle={hidden && !alwaysOpen ? () => setIsOpen((open) => !open) : undefined}
+  />;
   const bodyContent = <div lang={isBengali ? "bn" : "en"} className="text-base leading-6 text-amber-900"><FormattedText text={body} /></div>;
   const visibleTitle = title || (hidden ? (isBengali ? "নোট" : "Note") : "");
 
   return (
-    <div className="rounded-lg border p-3 sm:p-4" style={{ backgroundColor, borderColor: "var(--br-brand)" }}>
+    <div className="rounded-lg border p-3 shadow-sm sm:p-4" style={{ backgroundColor, borderColor: "var(--br-brand)" }}>
       <div className="flex items-start gap-3">
         <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
         <div className={`min-w-0 flex-1 ${align}`} lang={isBengali ? "bn" : "en"}>
@@ -258,50 +294,119 @@ function CalloutBlock({ content, align, alwaysOpen }: { content: Record<string, 
   );
 }
 
+function HeadingBlock({ content, align }: { content: Record<string, unknown>; align: string }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const hasBengali = Boolean(asString(content.text_bn));
+  const isBengali = language === "bn" && hasBengali;
+  const text = isBengali ? asString(content.text_bn) : asString(content.text) || "Untitled heading";
+  const level = asString(content.level) || "H2";
+  const textColor = previewHexColor(content.text_color);
+  const backgroundColor = previewHexColor(content.block_background_color);
+  const headingClass = level === "H1" ? "text-3xl font-semibold tracking-tight" : level === "H3" ? "text-lg font-semibold" : level === "H4" ? "text-base font-semibold" : "text-xl font-semibold tracking-tight";
+  const headingLines = text.split(/\r\n|\r|\n/).map((line, index) => <span key={index} className="block">{line ? <InlineText text={line} /> : "\u00a0"}</span>);
+  const Tag = (level === "H1" ? "h1" : level === "H3" ? "h3" : level === "H4" ? "h4" : "h2");
+
+  return (
+    <div className={`flex items-start gap-3 rounded-lg border border-[var(--br-action)]/20 px-3 py-2.5 shadow-sm sm:px-4 ${backgroundColor ? "bg-[var(--br-surface)]" : "bg-gradient-to-br from-[var(--br-action)]/10 via-[var(--br-surface)] to-[var(--br-brand-soft)]/45"}`} style={{ backgroundColor }} lang={isBengali ? "bn" : "en"}>
+      <Tag className={`${headingClass} min-w-0 flex-1 ${align}`} style={{ color: textColor }}>{headingLines}</Tag>
+      {hasBengali ? <LearnerActionGroup language={isBengali ? "bn" : "en"} onLanguageChange={setLanguage} /> : null}
+    </div>
+  );
+}
+
+function TextBlock({ content, align }: { content: Record<string, unknown>; align: string }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const hasBengali = Boolean(asString(content.body_bn) || asString(content.title_bn));
+  const isBengali = language === "bn" && hasBengali;
+  const title = isBengali ? asString(content.title_bn) || asString(content.title) : asString(content.title);
+  const text = isBengali ? asString(content.body_bn) || asString(content.body ?? content.text) : asString(content.body ?? content.text);
+  const textColor = previewHexColor(content.text_color);
+  const backgroundColor = previewHexColor(content.block_background_color);
+
+  return (
+    <section
+      className="overflow-hidden rounded-lg border border-[var(--br-action)]/20 bg-gradient-to-br from-[var(--br-action)]/10 via-[var(--br-surface)] to-[var(--br-brand-soft)]/45 shadow-sm"
+      style={backgroundColor ? { backgroundColor } : undefined}
+      lang={isBengali ? "bn" : "en"}
+    >
+      <div className="flex items-start justify-between gap-3 px-3 pb-1 pt-4 sm:px-4 sm:pt-5">
+        {title ? <h3 className={`min-w-0 flex-1 text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)] ${align}`} style={{ color: textColor }}><InlineText text={title} /></h3> : <span className="flex-1" />}
+        {hasBengali ? <LearnerActionGroup language={isBengali ? "bn" : "en"} onLanguageChange={setLanguage} /> : null}
+      </div>
+      <div className={`px-4 pb-4 sm:px-5 sm:pb-5 ${title ? "pt-1" : "pt-2"}`}>
+        <FormattedText text={text} align={align} color={textColor} />
+      </div>
+    </section>
+  );
+}
+
+function InstructionBlock({ content }: { content: Record<string, unknown> }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const hasBengali = Boolean(asString(content.title_bn) || asString(content.body_bn));
+  const isBengali = language === "bn" && hasBengali;
+  const title = isBengali ? asString(content.title_bn) || asString(content.title) : asString(content.title);
+  const body = isBengali ? asString(content.body_bn) || asString(content.body) : asString(content.body) || "Read the instruction carefully, then complete the task.";
+  const backgroundColor = previewHexColor(content.block_background_color);
+
+  return (
+    <section className={`relative rounded-lg border border-[var(--br-action)]/25 shadow-sm ${backgroundColor ? "bg-[var(--br-surface)]" : "bg-gradient-to-br from-[var(--br-action)]/10 via-[var(--br-surface)] to-[var(--br-brand-soft)]/45"}`} style={backgroundColor ? { backgroundColor } : undefined} lang={isBengali ? "bn" : "en"}>
+      <svg aria-hidden="true" viewBox="0 0 8 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-y-0 left-0 h-full w-2 text-[var(--br-action)]">
+        <path fill="currentColor" d="M8 0 C3.6 0 0 3.6 0 8 L0 92 C0 96.4 3.6 100 8 100 C5 100 3 96 3 92 L3 8 C3 3 5 0 8 0 Z" />
+      </svg>
+      <div className="px-3 py-4 sm:px-4 sm:py-5">
+        <div className="flex items-start justify-between gap-3">
+          {title ? <h3 className="min-w-0 flex-1 text-base font-extrabold tracking-tight text-[var(--br-dark-card)]">{title}</h3> : <span className="flex-1" />}
+          {hasBengali ? <LearnerActionGroup language={isBengali ? "bn" : "en"} onLanguageChange={setLanguage} /> : null}
+        </div>
+        <div className={`${title ? "mt-1.5" : ""} italic`}><FormattedText text={body} /></div>
+      </div>
+    </section>
+  );
+}
+
+function BulletBlock({ content, alwaysOpen }: { content: Record<string, unknown>; alwaysOpen: boolean }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const hasBengali = Boolean(asString(content.title_bn) || asString(content.eyebrow_bn) || asArray(content.items_bn).some((item) => String(item).trim()));
+  const isBengali = language === "bn" && hasBengali;
+  const hidden = content.reveal_hidden === true;
+  const title = isBengali ? asString(content.title_bn) || asString(content.title) || "Key points" : asString(content.title) || "Key points";
+  const eyebrow = isBengali ? asString(content.eyebrow_bn) || asString(content.eyebrow) : asString(content.eyebrow);
+  const selectedItems = isBengali ? asArray(content.items_bn) : asArray(content.items);
+  const fallbackItems = asArray(content.items);
+  const items = (selectedItems.length ? selectedItems : fallbackItems).map(String).filter((item) => item.trim());
+  const backgroundColor = previewHexColor(content.block_background_color);
+  const textColor = previewHexColor(content.text_color);
+  const accents = ["bg-[var(--br-success)]", "bg-[var(--br-brand)]", "bg-[var(--br-achievement)]", "bg-[var(--br-action)]"];
+  const header = <div className="min-w-0 flex-1">{eyebrow ? <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">{eyebrow}</p> : null}<h3 className={`${eyebrow ? "mt-1" : ""} text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]`} style={{ color: textColor }}>{title}</h3></div>;
+  const list = items.length ? <div className="space-y-2" lang={isBengali ? "bn" : "en"}>{items.map((item, index) => <div key={index} className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-[var(--br-border)] bg-white/90 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)] shadow-sm sm:px-4"><span className={`absolute inset-y-0 left-0 w-1 ${accents[index % accents.length]}`} /><span className="grid size-7 shrink-0 self-center place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0" style={{ color: textColor }}><FormattedText text={item} /></div></div>)}</div> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
+  const backgroundClass = backgroundColor ? "bg-[var(--br-surface)]" : "bg-gradient-to-br from-[var(--br-action)]/10 via-[var(--br-surface)] to-[var(--br-brand-soft)]/45";
+  const style = backgroundColor ? { backgroundColor } : undefined;
+
+  return (
+    <section className={`overflow-hidden rounded-lg border border-[var(--br-action)]/20 shadow-sm ${backgroundClass}`} style={style} lang={isBengali ? "bn" : "en"}>
+      {hidden ? <OpenCloseDetails language={hasBengali ? language : undefined} onLanguageChange={setLanguage} alwaysOpen={alwaysOpen} summary={header} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-3 py-4 marker:hidden sm:px-4 sm:py-5"><div className="p-3 sm:p-4">{list}</div></OpenCloseDetails> : <><div className="flex items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-3 py-4 sm:px-4 sm:py-5">{header}{hasBengali ? <LearnerActionGroup language={isBengali ? "bn" : "en"} onLanguageChange={setLanguage} /> : null}</div><div className="p-3 sm:p-4">{list}</div></>}
+    </section>
+  );
+}
+
 function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = false }: { block: PreviewLessonBlock; checkedItems?: boolean[]; onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void; alwaysOpen?: boolean }) {
   const content = asRecord(block.content);
 
   if (block.block_type === "HEADING") {
-    const level = asString(content.level) || "H2";
-    const text = asString(content.text) || "Untitled heading";
     const align = textAlignClass(content.text_align);
-    const headingLines = text.split(/\r\n|\r|\n/).map((line, index) => <span key={index} className="block">{line || "\u00a0"}</span>);
-    if (level === "H1") return <h1 className={`text-3xl font-semibold tracking-tight text-ink ${align}`}>{headingLines}</h1>;
-    if (level === "H3") return <h3 className={`text-lg font-semibold text-ink ${align}`}>{headingLines}</h3>;
-    if (level === "H4") return <h4 className={`text-base font-semibold text-ink ${align}`}>{headingLines}</h4>;
-    return <h2 className={`text-xl font-semibold tracking-tight text-ink ${align}`}>{headingLines}</h2>;
+    return <HeadingBlock content={content} align={align} />;
   }
 
   if (block.block_type === "TEXT") {
-    return <FormattedText text={asString(content.body)} align={textAlignClass(content.text_align)} />;
+    return <TextBlock content={content} align={textAlignClass(content.text_align)} />;
   }
 
   if (block.block_type === "INSTRUCTION") {
-    return (
-      <section className="overflow-hidden rounded-[20px] border border-[var(--br-action)]/25 bg-gradient-to-br from-[var(--br-action)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        <div className="border-l-4 border-[var(--br-action)] px-4 py-4 sm:px-5 sm:py-5">
-          <div className="min-w-0">
-            {asString(content.title) ? <h3 className="text-base font-extrabold tracking-tight text-[var(--br-dark-card)]">{asString(content.title)}</h3> : null}
-            <div className={`${asString(content.title) ? "mt-1.5" : ""} italic`}><FormattedText text={asString(content.body) || "Add an instruction."} /></div>
-          </div>
-        </div>
-      </section>
-    );
+    return <InstructionBlock content={content} />;
   }
 
   if (block.block_type === "BULLETS") {
-    const items = asArray(content.items).map(String).filter(Boolean);
-    const hidden = content.reveal_hidden === true;
-    const title = asString(content.title) || "Key points";
-    const eyebrow = asString(content.eyebrow);
-    const accents = ["bg-[var(--br-success)]", "bg-[var(--br-brand)]", "bg-[var(--br-achievement)]", "bg-[var(--br-action)]"];
-    const header = <div className="min-w-0">{eyebrow ? <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">{eyebrow}</p> : null}<h3 className={`${eyebrow ? "mt-1" : ""} text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]`}>{title}</h3></div>;
-    const list = items.length ? <div className="space-y-2">{items.map((item, index) => <div key={index} className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-[var(--br-border)] bg-white/90 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)] shadow-sm sm:px-4"><span className={`absolute inset-y-0 left-0 w-1 ${accents[index % accents.length]}`} /><span className="grid size-7 shrink-0 self-center place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={item} /></div></div>)}</div> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
-    return (
-      <section className="overflow-hidden rounded-[22px] border border-[var(--br-action)]/20 bg-gradient-to-br from-[var(--br-action)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        {hidden ? <OpenCloseDetails alwaysOpen={alwaysOpen} summary={header} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5"><div className="p-3 sm:p-4">{list}</div></OpenCloseDetails> : <><div className="border-b border-[var(--br-action)]/15 px-4 py-4 sm:px-5 sm:py-5">{header}</div><div className="p-3 sm:p-4">{list}</div></>}
-      </section>
-    );
+    return <BulletBlock content={content} alwaysOpen={alwaysOpen} />;
   }
 
   if (block.block_type === "REVIEW_CHECKLIST") {
@@ -1234,26 +1339,60 @@ function FlashcardDetails({ word, phonetic, audioSrc, bengaliTranslation, meanin
   );
 }
 
-function InlineText({ text }: { text: string }) {
-  return <>{text.split(/(\[\[color:#[0-9a-fA-F]{6}\|[^\]]+\]\]|\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|_[^_]+_|\[[^\]]+\]\([^)]*\))/g).map((part, index) => {
-    const color = part.match(/^\[\[color:(#[0-9a-fA-F]{6})\|(.+)\]\]$/); const link = part.match(/^\[([^\]]+)\]\(([^)]*)\)$/);
-    if (color) return <span key={index} style={{ color: color[1] }}>{color[2]}</span>;
-    if (link) return <a key={index} href={link[2]} className="underline text-moss" target="_blank" rel="noreferrer">{link[1]}</a>;
-    if (part.startsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith("__")) return <span key={index} className="underline underline-offset-2">{part.slice(2, -2)}</span>;
-    if (part.startsWith("~~")) return <span key={index} className="line-through">{part.slice(2, -2)}</span>;
-    if (part.startsWith("_")) return <em key={index}>{part.slice(1, -1)}</em>;
-    return part;
-  })}</>;
+function parseInlineSegments(source: string, keyPrefix = "inline"): React.ReactNode[] {
+  const output: React.ReactNode[] = [];
+  const openers = ["**", "__", "~~", "[[color:", "[[size:", "_"];
+  let cursor = 0;
+  while (cursor < source.length) {
+    const linkMatch = source.slice(cursor).match(/^\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^)]*)\)/);
+    if (linkMatch) {
+      output.push(<a key={`${keyPrefix}-${cursor}`} href={linkMatch[2]} className="underline text-moss" target="_blank" rel="noreferrer">{parseInlineSegments(linkMatch[1], `${keyPrefix}-${cursor}`)}</a>);
+      cursor += linkMatch[0].length;
+      continue;
+    }
+    const opener = openers.find((candidate) => source.startsWith(candidate, cursor));
+    if (opener) {
+      let close = opener;
+      let bodyStart = cursor + opener.length;
+      const attrs: { color?: string; size?: number } = {};
+      if (opener === "[[color:") {
+        const match = source.slice(cursor).match(/^\[\[color:(#[0-9a-fA-F]{6})\|/);
+        if (match) { attrs.color = match[1]; bodyStart = cursor + match[0].length; close = "]]"; } else { output.push(opener); cursor += opener.length; continue; }
+      } else if (opener === "[[size:") {
+        const match = source.slice(cursor).match(/^\[\[size:(\d{2})\|/);
+        if (match) { attrs.size = Math.min(48, Math.max(10, Number(match[1]))); bodyStart = cursor + match[0].length; close = "]]"; } else { output.push(opener); cursor += opener.length; continue; }
+      }
+      const closeAt = source.indexOf(close, bodyStart);
+      if (closeAt >= 0) {
+        const children = parseInlineSegments(source.slice(bodyStart, closeAt), `${keyPrefix}-${cursor}`);
+        if (opener === "**") output.push(<strong key={`${keyPrefix}-${cursor}`}>{children}</strong>);
+        else if (opener === "__") output.push(<span key={`${keyPrefix}-${cursor}`} className="underline underline-offset-2">{children}</span>);
+        else if (opener === "~~") output.push(<span key={`${keyPrefix}-${cursor}`} className="line-through">{children}</span>);
+        else if (opener === "_") output.push(<em key={`${keyPrefix}-${cursor}`}>{children}</em>);
+        else output.push(<span key={`${keyPrefix}-${cursor}`} style={{ ...(attrs.color ? { color: attrs.color } : {}), ...(attrs.size ? { fontSize: `${attrs.size}px` } : {}) }}>{children}</span>);
+        cursor = closeAt + close.length;
+        continue;
+      }
+    }
+    const next = openers.map((candidate) => source.indexOf(candidate, cursor + 1)).filter((position) => position >= 0);
+    const nextLink = source.indexOf("[", cursor + 1);
+    if (nextLink >= 0) next.push(nextLink);
+    const end = next.length ? Math.min(...next) : source.length;
+    output.push(source.slice(cursor, end).replace(/\\([\\*_~\[\]])/g, "$1"));
+    cursor = end;
+  }
+  return output;
 }
 
-function FormattedText({ text, align = "text-left" }: { text: string; align?: string }) {
+function InlineText({ text }: { text: string }) { return <>{parseInlineSegments(text)}</>; }
+
+function FormattedText({ text, align = "text-left", color }: { text: string; align?: string; color?: string }) {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
-  if (!lines.some((line) => line.trim())) return <p className={`text-sm text-[var(--br-text-muted)] ${align}`}>Add text.</p>;
-  return <div className={`space-y-2 text-base leading-7 text-[var(--br-text-muted)] ${align}`}>{lines.map((line, index) => {
+  if (!lines.some((line) => line.trim())) return <p className={`text-sm ${color ? "" : "text-[var(--br-text-muted)]"} ${align}`} style={{ color }}>Add text.</p>;
+  return <div className={`space-y-2 text-base leading-7 ${color ? "" : "text-[var(--br-text-muted)]"} ${align}`} style={{ color }}>{lines.map((line, index) => {
     const trimmed = line.trim();
     if (!trimmed) return <div key={index} className="h-2" aria-hidden />;
-    if (/^#{1,4}\s+/.test(trimmed)) return <p key={index} className="font-bold text-ink"><InlineText text={trimmed.replace(/^#{1,4}\s+/, "")} /></p>;
+    if (/^#{1,4}\s+/.test(trimmed)) return <p key={index} className={`font-bold ${color ? "" : "text-ink"}`}><InlineText text={trimmed.replace(/^#{1,4}\s+/, "")} /></p>;
     if (/^(?:[-*]|\d+[.)])\s+/.test(trimmed)) return <div key={index} className="flex gap-2"><span className="mt-3 size-1.5 shrink-0 rounded-full bg-moss" /><span><InlineText text={trimmed.replace(/^(?:[-*]|\d+[.)])\s+/, "")} /></span></div>;
     return <p key={index}><InlineText text={line} /></p>;
   })}</div>;
