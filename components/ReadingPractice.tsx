@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 13571)
-Total output lines: 658
-
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -202,7 +199,263 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
       if (continuesParagraph && next && (!config.chunking_enabled || continuesChunk)) {
         const nextAnchorIndex = next.tokenIndices.find((tokenIndex) => tokens[tokenIndex]?.kind === "anchor");
         if (nextAnchorIndex !== undefined) {
-          const nextStressInd…3571 tokens truncated…: null;
+          const nextStressIndex = Math.max(0, tokens[nextAnchorIndex]?.stressIndex ?? 0);
+          intervalItems.push(...makeSyllables(nextAnchorIndex, groupIndex + 1, "anchor", 0, nextStressIndex));
+        }
+      }
+      const interval = distribute(intervalItems, beatMs);
+      const punctuationPauseMs = Math.max(0, group.anchorMs - (beatMs - group.leadInMs));
+      if (punctuationPauseMs > 0) {
+        const anchorEnd = anchor?.syllables.length ?? 1;
+        const pauseCue: CadenceCue = { kind: "pause", durationMs: punctuationPauseMs };
+        const beforePause = interval.findIndex((cue) => cue.kind === "syllable" && cue.tokenIndex === anchorIndex && cue.syllableIndex === anchorEnd - 1);
+        interval.splice(beforePause >= 0 ? beforePause + 1 : interval.length, 0, pauseCue);
+      }
+      if (chunkEndsHere) {
+        const endCueIndex = interval.reduce((last, cue, cueIndex) => cue.kind === "syllable" && cue.unit === "anchor" ? cueIndex : last, -1);
+        const endCue = interval[endCueIndex];
+        if (endCue?.kind === "syllable") interval[endCueIndex] = { ...endCue, slowAtEnd: true };
+        const levelPauseMs = config.level.startsWith("A") ? 360 : config.level.startsWith("C") ? 240 : 300;
+        const existingPause = interval.reduce((sum, cue) => sum + (cue.kind === "pause" ? cue.durationMs : 0), 0);
+        interval.push({ kind: "pause", durationMs: Math.max(0, levelPauseMs - existingPause) });
+      }
+      return { stressTokenIndex: anchorIndex, stressSyllableIndex: stressIndex, intro, interval };
+    });
+  }, [groups, tokens, effectivePace, config.chunking_enabled, config.level]);
+  const groupIndexRef = useRef(0);
+  const stepTimerRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+  const clockRef = useRef<number | null>(null);
+  const readingTextRef = useRef<HTMLDivElement | null>(null);
+  const ribbonRef = useRef<HTMLSpanElement | null>(null);
+  const syllableRefs = useRef(new Map<string, HTMLSpanElement>());
+  const wordRefs = useRef(new Map<number, HTMLSpanElement>());
+  const ribbonParagraphRef = useRef<number | null>(null);
+  const ribbonSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const elapsedRef = useRef(0);
+  const secondsLeftRef = useRef(config.time_limit_seconds ?? 0);
+  const currentParagraphRef = useRef(0);
+  const blobUrlRef = useRef<string | null>(null);
+  const activeRef = useRef(false);
+  const modeRef = useRef<"record" | "practice" | null>(null);
+  const [activeSyllable, setActiveSyllable] = useState<{ tokenIndex: number; syllableIndex: number } | null>(null);
+  const [resumeGroupIndex, setResumeGroupIndex] = useState(0);
+  const [resumeWordIndex, setResumeWordIndex] = useState(0);
+  const [showClarityModal, setShowClarityModal] = useState(false);
+  const [recordingAttemptsUsed, setRecordingAttemptsUsed] = useState(0);
+  const [currentParagraph, setCurrentParagraph] = useState(0);
+  const [countdown, setCountdown] = useState<number | "GO" | null>(null);
+  const [phase, setPhase] = useState<"ready" | "starting" | "countdown" | "active" | "paused" | "transcribing" | "result" | "error">("ready");
+  const [secondsLeft, setSecondsLeft] = useState(config.time_limit_seconds ?? 0);
+  const [elapsed, setElapsed] = useState(0);
+  const [result, setResult] = useState<ReadingPracticeResult | null>(null);
+  const [practiceDone, setPracticeDone] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const recordingLimit = config.recording_attempt_limit && config.recording_attempt_limit > 0 ? Math.floor(config.recording_attempt_limit) : null;
+  const recordingAttemptsLeft = recordingLimit === null ? null : Math.max(0, recordingLimit - recordingAttemptsUsed);
+
+  useEffect(() => {
+    if (!config.usage_key) return;
+    try {
+      const used = Number(window.localStorage.getItem(`reading-record-attempts:${config.usage_key}`) ?? 0);
+      if (Number.isFinite(used) && used > 0) setRecordingAttemptsUsed(Math.floor(used));
+    } catch { /* The in-memory limit still works when browser storage is unavailable. */ }
+  }, [config.usage_key]);
+
+  function moveRibbon(cue: Extract<CadenceCue, { kind: "syllable" }>) {
+    const ribbon = ribbonRef.current;
+    const container = readingTextRef.current;
+    const syllable = syllableRefs.current.get(`${cue.tokenIndex}:${cue.syllableIndex}`);
+    const word = wordRefs.current.get(cue.tokenIndex);
+    if (!ribbon || !container || !syllable || !word) return;
+    const box = container.getBoundingClientRect();
+    const target = syllable.getBoundingClientRect();
+    const wordBox = word.getBoundingClientRect();
+    if (!ribbonSizeRef.current) ribbonSizeRef.current = { width: Math.max(32, wordBox.width + 4), height: Math.max(30, target.height + 4) };
+    const { width, height } = ribbonSizeRef.current;
+    const isNewParagraph = ribbonParagraphRef.current !== groups[cue.groupIndex]?.paragraphIndex;
+    ribbon.style.width = `${width}px`;
+    ribbon.style.height = `${height}px`;
+    ribbon.style.transition = isNewParagraph ? "none" : `transform ${Math.max(1, cue.durationMs)}ms ${cue.slowAtEnd ? "cubic-bezier(.35,0,.55,1)" : "linear"}`;
+    ribbon.style.transform = `translate3d(${target.left - box.left + target.width / 2 - width / 2}px, ${target.top - box.top + target.height / 2 - height / 2}px, 0)`;
+    ribbonParagraphRef.current = groups[cue.groupIndex]?.paragraphIndex ?? null;
+  }
+
+  useEffect(() => () => {
+    if (stepTimerRef.current !== null) window.clearTimeout(stepTimerRef.current);
+    if (clockRef.current !== null) window.clearInterval(clockRef.current);
+    if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+  }, []);
+
+  function clearClocks() {
+    if (stepTimerRef.current !== null) window.clearTimeout(stepTimerRef.current);
+    if (clockRef.current !== null) window.clearInterval(clockRef.current);
+    if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
+    stepTimerRef.current = null; clockRef.current = null;
+    countdownTimerRef.current = null;
+  }
+
+  function drawGroup(index: number) {
+    if (!activeRef.current) return;
+    if (index >= groups.length) { finishSession(true); return; }
+    if (groups[index].paragraphIndex !== currentParagraphRef.current) {
+      const nextParagraph = groups[index].paragraphIndex;
+      activeRef.current = false;
+      clearClocks();
+      setActiveSyllable(null);
+      if (recorderRef.current?.state === "recording") recorderRef.current.pause();
+      startParagraphCountdown(nextParagraph, index);
+      return;
+    }
+    groupIndexRef.current = index;
+    setActiveSyllable(null);
+    const step = cadenceSteps[index];
+    const paragraphStart = !groups[index - 1] || groups[index - 1].paragraphIndex !== groups[index].paragraphIndex;
+    const entry = paragraphStart ? step?.intro ?? [] : buildEntryCues(index);
+    playCues(entry, 0, () => playStress(index));
+  }
+
+  function buildEntryCues(index: number): CadenceCue[] {
+    const group = groups[index];
+    const anchorIndex = group?.tokenIndices.find((tokenIndex) => tokens[tokenIndex]?.kind === "anchor");
+    if (!group || anchorIndex === undefined) return [];
+    const anchor = tokens[anchorIndex];
+    const stress = Math.max(0, anchor.stressIndex);
+    const items = [
+      ...group.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "function").flatMap((tokenIndex) => tokens[tokenIndex].syllables.map((_, syllableIndex) => ({ tokenIndex, syllableIndex, unit: "weak" as const, weight: 0.48 }))),
+      ...anchor.syllables.slice(0, stress).map((_, syllableIndex) => ({ tokenIndex: anchorIndex, syllableIndex, unit: "anchor" as const, weight: 0.68 })),
+    ];
+    if (!items.length) return [];
+    const duration = Math.max(group.leadInMs, items.some((item) => item.unit === "anchor") ? (60_000 / effectivePace) * 0.12 * items.filter((item) => item.unit === "anchor").length : 0);
+    const total = items.reduce((sum, item) => sum + item.weight, 0);
+    return items.map((item) => ({ kind: "syllable", ...item, groupIndex: index, durationMs: duration * item.weight / total }));
+  }
+
+  function playCues(cues: CadenceCue[], cueIndex: number, onComplete: () => void) {
+    if (!activeRef.current) return;
+    if (cueIndex >= cues.length) { onComplete(); return; }
+    const cue = cues[cueIndex];
+    if (cue.kind === "syllable") {
+      groupIndexRef.current = cue.groupIndex;
+      setActiveSyllable(cue.unit === "anchor" ? { tokenIndex: cue.tokenIndex, syllableIndex: cue.syllableIndex } : null);
+      moveRibbon(cue);
+    }
+    stepTimerRef.current = window.setTimeout(() => playCues(cues, cueIndex + 1, onComplete), Math.max(1, cue.durationMs));
+  }
+
+  function playStress(index: number) {
+    if (!activeRef.current) return;
+    if (index >= groups.length) { finishSession(true); return; }
+    if (groups[index].paragraphIndex !== currentParagraphRef.current) { drawGroup(index); return; }
+    groupIndexRef.current = index;
+    const step = cadenceSteps[index];
+    setActiveSyllable({ tokenIndex: step.stressTokenIndex, syllableIndex: step.stressSyllableIndex });
+    playCues(step.interval, 0, () => {
+      const nextIndex = index + 1;
+      if (groups[nextIndex]?.paragraphIndex === groups[index].paragraphIndex && (!config.chunking_enabled || groups[nextIndex]?.chunkIndex === groups[index].chunkIndex)) playStress(nextIndex);
+      else drawGroup(nextIndex);
+    });
+  }
+
+  function startParagraphCountdown(paragraphIndex: number, firstGroupIndex: number) {
+    activeRef.current = false;
+    if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
+    currentParagraphRef.current = paragraphIndex;
+    setCurrentParagraph(paragraphIndex);
+    setCountdown(3);
+    setPhase("countdown");
+    let count = 3;
+    const tick = () => {
+      count -= 1;
+      if (count > 0) {
+        setCountdown(count);
+        countdownTimerRef.current = window.setTimeout(tick, 1000);
+        return;
+      }
+      setCountdown("GO");
+      countdownTimerRef.current = window.setTimeout(() => {
+        setCountdown(null);
+        void beginParagraph(paragraphIndex, firstGroupIndex);
+      }, 450);
+    };
+    countdownTimerRef.current = window.setTimeout(tick, 1000);
+  }
+
+  async function beginParagraph(paragraphIndex: number, firstGroupIndex: number) {
+    setPhase("starting");
+    if (modeRef.current === "record") {
+      try {
+        if (!recorderRef.current) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          const preferred = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
+          const media = preferred ? new MediaRecorder(stream, { mimeType: preferred }) : new MediaRecorder(stream);
+          media.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
+          recorderRef.current = media;
+          media.start(250);
+        } else if (recorderRef.current.state === "paused") {
+          recorderRef.current.resume();
+        }
+      } catch {
+        streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
+        modeRef.current = null; setPhase("error"); setError("Microphone access is needed to record. Allow microphone access and try again."); return;
+      }
+    }
+    currentParagraphRef.current = paragraphIndex;
+    setCurrentParagraph(paragraphIndex);
+    setPhase("active");
+    activeRef.current = true;
+    beginClock();
+    drawGroup(firstGroupIndex);
+  }
+
+  function finishSession(finishedPassage = false) {
+    if (!modeRef.current) return;
+    activeRef.current = false;
+    clearClocks();
+    setCountdown(null);
+    setActiveSyllable(null);
+    const media = recorderRef.current;
+    if (media && media.state !== "inactive") {
+      setPhase("transcribing");
+      media.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: media.mimeType || "audio/webm" });
+        streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; recorderRef.current = null;
+        if (!blob.size) { setPhase("error"); setError("No audio was captured. Please try again."); return; }
+        if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+        const url = URL.createObjectURL(blob); blobUrlRef.current = url; setAudioUrl(url);
+        void transcribe(blob, url, finishedPassage);
+      };
+      media.stop();
+    } else {
+      streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
+      setPracticeDone(modeRef.current === "practice"); modeRef.current = null; setPhase("result");
+    }
+  }
+
+  async function transcribe(blob: Blob, _url: string, finishedPassage: boolean) {
+    if (modeRef.current === "record") {
+      const nextUsed = recordingAttemptsUsed + 1;
+      setRecordingAttemptsUsed(nextUsed);
+      if (config.usage_key) {
+        try { window.localStorage.setItem(`reading-record-attempts:${config.usage_key}`, String(nextUsed)); } catch { /* Keep the current page's limit in memory. */ }
+      }
+    }
+    const duration = Math.max(1, elapsedRef.current);
+    const file = new File([blob], "reading-practice.webm", { type: blob.type || "audio/webm" });
+    const form = new FormData(); form.append("file", file); form.append("durationSeconds", String(duration));
+    try {
+      const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+      const payload = await response.json() as { transcript?: string; error?: string };
+      if (!response.ok || !payload.transcript) throw new Error(payload.error || "We couldn’t transcribe this reading. Please try recording again.");
+      const matched = compareReadingText(config.passage, payload.transcript);
+      const timedGoal = config.time_limit_seconds ? finishedPassage && elapsedRef.current <= config.time_limit_seconds && matched.percent >= 90 : null;
       const finished: ReadingPracticeResult = { completed: true, matched_words: matched.matched, total_words: matched.total, match_percent: matched.percent, elapsed_seconds: duration, time_limit_seconds: config.time_limit_seconds, target_reached: timedGoal, clarity_words: matched.mismatches, transcript: "" };
       setResult(finished); setPhase("result"); onResult?.(finished);
     } catch (caught) {
