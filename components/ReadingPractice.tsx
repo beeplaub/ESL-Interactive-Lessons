@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, RotateCcw, Volume2 } from "lucide-react";
 import styles from "./ReadingPractice.module.css";
 import type { Json } from "@/types/database.types";
@@ -187,14 +187,20 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     groupIndexRef.current = index;
     setActiveGroup(index);
     const group = groups[index];
-    const hasLeadIn = group.tokenIndices.some((tokenIndex) => tokens[tokenIndex]?.kind === "function");
-    if (hasLeadIn) {
+    const functionIndices = group.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "function");
+    const anchorIndices = group.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "anchor");
+    const beatMs = 60_000 / Math.max(50, Math.min(240, effectivePace));
+    const anchorDurationMs = group.leadInMs + group.anchorMs;
+    if (functionIndices.length && anchorIndices.length) {
       setLeadIn(true);
       stepTimerRef.current = window.setTimeout(() => {
         if (!activeRef.current) return;
         setLeadIn(false);
-        stepTimerRef.current = window.setTimeout(() => drawGroup(index + 1), Math.max(70, group.anchorMs));
-      }, Math.max(65, group.leadInMs));
+        stepTimerRef.current = window.setTimeout(() => drawGroup(index + 1), Math.max(100, anchorDurationMs));
+      }, Math.max(100, beatMs));
+    } else if (functionIndices.length) {
+      setLeadIn(true);
+      stepTimerRef.current = window.setTimeout(() => drawGroup(index + 1), Math.max(100, anchorDurationMs));
     } else {
       setLeadIn(false);
       stepTimerRef.current = window.setTimeout(() => drawGroup(index + 1), Math.max(100, group.anchorMs));
@@ -337,17 +343,23 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
   }
 
   function renderText() {
-    const paragraph = paragraphs[currentParagraph] ?? "";
-    const paragraphTokens = readingTokens(paragraph);
-    const startIndex = paragraphStarts[currentParagraph] ?? 0;
-    return paragraphTokens.map((token, localIndex) => {
-        const globalIndex = startIndex + localIndex;
-        const currentGroup = groups[activeGroup];
-        const groupContains = currentGroup?.tokenIndices.includes(globalIndex) ?? false;
-        const isFunction = token.kind === "function";
-        const lit = groupContains && (leadIn ? isFunction : !isFunction);
-        return <span key={`${currentParagraph}-${localIndex}`} className={`${styles.unit} ${isFunction ? styles.weak : styles.beat} ${lit ? styles.active : ""}`}>{token.text}{token.punctuation}{localIndex < paragraphTokens.length - 1 ? " " : " "}</span>;
-      });
+    const units = groups.flatMap((group, groupIndex) => {
+      if (group.paragraphIndex !== currentParagraph) return [];
+      const functionIndices = group.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "function");
+      const anchorIndices = group.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "anchor");
+      return [
+        ...(functionIndices.length ? [{ tokenIndices: functionIndices, kind: "weak" as const, groupIndex }] : []),
+        ...anchorIndices.map((tokenIndex) => ({ tokenIndices: [tokenIndex], kind: "beat" as const, groupIndex })),
+      ];
+    });
+    return units.map((unit, unitIndex) => {
+      const lit = activeGroup === unit.groupIndex && (unit.kind === "weak" ? leadIn : !leadIn);
+      const label = unit.tokenIndices.map((tokenIndex) => `${tokens[tokenIndex].text}${tokens[tokenIndex].punctuation}`).join(" ");
+      return <Fragment key={`${currentParagraph}-${unit.groupIndex}-${unit.kind}-${unitIndex}`}>
+        {unitIndex > 0 ? " " : null}
+        <span className={`${styles.unit} ${unit.kind === "weak" ? styles.weak : styles.beat} ${lit ? styles.active : ""}`}>{label}</span>
+      </Fragment>;
+    });
   }
 
   const isRunning = phase === "starting" || phase === "countdown" || phase === "active" || phase === "paused";
@@ -363,7 +375,7 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
       <div className={styles.textBox}>
         <div className={styles.passageHeading}><h1>{config.title}</h1><span>{readingTokens(paragraphs[currentParagraph] ?? "").length} WORDS · {currentParagraph + 1} / {paragraphs.length}</span></div>
         <div className={styles.readingText} aria-label="Reading passage">{renderText()}</div>
-        {phase === "countdown" || phase === "starting" ? <div className={styles.countdownOverlay} aria-live="assertive"><span className={styles.countdownCircle}>{phase === "starting" ? "GO" : countdown}</span><strong>{phase === "starting" ? "Starting your microphone" : `Paragraph ${currentParagraph + 1} of ${paragraphs.length}`}</strong></div> : null}
+        {phase === "countdown" || phase === "starting" ? <div className={styles.countdownOverlay} aria-live="assertive"><span className={styles.countdownCircle}>{phase === "starting" ? "GO" : countdown}</span></div> : null}
       </div>
       <div className={styles.bottomTools}>
         <label className={styles.paceControl}><span>Pace</span><input type="range" min={70} max={190} step={5} value={timed ? effectivePace : paceWpm} disabled={isRunning || timed} onChange={(event) => setPaceWpm(Number(event.target.value))} aria-label="Reading pace" /><output>{effectivePace} WPM</output></label>
