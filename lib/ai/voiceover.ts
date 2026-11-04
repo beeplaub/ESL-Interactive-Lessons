@@ -18,6 +18,7 @@ type VoiceoverRequest = {
   style: string;
   pace: string;
   provider?: "auto" | "kokoro" | "google";
+  googleApi?: "generateContent" | "interactions";
   outputFormat?: "opus" | "wav";
   instruction?: string;
 };
@@ -59,6 +60,7 @@ export function voiceoverRequestHash(request: VoiceoverRequest, provider = voice
       model: providerModel,
       providerVoice,
       providerPreference: request.provider || "auto",
+      googleApi: request.googleApi || "generateContent",
       // Saved WAV generations use the pre-Opus cache shape. Version the
       // format so a creator can regenerate the same script once and receive
       // a compact replacement instead of silently reusing a legacy WAV.
@@ -123,23 +125,51 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
     request.script.trim(),
   ].join("\n\n");
 
-  const response = await geminiClient().models.generateContent({
-    model: VOICEOVER_MODEL,
-    contents: prompt,
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        languageCode: request.languageCode,
-        voiceConfig: { prebuiltVoiceConfig: { voiceName: geminiVoiceName(request.voiceName) } },
+  const client = geminiClient();
+  let encoded: string | undefined;
+  let mimeType: string | undefined;
+  let outputSampleRate: number | undefined;
+  let modelVersion: string | undefined;
+  let totalTokens: number | undefined;
+  let inputTokens: number | undefined;
+  let outputTokens: number | undefined;
+  if (request.googleApi === "interactions") {
+    const interaction = await client.interactions.create({
+      model: VOICEOVER_MODEL,
+      input: prompt,
+      response_format: { type: "audio", mime_type: "audio/l16", sample_rate: 24_000, delivery: "inline" },
+      generation_config: {
+        speech_config: [{ voice: geminiVoiceName(request.voiceName), language: request.languageCode }],
       },
-    },
-  });
-
-  const part = response.candidates?.[0]?.content?.parts?.find((candidate) => candidate.inlineData?.data);
-  const encoded = part?.inlineData?.data;
+      store: false,
+    });
+    encoded = interaction.output_audio?.data;
+    mimeType = interaction.output_audio?.mime_type;
+    outputSampleRate = interaction.output_audio?.sample_rate;
+    modelVersion = interaction.model;
+  } else {
+    const generated = await client.models.generateContent({
+      model: VOICEOVER_MODEL,
+      contents: prompt,
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          languageCode: request.languageCode,
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: geminiVoiceName(request.voiceName) } },
+        },
+      },
+    });
+    const part = generated.candidates?.[0]?.content?.parts?.find((candidate) => candidate.inlineData?.data)?.inlineData;
+    encoded = part?.data;
+    mimeType = part?.mimeType;
+    modelVersion = generated.modelVersion;
+    totalTokens = generated.usageMetadata?.totalTokenCount;
+    inputTokens = generated.usageMetadata?.promptTokenCount;
+    outputTokens = generated.usageMetadata?.candidatesTokenCount;
+  }
   if (!encoded) throw new Error("Gemini did not return audio. Try a shorter script or another voice.");
   const pcm = new Uint8Array(Buffer.from(encoded, "base64"));
-  const sampleRate = sampleRateFromMime(part.inlineData?.mimeType);
+  const sampleRate = outputSampleRate || sampleRateFromMime(mimeType);
   const wav = pcmToWav(pcm, sampleRate);
   const compact = request.outputFormat === "wav"
     ? { bytes: wav, mimeType: "audio/wav", extension: "wav" }
@@ -150,10 +180,10 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
     extension: compact.extension,
     sampleRate,
     durationSeconds: pcm.byteLength / (sampleRate * 2),
-    model: response.modelVersion || VOICEOVER_MODEL,
-    tokenEstimate: response.usageMetadata?.totalTokenCount ?? Math.ceil(request.script.length / 4),
-    inputTokens: response.usageMetadata?.promptTokenCount ?? Math.ceil(request.script.length / 4),
-    outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+    model: modelVersion || VOICEOVER_MODEL,
+    tokenEstimate: totalTokens ?? Math.ceil(request.script.length / 4),
+    inputTokens: inputTokens ?? Math.ceil(request.script.length / 4),
+    outputTokens: outputTokens ?? 0,
     provider: "google" as const,
   };
 }

@@ -71,6 +71,7 @@ export async function POST(request: Request) {
     style: settings.style,
     pace: settings.pace,
     provider: "google" as const,
+    googleApi: "interactions" as const,
   };
   const requestHash = voiceoverRequestHash(voiceRequest, "google");
   const lockKey = `ipa-chart-audio:${requestHash}`;
