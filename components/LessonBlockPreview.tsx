@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Loader2, Maximize, Minimize, MessageSquareQuote, Mic, MicOff, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Loader2, Maximize, Minimize, MessageSquareQuote, Mic, MicOff, Pause, Play, PlayCircle, Quote, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -415,18 +415,20 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   if (block.block_type === "REVIEW_CHECKLIST") {
-    return <ReviewChecklistBlock blockId={block.id} content={content} checkedItems={checkedItems} onChange={onChecklistChange} />;
+    return <ReviewChecklistBlock blockId={block.id} content={content} checkedItems={checkedItems} onChange={onChecklistChange} alwaysOpen={alwaysOpen} />;
   }
 
   if (block.block_type === "QUOTE") {
     const align = textAlignClass(content.text_align);
+    const backgroundColor = previewHexColor(content.block_background_color);
     return (
-      <figure className={`rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4 ${align}`}>
-        <blockquote className="text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
+      <figure className={`relative overflow-hidden rounded-[22px] border border-[#ead9a8] p-4 shadow-[0_12px_28px_rgba(38,35,78,0.12)] sm:p-5 ${align}`} style={backgroundColor ? { backgroundColor } : undefined}>
+        <Quote aria-hidden="true" className="absolute left-4 top-4 text-[var(--br-action)]" size={20} strokeWidth={2.5} />
+        <blockquote className="pr-3 text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
           &ldquo;{asString(content.body) || "Add a quote."}&rdquo;
         </blockquote>
         {asString(content.attribution) ? (
-          <figcaption className="mt-2 text-sm text-[var(--br-text-muted)]">— {asString(content.attribution)}</figcaption>
+          <figcaption className="mt-4 flex justify-end pr-3 text-right text-sm font-semibold text-[var(--br-text-muted)]">— {asString(content.attribution)}</figcaption>
         ) : null}
       </figure>
     );
@@ -531,7 +533,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     );
 
     return (
-      <div className="grid items-stretch gap-5 sm:grid-cols-2">
+      <div className="grid items-stretch gap-5 rounded-[22px] border border-[#ead9a8] bg-surface p-4 shadow-[0_10px_24px_rgba(38,35,78,0.08)] sm:grid-cols-2 sm:p-5">
         {imageRight ? <>{textCol}{imageCol}</> : <>{imageCol}{textCol}</>}
       </div>
     );
@@ -614,8 +616,8 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     const entries = asArray(content.entries);
     return (
       <div className="rounded-lg border border-[var(--br-border)]">
-        <div className="border-b border-[var(--br-border)] bg-surface-muted px-4 py-3">
-          <h3 className="font-semibold">Vocabulary</h3>
+        <div className="border-b border-[var(--br-brand)]/15 px-4 py-3" style={{ backgroundColor: "color-mix(in srgb, var(--br-brand) 16%, var(--br-surface))" }}>
+          <h3 className="font-semibold text-[var(--br-brand)]">Vocabulary</h3>
         </div>
         <div className="divide-y divide-black/10">
           {entries.length ? entries.map((item, index) => {
@@ -657,40 +659,14 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   if (block.block_type === "READING") {
-    const audioPath = asString(content.audio_path);
-    return (
-      <article className="rounded-lg border border-[var(--br-border)] p-4">
-        {asString(content.title) || audioPath ? <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-          <BookOpen size={18} className="text-moss" />
-          {asString(content.title) ? <h3 className="font-semibold">{asString(content.title)}</h3> : null}
-          </div>
-          <ReadingPassageAudioButton src={audioPath} />
-        </div> : null}
-        {(() => {
-          const glossary = asArray(content.glossary).map((item) => asRecord(item as Json)).map((entry) => ({ word: asString(entry.word), meaning: asString(entry.meaning), bengaliMeaning: asString(entry.bengali_meaning ?? entry.bengaliMeaning), ipa: asString(entry.ipa), wordClass: asString(entry.word_class ?? entry.wordClass), example: asString(entry.example), note: asString(entry.note) })).filter((entry) => entry.word.trim());
-          const sentencePairs = asArray(content.sentence_pairs).map((item, index) => { const pair = asRecord(item as Json); return { id: asString(pair.id) || `sentence-${index + 1}`, original: asString(pair.original), translation: asString(pair.translation) }; }).filter((pair) => pair.original || pair.translation);
-          return sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} mode={content.pairing_mode === "line" ? "line" : "sentence"} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />;
-        })()}
-        {asArray(content.questions).length ? (
-          <div className="mt-4 rounded-md bg-surface-muted p-3">
-            <p className="text-base font-semibold">Questions</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-base text-[var(--br-text-muted)]">
-              {asArray(content.questions).map((question, index) => (
-                <li key={index}>{String(question)}</li>
-              ))}
-            </ol>
-          </div>
-        ) : null}
-      </article>
-    );
+    return <ReadingPassageBlock content={content} alwaysOpen={alwaysOpen} />;
   }
 
   if (block.block_type === "DIALOGUE") {
     const turns = asArray(content.turns);
     const people = asArray(content.people).map((item) => asRecord(item as Json));
     return (
-      <div className="space-y-2">
+      <section className="space-y-2 rounded-[22px] border border-[#ead9a8] bg-surface p-4 shadow-[0_10px_24px_rgba(38,35,78,0.08)] sm:p-5">
         {asString(content.title) ? <h3 className="font-semibold text-ink">{asString(content.title)}</h3> : null}
         {turns.length ? turns.map((item, index) => {
           const turn = asRecord(item as Json);
@@ -703,7 +679,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
             </div>
           );
         }) : <p className="rounded-lg border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">Add dialogue turns.</p>}
-      </div>
+      </section>
     );
   }
 
@@ -730,12 +706,46 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   return null;
 }
 
+function ReadingPassageBlock({ content, alwaysOpen }: { content: Record<string, unknown>; alwaysOpen: boolean }) {
+  const [isOpen, setIsOpen] = useState(true);
+  const audioPath = asString(content.audio_path);
+  const title = asString(content.title) || "Reading passage";
+  const glossary = asArray(content.glossary).map((item) => asRecord(item as Json)).map((entry) => ({ word: asString(entry.word), meaning: asString(entry.meaning), bengaliMeaning: asString(entry.bengali_meaning ?? entry.bengaliMeaning), ipa: asString(entry.ipa), wordClass: asString(entry.word_class ?? entry.wordClass), example: asString(entry.example), note: asString(entry.note) })).filter((entry) => entry.word.trim());
+  const sentencePairs = asArray(content.sentence_pairs).map((item, index) => { const pair = asRecord(item as Json); return { id: asString(pair.id) || `sentence-${index + 1}`, original: asString(pair.original), translation: asString(pair.translation) }; }).filter((pair) => pair.original || pair.translation);
+
+  return (
+    <article className="overflow-hidden rounded-[22px] border border-[var(--br-action)]/45 bg-surface shadow-[0_10px_24px_rgba(38,35,78,0.08)]">
+      <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <BookOpen aria-hidden="true" size={19} className="shrink-0 text-[var(--br-action)]" />
+          <h3 className="min-w-0 font-extrabold tracking-tight text-[var(--br-dark-card)]">{title}</h3>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {audioPath ? <ReadingPassageAudioButton src={audioPath} /> : null}
+          {!alwaysOpen ? <button type="button" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className="inline-flex h-7 min-w-[4.75rem] items-center justify-center rounded-md bg-[var(--br-action-strong)] px-2.5 text-xs font-bold text-on-dark transition hover:brightness-95">{isOpen ? "Close" : "Open"}</button> : null}
+        </div>
+      </div>
+      {isOpen || alwaysOpen ? <div className="border-t border-[var(--br-action)]/15 p-4 sm:p-5">
+        {sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} mode={content.pairing_mode === "line" ? "line" : "sentence"} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />}
+        {asArray(content.questions).length ? (
+          <div className="mt-4 rounded-md bg-surface-muted p-3">
+            <p className="text-base font-semibold">Questions</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-base text-[var(--br-text-muted)]">
+              {asArray(content.questions).map((question, index) => <li key={index}>{String(question)}</li>)}
+            </ol>
+          </div>
+        ) : null}
+      </div> : null}
+    </article>
+  );
+}
+
 function StepsBlock({ content }: { content: Record<string, unknown> }) {
   const steps = asArray(content.steps).map((item) => asRecord(item as Json)).filter((step) => asString(step.title) || asString(step.description));
   const stepColors = ["#ff725c", "#8fd8ca", "#b58be8", "#78aaf2"];
   const stepTextColors = ["#ffffff", "#087f70", "#6d3aa8", "#1e5aa8"];
   return (
-    <section className="overflow-hidden rounded-[22px] border border-[var(--br-border)] bg-surface shadow-sm">
+    <section className="overflow-hidden rounded-[22px] border border-[#ead9a8] bg-surface shadow-sm">
       <div className="border-b border-[var(--br-border)] px-5 py-5 sm:px-7 sm:py-6">
         {asString(content.title) ? <h3 className="text-xl font-extrabold tracking-tight text-[var(--br-dark-card)] sm:text-2xl">{asString(content.title)}</h3> : null}
         {asString(content.instruction) ? <p className={`${asString(content.title) ? "mt-1.5" : ""} text-sm text-[var(--br-text-muted)]`}>{asString(content.instruction)}</p> : null}
@@ -819,12 +829,21 @@ function ImageAnnotationBlock({ content }: { content: Record<string, unknown> })
   );
 }
 
-function ReviewChecklistBlock({ blockId, content, checkedItems, onChange }: { blockId: string; content: Record<string, unknown>; checkedItems?: boolean[]; onChange?: (blockId: string, checkedItems: boolean[]) => void }) {
+function ReviewChecklistBlock({ blockId, content, checkedItems, onChange, alwaysOpen }: { blockId: string; content: Record<string, unknown>; checkedItems?: boolean[]; onChange?: (blockId: string, checkedItems: boolean[]) => void; alwaysOpen: boolean }) {
   const items = useMemo(() => asArray(content.items).map(String).filter(Boolean), [content.items]);
+  const translatedItems = asArray(content.items_bn).map(String);
+  const hasBengali = Boolean(asString(content.title_bn) || translatedItems.some((item) => item.trim()));
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const [isOpen, setIsOpen] = useState(true);
+  const isBengali = language === "bn" && hasBengali;
+  const displayItems = isBengali && translatedItems.length === items.length && translatedItems.some((item) => item.trim()) ? translatedItems : items;
   const [localChecked, setLocalChecked] = useState<boolean[]>(() => items.map((_, index) => checkedItems?.[index] === true));
   const currentChecked = checkedItems ?? localChecked;
   const completedCount = items.reduce((count, _, index) => count + (currentChecked[index] ? 1 : 0), 0);
-  const allComplete = items.length > 0 && completedCount === items.length;
+  const checklistTitle = asString(content.title);
+  const translatedTitle = asString(content.title_bn);
+  const currentTitle = isBengali ? translatedTitle || checklistTitle : checklistTitle;
+  const displayTitle = !currentTitle || /^I can now(?:…|\.\.\.)?$/i.test(currentTitle.trim()) ? (isBengali ? "এখন আমি পারি…" : "Now, I can…") : currentTitle;
 
   useEffect(() => {
     setLocalChecked((current) => items.map((_, index) => checkedItems?.[index] ?? current[index] ?? false));
@@ -838,26 +857,35 @@ function ReviewChecklistBlock({ blockId, content, checkedItems, onChange }: { bl
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[var(--br-brand)]/25 bg-surface shadow-[0_10px_30px_rgba(38,37,79,0.08)]">
-      <div className="flex flex-wrap items-start justify-between gap-4 bg-gradient-to-r from-[var(--br-brand)]/[0.12] via-[var(--br-brand)]/[0.04] to-[var(--br-action)]/[0.08] px-4 py-4 sm:px-5 sm:py-5">
-        <div className="flex min-w-0 items-start gap-3">
+      <div className="bg-gradient-to-r from-[var(--br-brand)]/[0.12] via-[var(--br-brand)]/[0.04] to-[var(--br-action)]/[0.08] px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--br-brand)] text-on-dark shadow-sm"><CheckCircle2 size={21} /></span>
-          <div className="min-w-0">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[var(--br-brand)]">Review checklist</p><h3 className="mt-1 text-lg font-extrabold tracking-tight text-[var(--br-dark-card)]">{asString(content.title) || "I can now…"}</h3>
-            {asString(content.intro) ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{asString(content.intro)}</p> : null}
+            <h3 className="min-w-0 whitespace-nowrap text-lg font-extrabold tracking-tight text-[var(--br-dark-card)]">{displayTitle}</h3>
           </div>
+          <LearnerActionGroup
+            language={hasBengali ? language : undefined}
+            onLanguageChange={hasBengali ? setLanguage : undefined}
+            revealOpen={!alwaysOpen ? isOpen : undefined}
+            onRevealToggle={!alwaysOpen ? () => setIsOpen((open) => !open) : undefined}
+          />
         </div>
-        {items.length ? <div className="w-full shrink-0 sm:w-36"><div className="flex items-center justify-between text-[10px] font-bold text-[var(--br-text-muted)]"><span>{completedCount}/{items.length} complete</span><span>{Math.round((completedCount / items.length) * 100)}%</span></div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/80"><div className="h-full rounded-full bg-[var(--br-action)] transition-all" style={{ width: `${(completedCount / items.length) * 100}%` }} /></div></div> : null}
+        {!alwaysOpen && isOpen && items.length > 0 ? <div className="mx-auto mt-3 flex w-64 max-w-full items-center justify-center gap-2" role="progressbar" aria-label="Checklist completion" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={completedCount}>
+          <span className="shrink-0 text-[10px] font-bold text-[var(--br-text-muted)]">{completedCount}/{items.length}</span>
+          <div className={`h-2 min-w-0 flex-1 overflow-hidden rounded-full ${completedCount ? "bg-white/80" : "border-2 border-dotted border-[var(--br-action)]/70 bg-[var(--br-action)]/5"}`}><div className="h-full rounded-full bg-[var(--br-action)] transition-all" style={{ width: `${(completedCount / items.length) * 100}%` }} /></div>
+          <span className="shrink-0 text-[10px] font-bold text-[var(--br-text-muted)]">{Math.round((completedCount / items.length) * 100)}%</span>
+        </div> : null}
       </div>
-      <div className="space-y-2.5 bg-[var(--br-surface-muted)]/35 p-3 sm:p-4">
+      {isOpen || alwaysOpen ? <div className="space-y-2.5 bg-[var(--br-surface-muted)]/35 p-3 sm:p-4">
         {items.length ? items.map((item, index) => {
           const isChecked = Boolean(currentChecked[index]);
           return <label key={`${item}-${index}`} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 transition sm:px-4 ${isChecked ? "border-[var(--br-success)]/40 bg-[var(--br-success-soft)]/70" : "border-[var(--br-border)] bg-white hover:border-[var(--br-action)]/50 hover:shadow-sm"}`}>
             <input type="checkbox" checked={isChecked} onChange={() => toggleItem(index)} className="peer sr-only" />
             <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border transition ${isChecked ? "border-[var(--br-success)] bg-[var(--br-success)] text-on-dark" : "border-[var(--br-brand)]/40 bg-white text-transparent"}`} aria-hidden="true"><Check size={14} strokeWidth={3} /></span><span className={`mt-0.5 text-[10px] font-extrabold ${isChecked ? "text-[var(--br-success)]" : "text-[var(--br-brand)]/60"}`}>{String(index + 1).padStart(2, "0")}</span>
-            <span className={`min-w-0 text-sm font-semibold leading-6 ${isChecked ? "text-[var(--br-chart-secondary)] line-through decoration-[var(--br-success)]/60" : "text-[var(--br-dark-card)]"}`}>{item}</span>
+            <span lang={isBengali ? "bn" : "en"} className={`min-w-0 text-sm font-semibold leading-6 ${isChecked ? "text-[var(--br-chart-secondary)] line-through decoration-[var(--br-success)]/60" : "text-[var(--br-dark-card)]"}`}>{displayItems[index] || item}</span>
           </label>;
         }) : <p className="text-sm text-[var(--br-text-muted)]">Add review statements.</p>}
-      </div>
+      </div> : null}
     </section>
   );
 }
@@ -885,10 +913,11 @@ function CommonMistakeBlock({ content }: { content: Record<string, unknown> }) {
 
 function ContrastPairBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {
   const pairs = asArray(content.pairs).map((item) => asRecord(item as Json));
+  const backgroundColor = previewHexColor(content.block_background_color);
   return (
-    <section className="overflow-hidden rounded-xl border border-[var(--br-brand)]/25 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-info)]/10 shadow-sm">
+    <section className={`overflow-hidden rounded-xl border border-[var(--br-brand)]/25 shadow-sm ${backgroundColor ? "" : "bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-info)]/10"}`} style={backgroundColor ? { backgroundColor, backgroundImage: "none" } : undefined}>
       <div className="border-b border-[var(--br-brand)]/15 bg-[var(--br-brand)]/10 px-4 py-3 sm:px-5">
-        <h3 className="font-semibold text-ink">{asString(content.title) || "Contrast pairs"}</h3>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">Contrast pair</p>
         {asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}
       </div>
       <div className="space-y-3 p-3 sm:p-4">
