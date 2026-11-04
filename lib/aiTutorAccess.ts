@@ -12,6 +12,14 @@ export type AiTutorAccess = {
   total_minutes_used?: number;
 };
 
+/** AI Tutor learner view is reserved for staff evaluating the feature. */
+export async function hasAiTutorStaffAccess(userId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (error) throw new Error("AI Tutor role could not be checked.");
+  return data?.role === "ADMIN" || data?.role === "TEACHER" || data?.role === "SCHOOL_ADMIN";
+}
+
 export async function getAiTutorAccess(userId: string): Promise<AiTutorAccess> {
   const admin = createAdminClient() as any;
   const { data, error } = await admin.rpc("get_ai_tutor_access", { p_user_id: userId });

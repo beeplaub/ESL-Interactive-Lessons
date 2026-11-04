@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { AiTutorWorkspace } from "@/components/AiTutorWorkspace";
-import { requireUser } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { isStaff, requireUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "AI Tutor | BrenUp",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AiTutorPage() {
-  const { user } = await requireUser();
-  const { data: profile } = await createAdminClient().from("profiles").select("cefr_level").eq("id", user.id).maybeSingle();
+  const { profile } = await requireUser();
+  if (!isStaff(profile?.role)) redirect("/account");
   return <LearnerAppShell active="ai-tutor" showRightSidebar={false}><AiTutorWorkspace cefrLevel={profile?.cefr_level || "B1"}/></LearnerAppShell>;
 }

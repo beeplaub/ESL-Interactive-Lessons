@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
 import { userCanOpenLesson } from "@/lib/practiceAccess";
-import { claimGeminiTutorSession } from "@/lib/aiTutorAccess";
+import { claimGeminiTutorSession, hasAiTutorStaffAccess } from "@/lib/aiTutorAccess";
 
 // Preserve the currently deployed translation model unless the platform admin
 // explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
@@ -27,6 +27,13 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null) as { mode?: Mode; lessonId?: string; slideId?: string; activityId?: string; topic?: string; durationMinutes?: number; explanationLanguage?: "bn" | "en"; sessionId?: string } | null;
   if (!body?.mode || (body.mode !== "TUTOR" && !body.lessonId)) return NextResponse.json({ error: "Invalid live session request." }, { status: 400 });
+  if (body.mode === "TUTOR") {
+    try {
+      if (!(await hasAiTutorStaffAccess(user.id))) return NextResponse.json({ error: "AI Tutor is available in admin and creator view." }, { status: 403 });
+    } catch {
+      return NextResponse.json({ error: "AI Tutor access is temporarily unavailable." }, { status: 503 });
+    }
+  }
 
   const admin = createAdminClient();
   if (body.mode !== "TUTOR") {

@@ -3,7 +3,7 @@ import { callGemini } from "@/lib/ai/gemini";
 import { generateVoiceoverAudio } from "@/lib/ai/voiceover";
 import { transcribeWithGroq } from "@/lib/ai/speechToText";
 import { createClient } from "@/lib/supabase/server";
-import { assertActiveTutorSession } from "@/lib/aiTutorAccess";
+import { assertActiveTutorSession, hasAiTutorStaffAccess } from "@/lib/aiTutorAccess";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -15,6 +15,11 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Please sign in to use AI Tutor." }, { status: 401 });
+  try {
+    if (!(await hasAiTutorStaffAccess(user.id))) return NextResponse.json({ error: "AI Tutor is available in admin and creator view." }, { status: 403 });
+  } catch {
+    return NextResponse.json({ error: "AI Tutor access is temporarily unavailable." }, { status: 503 });
+  }
 
   const { data: profile } = await supabase.from("profiles").select("cefr_level,full_name,first_name,last_name").eq("id", user.id).maybeSingle();
   const learnerName = profile?.full_name?.trim() || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() || "Learner";

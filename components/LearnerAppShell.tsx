@@ -136,7 +136,7 @@ export async function LearnerAppShell({
         isStaffUser={isStaffUser}
       />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
-        <LearnerSidebar active={active} currentLevel={currentLevel} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} schoolBrand={schoolBrand} />
+        <LearnerSidebar active={active} currentLevel={currentLevel} showAiTutor={isStaffUser} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} schoolBrand={schoolBrand} />
         <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
           {showChrome ? (
             <DesktopLearnerChrome
@@ -548,7 +548,7 @@ function MobileTopbar({
               <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active={active === "courses"} />
               <MobileDrawerLink href="/blog" label="Journal" icon={Newspaper} active={active === "journal"} />
               <MobileDrawerLink href="/wordverse" label="Wordverse" icon={Orbit} active={active === "wordverse"} />
-              <MobileDrawerLink href="/ai-tutor" label="AI Tutor" icon={Sparkles} active={active === "ai-tutor"} />
+              {isStaffUser ? <MobileDrawerLink href="/ai-tutor" label="AI Tutor" icon={Sparkles} active={active === "ai-tutor"} /> : null}
               <MobileDrawerLink href="/ipa-chart" label="IPA Chart" icon={AudioLines} active={active === "ipa-chart"} />
               <MobileDrawerLink href="/games" label="Games" icon={Gamepad2} active={active === "games"} />
               <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />

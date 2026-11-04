@@ -31,12 +31,14 @@ const COLLAPSE_COOKIE = "brenup_sidebar_collapsed";
 export function LearnerSidebar({
   active,
   currentLevel,
+  showAiTutor,
   initialCollapsed = false,
   levelProgressPercent = null,
   schoolBrand = null,
 }: {
   active: ActiveItem;
   currentLevel: string | null;
+  showAiTutor: boolean;
   initialCollapsed?: boolean;
   levelProgressPercent?: number | null;
   schoolBrand?: { name: string; logoUrl: string | null; accentColor: string | null } | null;
@@ -59,7 +61,7 @@ export function LearnerSidebar({
     ]},
     { label: "Practice", items: [
       { href: "/wordverse", label: "Wordverse", icon: Orbit, key: "wordverse" },
-      { href: "/ai-tutor", label: "AI Tutor", icon: Sparkles, key: "ai-tutor" },
+      ...(showAiTutor ? [{ href: "/ai-tutor", label: "AI Tutor", icon: Sparkles, key: "ai-tutor" }] : []),
       { href: "/ipa-chart", label: "IPA Chart", icon: AudioLines, key: "ipa-chart" },
       { href: "/games", label: "Games", icon: Gamepad2, key: "games" },
       { href: "/community", label: "Community", icon: MessagesSquare, key: "community" },
