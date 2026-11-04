@@ -354,11 +354,16 @@ function InstructionBlock({ content }: { content: Record<string, unknown> }) {
         <path fill="currentColor" d="M8 0 C3.6 0 0 3.6 0 8 L0 92 C0 96.4 3.6 100 8 100 C5 100 3 96 3 92 L3 8 C3 3 5 0 8 0 Z" />
       </svg>
       <div className="px-3 py-4 sm:px-4 sm:py-5">
-        <div className="flex items-start justify-between gap-3">
-          {title ? <h3 className="min-w-0 flex-1 text-base font-extrabold tracking-tight text-[var(--br-dark-card)]">{title}</h3> : <span className="flex-1" />}
+        {title ? <div className="flex items-start justify-between gap-3">
+          <h3 className="min-w-0 flex-1 text-base font-extrabold tracking-tight text-[var(--br-dark-card)]">{title}</h3>
           {hasBengali ? <LearnerActionGroup language={isBengali ? "bn" : "en"} onLanguageChange={setLanguage} /> : null}
+        </div> : null}
+        <div className={`${title ? "mt-1.5" : "flex items-start gap-3"}`}>
+          <div className={title ? "italic" : "min-w-0 flex-1 italic"}>
+            <FormattedText text={body} align={title ? "text-left" : "text-center"} />
+          </div>
+          {!title && hasBengali ? <LearnerActionGroup language={isBengali ? "bn" : "en"} onLanguageChange={setLanguage} /> : null}
         </div>
-        <div className={`${title ? "mt-1.5" : ""} italic`}><FormattedText text={body} /></div>
       </div>
     </section>
   );
