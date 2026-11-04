@@ -24,6 +24,36 @@ export function readingTokens(text: string): ReadingToken[] {
   });
 }
 
+/** Keep sentence boundaries while balancing long passages around 50–60 words per paragraph. */
+export function splitReadingParagraphs(text: string, minWords = 50, maxWords = 60): string[] {
+  const minimum = Math.max(1, Math.floor(minWords));
+  const target = Math.round((minimum + Math.max(minimum, Math.floor(maxWords))) / 2);
+  const limit = Math.max(minimum, Math.floor(maxWords));
+  const output: string[] = [];
+  const sentences = text.replace(/\s+/gu, " ").trim().split(/(?<=[.!?])\s+/u).map((sentence) => sentence.trim()).filter(Boolean);
+  const counts = sentences.map((sentence) => readingTokens(sentence).length);
+  const best = new Array<number>(sentences.length + 1).fill(Number.POSITIVE_INFINITY);
+  const nextBoundary = new Array<number>(sentences.length).fill(sentences.length);
+  best[sentences.length] = 0;
+  for (let start = sentences.length - 1; start >= 0; start -= 1) {
+    let words = 0;
+    for (let end = start; end < sentences.length; end += 1) {
+      words += counts[end];
+      // Paragraph size is a target, not a hard limit; complete sentences always stay intact.
+      const undersize = words < minimum ? (minimum - words) ** 2 * 2 : 0;
+      const oversize = words > limit ? (words - limit) ** 2 * 6 : 0;
+      const score = (words - target) ** 2 + undersize + oversize + best[end + 1];
+      if (score < best[start]) { best[start] = score; nextBoundary[start] = end + 1; }
+    }
+  }
+  for (let start = 0; start < sentences.length;) {
+    const end = Math.max(start + 1, nextBoundary[start]);
+    output.push(sentences.slice(start, end).join(" ").trim());
+    start = end;
+  }
+  return output;
+}
+
 export type WordMismatch = { expected: string; heard: string };
 export type ReadingMatch = { matched: number; total: number; percent: number; mismatches: WordMismatch[] };
 

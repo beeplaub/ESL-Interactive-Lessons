@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, CheckCircle2, Clock3, Headphones, Loader2, Mic, Pause, Play, RotateCcw, Square, Volume2 } from "lucide-react";
+import { Loader2, RotateCcw, Volume2 } from "lucide-react";
+import styles from "./ReadingPractice.module.css";
 import type { Json } from "@/types/database.types";
 import { READING_TEMPLATES } from "@/lib/readingTemplates";
-import { compareReadingText, readingCadence, readingTokens, type ReadingMatch } from "@/lib/readingPractice";
+import { compareReadingText, readingCadence, readingTokens, splitReadingParagraphs, type ReadingMatch } from "@/lib/readingPractice";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 
 const MAX_READING_RECORD_SECONDS = 180;
@@ -26,6 +27,13 @@ type ReadingConfig = { title: string; passage: string; level: string; time_limit
 function record(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
+
+function MicIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" /></svg>; }
+function BookIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H20v20H7.5A2.5 2.5 0 0 1 5 19.5z" /><path d="M5 18h15M9 7h7M9 11h7" /></svg>; }
+function MatchIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5 9.2 17 19 7" /><circle cx="12" cy="12" r="10" /></svg>; }
+function ClockIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8.5" /><path d="M12 8v5l3 2M9 2h6M12 2v2" /></svg>; }
+function ClarityIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.2c0 4.5 3.1 7.8 7.5 9.8 4.4-2 7.5-5.3 7.5-9.8V6z" /><path d="m9 12 2 2 4-4" /></svg>; }
+function GoalIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.2l5.9-.9z" /></svg>; }
 
 export function ReadingPracticeEditor({ value, onSave }: { value: Json | null; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = record(value);
@@ -101,24 +109,46 @@ export function ReadingQuestionFields({ value, onChange }: { value: Json | null;
 
 export function ReadingPracticePlayer({ config, disabled = false, onResult }: { config: ReadingConfig; disabled?: boolean; onResult?: (result: ReadingPracticeResult) => void }) {
   const timed = Boolean(config.time_limit_seconds);
-  const paragraphs = useMemo(() => config.passage.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean), [config.passage]);
+  const paragraphs = useMemo(() => splitReadingParagraphs(config.passage, 50, 60), [config.passage]);
   const tokens = useMemo(() => readingTokens(config.passage), [config.passage]);
   const [paceWpm, setPaceWpm] = useState(Number(config.pace_wpm ?? 115));
   const effectivePace = timed && config.time_limit_seconds ? Math.max(50, Math.min(240, Math.round(tokens.length / (config.time_limit_seconds / 60)))) : paceWpm;
-  const groups = useMemo(() => readingCadence(config.passage, effectivePace, config.level), [config.passage, effectivePace, config.level]);
+  const { groups, paragraphStarts } = useMemo(() => {
+    let tokenOffset = 0;
+    const starts: number[] = [];
+    const allGroups = paragraphs.flatMap((paragraph, paragraphIndex) => {
+      starts.push(tokenOffset);
+      const paragraphTokens = readingTokens(paragraph);
+      const paragraphGroups = readingCadence(paragraph, effectivePace, config.level).map((group) => ({
+        ...group,
+        paragraphIndex,
+        start: group.start + tokenOffset,
+        end: group.end + tokenOffset,
+        tokenIndices: group.tokenIndices.map((index) => index + tokenOffset),
+      }));
+      tokenOffset += paragraphTokens.length;
+      return paragraphGroups;
+    });
+    return { groups: allGroups, paragraphStarts: starts };
+  }, [paragraphs, effectivePace, config.level]);
   const groupIndexRef = useRef(0);
   const stepTimerRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
   const clockRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const elapsedRef = useRef(0);
+  const secondsLeftRef = useRef(config.time_limit_seconds ?? 0);
+  const currentParagraphRef = useRef(0);
   const blobUrlRef = useRef<string | null>(null);
   const activeRef = useRef(false);
   const modeRef = useRef<"record" | "practice" | null>(null);
   const [activeGroup, setActiveGroup] = useState(-1);
+  const [currentParagraph, setCurrentParagraph] = useState(0);
+  const [countdown, setCountdown] = useState<number | "GO" | null>(null);
   const [leadIn, setLeadIn] = useState(false);
-  const [phase, setPhase] = useState<"ready" | "starting" | "active" | "paused" | "transcribing" | "result" | "error">("ready");
+  const [phase, setPhase] = useState<"ready" | "starting" | "countdown" | "active" | "paused" | "transcribing" | "result" | "error">("ready");
   const [secondsLeft, setSecondsLeft] = useState(config.time_limit_seconds ?? 0);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<ReadingPracticeResult | null>(null);
@@ -129,6 +159,7 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
   useEffect(() => () => {
     if (stepTimerRef.current !== null) window.clearTimeout(stepTimerRef.current);
     if (clockRef.current !== null) window.clearInterval(clockRef.current);
+    if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
   }, []);
@@ -136,12 +167,23 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
   function clearClocks() {
     if (stepTimerRef.current !== null) window.clearTimeout(stepTimerRef.current);
     if (clockRef.current !== null) window.clearInterval(clockRef.current);
+    if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
     stepTimerRef.current = null; clockRef.current = null;
+    countdownTimerRef.current = null;
   }
 
   function drawGroup(index: number) {
     if (!activeRef.current) return;
     if (index >= groups.length) { finishSession(true); return; }
+    if (groups[index].paragraphIndex !== currentParagraphRef.current) {
+      const nextParagraph = groups[index].paragraphIndex;
+      activeRef.current = false;
+      clearClocks();
+      setActiveGroup(-1); setLeadIn(false);
+      if (recorderRef.current?.state === "recording") recorderRef.current.pause();
+      startParagraphCountdown(nextParagraph, index);
+      return;
+    }
     groupIndexRef.current = index;
     setActiveGroup(index);
     const group = groups[index];
@@ -159,10 +201,63 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     }
   }
 
+  function startParagraphCountdown(paragraphIndex: number, firstGroupIndex: number) {
+    activeRef.current = false;
+    if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
+    currentParagraphRef.current = paragraphIndex;
+    setCurrentParagraph(paragraphIndex);
+    setCountdown(3);
+    setPhase("countdown");
+    let count = 3;
+    const tick = () => {
+      count -= 1;
+      if (count > 0) {
+        setCountdown(count);
+        countdownTimerRef.current = window.setTimeout(tick, 1000);
+        return;
+      }
+      setCountdown("GO");
+      countdownTimerRef.current = window.setTimeout(() => {
+        setCountdown(null);
+        void beginParagraph(paragraphIndex, firstGroupIndex);
+      }, 450);
+    };
+    countdownTimerRef.current = window.setTimeout(tick, 1000);
+  }
+
+  async function beginParagraph(paragraphIndex: number, firstGroupIndex: number) {
+    setPhase("starting");
+    if (modeRef.current === "record") {
+      try {
+        if (!recorderRef.current) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          const preferred = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
+          const media = preferred ? new MediaRecorder(stream, { mimeType: preferred }) : new MediaRecorder(stream);
+          media.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
+          recorderRef.current = media;
+          media.start(250);
+        } else if (recorderRef.current.state === "paused") {
+          recorderRef.current.resume();
+        }
+      } catch {
+        streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
+        modeRef.current = null; setPhase("error"); setError("Microphone access is needed to record. Allow microphone access and try again."); return;
+      }
+    }
+    currentParagraphRef.current = paragraphIndex;
+    setCurrentParagraph(paragraphIndex);
+    setPhase("active");
+    activeRef.current = true;
+    beginClock();
+    drawGroup(firstGroupIndex);
+  }
+
   function finishSession(finishedPassage = false) {
-    if (!activeRef.current && !recorderRef.current) return;
+    if (!modeRef.current) return;
     activeRef.current = false;
     clearClocks();
+    setCountdown(null);
     setActiveGroup(-1); setLeadIn(false);
     const media = recorderRef.current;
     if (media && media.state !== "inactive") {
@@ -202,35 +297,25 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
 
   function beginClock() {
     clockRef.current = window.setInterval(() => {
-      if (!activeRef.current || modeRef.current !== "record") return;
-      elapsedRef.current += 1; setElapsed(elapsedRef.current);
+      if (!activeRef.current) return;
+      if (modeRef.current === "record") { elapsedRef.current += 1; setElapsed(elapsedRef.current); }
       if (config.time_limit_seconds) {
-        const left = Math.max(0, config.time_limit_seconds - elapsedRef.current); setSecondsLeft(left);
+        const left = Math.max(0, secondsLeftRef.current - 1); secondsLeftRef.current = left; setSecondsLeft(left);
         if (!left) finishSession();
-      } else if (elapsedRef.current >= MAX_READING_RECORD_SECONDS) {
+      } else if (modeRef.current === "record" && elapsedRef.current >= MAX_READING_RECORD_SECONDS) {
         finishSession(false);
       }
     }, 1000);
   }
 
   async function start(mode: "record" | "practice") {
-    if (disabled || phase === "starting" || phase === "active" || phase === "paused") return;
+    if (disabled || phase === "starting" || phase === "countdown" || phase === "active" || phase === "paused") return;
     if (!tokens.length) { setError("This reading passage is empty."); setPhase("error"); return; }
-    setError(""); setResult(null); setPracticeDone(false); setAudioUrl(null); if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; setElapsed(0); setSecondsLeft(config.time_limit_seconds ?? 0); elapsedRef.current = 0; groupIndexRef.current = 0; chunksRef.current = []; setActiveGroup(-1);
-    modeRef.current = mode; setPhase("starting");
-    if (mode === "record") {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); streamRef.current = stream;
-        const preferred = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
-        const media = preferred ? new MediaRecorder(stream, { mimeType: preferred }) : new MediaRecorder(stream);
-        media.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
-        recorderRef.current = media; media.start(250);
-      } catch {
-        streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
-        modeRef.current = null; setPhase("error"); setError("Microphone access is needed to record. Allow microphone access and try again."); return;
-      }
-    }
-    activeRef.current = true; setPhase("active"); beginClock(); drawGroup(0);
+    setError(""); setResult(null); setPracticeDone(false); setAudioUrl(null); if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null;
+    setElapsed(0); elapsedRef.current = 0; setSecondsLeft(config.time_limit_seconds ?? 0); secondsLeftRef.current = config.time_limit_seconds ?? 0;
+    groupIndexRef.current = 0; chunksRef.current = []; setActiveGroup(-1); currentParagraphRef.current = 0; setCurrentParagraph(0);
+    modeRef.current = mode;
+    startParagraphCountdown(0, 0);
   }
 
   function pause() {
@@ -248,51 +333,68 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
   function stop() { finishSession(); }
   function reset() {
     if (activeRef.current) finishSession();
-    clearClocks(); activeRef.current = false; modeRef.current = null; setPhase("ready"); setPracticeDone(false); setResult(null); setError(""); setActiveGroup(-1); setElapsed(0); setSecondsLeft(config.time_limit_seconds ?? 0);
+    clearClocks(); activeRef.current = false; modeRef.current = null; setPhase("ready"); setCountdown(null); setPracticeDone(false); setResult(null); setError(""); setActiveGroup(-1); currentParagraphRef.current = 0; setCurrentParagraph(0); setElapsed(0); setSecondsLeft(config.time_limit_seconds ?? 0); secondsLeftRef.current = config.time_limit_seconds ?? 0;
   }
 
   function renderText() {
-    let offset = 0;
-    return paragraphs.map((paragraph, paragraphIndex) => {
-      const paragraphTokens = readingTokens(paragraph);
-      const startIndex = offset; offset += paragraphTokens.length;
-      return <div key={paragraphIndex} className="rounded-xl border border-[var(--br-border)] bg-white/75 p-3 sm:p-4"><p className="leading-[2.05]">{paragraphTokens.map((token, localIndex) => {
+    const paragraph = paragraphs[currentParagraph] ?? "";
+    const paragraphTokens = readingTokens(paragraph);
+    const startIndex = paragraphStarts[currentParagraph] ?? 0;
+    return paragraphTokens.map((token, localIndex) => {
         const globalIndex = startIndex + localIndex;
         const currentGroup = groups[activeGroup];
         const groupContains = currentGroup?.tokenIndices.includes(globalIndex) ?? false;
         const isFunction = token.kind === "function";
         const lit = groupContains && (leadIn ? isFunction : !isFunction);
-        const isPast = activeGroup >= 0 && globalIndex < (groups[activeGroup]?.start ?? 0);
-        return <span key={`${paragraphIndex}-${localIndex}`} className={`${isFunction ? "text-[#7A7A98]" : "font-semibold text-[#272747]"} ${lit ? "rounded-md bg-[#6c3bff] px-0.5 text-white shadow-[0_2px_8px_rgba(108,59,255,.2)]" : isPast ? "opacity-65" : ""} transition-colors duration-150`}>{token.text}{token.punctuation}{localIndex < paragraphTokens.length - 1 ? " " : " "}</span>;
-      })}</p></div>;
-    });
+        return <span key={`${currentParagraph}-${localIndex}`} className={`${styles.unit} ${isFunction ? styles.weak : styles.beat} ${lit ? styles.active : ""}`}>{token.text}{token.punctuation}{localIndex < paragraphTokens.length - 1 ? " " : " "}</span>;
+      });
   }
 
-  const isRunning = phase === "active" || phase === "paused";
-  return <section className="overflow-hidden rounded-[22px] border border-[var(--br-border)] bg-surface shadow-sm">
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--br-border)] bg-[var(--br-surface-muted)] px-4 py-3 sm:px-5">
-      <div className="flex items-center gap-2.5"><span className="grid size-9 place-items-center rounded-xl bg-[var(--br-brand)]/10 text-[var(--br-brand)]"><BookOpen size={18} /></span><div><p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-text-muted)]">{timed ? "Speed Reading" : "Read Aloud"} · {config.level}</p><p className="text-sm font-bold text-ink">{config.title}</p></div></div>
-      <div className="flex items-center gap-2">{timed ? <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-extrabold ${secondsLeft <= 10 && isRunning ? "bg-rose-100 text-rose-700" : "bg-white text-ink"}`}><Clock3 size={15} />{String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:{String(secondsLeft % 60).padStart(2, "0")}</span> : null}<span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-bold ${phase === "active" && modeRef.current === "record" ? "bg-orange-100 text-orange-700" : "bg-white text-[var(--br-text-muted)]"}`}>{phase === "active" && modeRef.current === "record" ? <Mic size={14} className="animate-pulse text-[var(--br-action)]" /> : <span className={`size-2 rounded-full ${phase === "active" && modeRef.current === "record" ? "animate-pulse bg-[var(--br-action)]" : "bg-slate-300"}`} />}{phase === "active" && modeRef.current === "record" ? "Recording" : phase === "active" ? "Practice" : phase === "paused" ? "Paused" : "Ready"}</span></div>
-    </header>
-    <div className="p-4 sm:p-5">
-      <div className="rounded-[18px] border border-[var(--br-border)] bg-[#fbfaff] p-4 sm:p-6">
-        <h3 className="mb-4 text-center text-lg font-extrabold text-[#272747] sm:text-xl">{config.title}</h3>
-        <div className="space-y-4 text-base sm:text-lg">{renderText()}</div>
-        <div className="mt-4 flex flex-wrap justify-end gap-4 text-xs font-semibold"><span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-[#272747]" />Stressed word</span><span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-[#7A7A98]" />Function-word group</span></div>
+  const isRunning = phase === "starting" || phase === "countdown" || phase === "active" || phase === "paused";
+  const formatTime = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  const busy = phase === "starting" || phase === "transcribing";
+  const status = phase === "countdown" ? `Get ready · paragraph ${currentParagraph + 1} of ${paragraphs.length}` : phase === "starting" ? "Starting your reading…" : phase === "active" ? modeRef.current === "record" ? "Recording your reading · following the beat" : "Practice only · no recording" : phase === "paused" ? "Reading paused" : phase === "transcribing" ? "Checking your reading…" : phase === "result" ? "Reading complete · result ready" : phase === "error" ? error : "Choose how you want to practise";
+  const readMatch = result ? `${result.matched_words} / ${result.total_words}` : "—";
+  const readPace = result ? Math.round((result.total_words / Math.max(1, result.elapsed_seconds)) * 60) : 0;
+  return <section className={`${styles.activity} ${timed ? styles.speedOn : ""}`} aria-label={timed ? "Speed Reading" : "Read Aloud"}>
+    <div className={styles.mainCard}>
+      <div className={styles.courseRow}><span className={styles.eyebrow}>{timed ? "Speed Reading" : "Read Aloud"}</span><span className={styles.levelPill}>{config.level} · {({ A1: "Beginner", A2: "Elementary", B1: "Intermediate", B2: "Upper Intermediate", C1: "Advanced", C2: "Proficient" } as Record<string, string>)[config.level] ?? "Reading"}</span></div>
+      {timed ? <div className={styles.targetStrip}><div className={styles.targetLabel}><span aria-hidden="true">🎯</span><span>Your challenge</span><span className={styles.targetBadge}>{tokens.length} words · {formatTime(config.time_limit_seconds ?? 0)}</span></div><span className={`${styles.targetNote} ${secondsLeft <= 10 && isRunning ? styles.timerWarning : ""}`}><span className={styles.clockSmall}><ClockIcon /></span><span>{formatTime(secondsLeft)} remaining</span></span></div> : null}
+      <div className={styles.textBox}>
+        <div className={styles.passageHeading}><h1>{config.title}</h1><span>{readingTokens(paragraphs[currentParagraph] ?? "").length} WORDS · {currentParagraph + 1} / {paragraphs.length}</span></div>
+        <div className={styles.readingText} aria-label="Reading passage">{renderText()}</div>
+        {phase === "countdown" || phase === "starting" ? <div className={styles.countdownOverlay} aria-live="assertive"><span className={styles.countdownCircle}>{phase === "starting" ? "GO" : countdown}</span><strong>{phase === "starting" ? "Starting your microphone" : `Paragraph ${currentParagraph + 1} of ${paragraphs.length}`}</strong></div> : null}
       </div>
-      {!timed ? <label className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--br-border)] bg-white px-3 py-2.5 text-sm font-bold text-ink"><span>Pace</span><input type="range" min={70} max={180} step={5} value={paceWpm} disabled={isRunning} onChange={(event) => setPaceWpm(Number(event.target.value))} className="min-w-0 flex-1 accent-[var(--br-brand)]" /><span className="w-16 text-right text-[var(--br-text-muted)]">{paceWpm} WPM</span></label> : <p className="mt-3 text-center text-xs font-semibold text-[var(--br-text-muted)]">Target reading pace · about {effectivePace} words per minute</p>}
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {!isRunning ? <>
-          <button type="button" disabled={disabled || phase === "starting" || phase === "transcribing"} onClick={() => void start("record")} className="inline-flex min-h-14 items-center justify-center gap-2.5 rounded-2xl bg-[var(--br-action)] px-4 py-3 text-base font-extrabold text-on-dark shadow-sm transition hover:brightness-95 disabled:opacity-50">{phase === "starting" || phase === "transcribing" ? <Loader2 className="animate-spin" size={19} /> : <Mic size={20} />}{phase === "transcribing" ? "Checking your reading…" : "Record and Read"}<span aria-hidden="true">→</span></button>
-          <button type="button" disabled={disabled || phase === "starting" || phase === "transcribing"} onClick={() => void start("practice")} className="inline-flex min-h-14 items-center justify-center gap-2.5 rounded-2xl bg-[#6c3bff] px-4 py-3 text-base font-extrabold text-white shadow-sm transition hover:brightness-95 disabled:opacity-50"><Headphones size={20} />Practice without recording<span aria-hidden="true">→</span></button>
-        </> : <div className="sm:col-span-2 grid grid-cols-2 gap-3"><button type="button" onClick={pause} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[var(--br-border)] bg-white px-4 py-2.5 font-bold text-ink">{phase === "paused" ? <Play size={17} /> : <Pause size={17} />}{phase === "paused" ? "Resume" : "Pause"}</button><button type="button" onClick={stop} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 font-bold text-rose-700"><Square size={15} />Finish reading</button></div>}
+      <div className={styles.bottomTools}>
+        <label className={styles.paceControl}><span>Pace</span><input type="range" min={70} max={190} step={5} value={timed ? effectivePace : paceWpm} disabled={isRunning || timed} onChange={(event) => setPaceWpm(Number(event.target.value))} aria-label="Reading pace" /><output>{effectivePace} WPM</output></label>
+        <div className={styles.rhythmLegend} aria-label="Text emphasis key"><span><i className={`${styles.swatch} ${styles.swatchBeat}`} /><b className={`${styles.legendSample} ${styles.legendBeat}`}>Stressed word</b></span><span><i className={`${styles.swatch} ${styles.swatchWeak}`} /><b className={`${styles.legendSample} ${styles.legendWeak}`}>Function-word group</b></span></div>
       </div>
-      {audioUrl ? <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-orange-200 bg-orange-50/70 p-3"><Volume2 size={18} className="text-[var(--br-action)]" /><div className="min-w-0 flex-1"><p className="text-sm font-extrabold text-ink">Your reading</p><audio controls src={audioUrl} className="mt-1 h-9 w-full" /></div><button type="button" onClick={reset} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold text-[var(--br-brand)] hover:bg-white"><RotateCcw size={15} />Try again</button></div> : null}
-      {phase === "result" && !timed && result?.elapsed_seconds === MAX_READING_RECORD_SECONDS ? <p role="status" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">Three-minute recording limit reached. Your reading was checked.</p> : null}
-      {phase === "error" ? <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
-      {phase === "result" && practiceDone ? <p className="mt-3 rounded-xl bg-violet-50 p-3 text-sm font-bold text-violet-800">Practice complete · no recording or score was saved.</p> : null}
-      {result ? <div className="mt-4 rounded-2xl border border-[var(--br-border)] bg-white p-4 sm:p-5"><h4 className="text-base font-extrabold text-ink">Practice summary</h4><div className="mt-3 grid gap-2 sm:grid-cols-3"><div className="flex items-center justify-between gap-2 rounded-xl bg-orange-50 p-3 text-orange-800"><div><p className="text-xs font-bold uppercase tracking-wide">Your reading</p><p className="mt-1 text-lg font-extrabold">{result.elapsed_seconds}s</p></div><Volume2 size={20} /></div><div className="flex items-center justify-between gap-2 rounded-xl bg-[#272747] p-3 text-white"><div><p className="text-xs font-bold uppercase tracking-wide text-white/70">Text match</p><p className="mt-1 text-lg font-extrabold">{result.match_percent}%</p><p className="text-[11px] text-white/70">{result.matched_words} / {result.total_words} words</p></div><CheckCircle2 size={20} /></div><div className={`flex items-center justify-between gap-2 rounded-xl p-3 ${result.target_reached === true ? "bg-emerald-50 text-emerald-800" : result.target_reached === false ? "bg-amber-50 text-amber-800" : "bg-violet-50 text-violet-800"}`}><div><p className="text-xs font-bold uppercase tracking-wide">{timed ? "Speed target" : "Reading"}</p><p className="mt-1 text-lg font-extrabold">{timed ? result.target_reached ? "Reached" : "Keep going" : "Complete"}</p><p className="text-[11px] opacity-75">{timed ? `${config.time_limit_seconds}s limit` : `${config.level} passage`}</p></div><Clock3 size={20} /></div></div>{result.clarity_words.length ? <div className="mt-4"><p className="text-sm font-extrabold text-ink">Words to review for clarity</p><div className="mt-2 flex flex-wrap gap-2">{result.clarity_words.map((item, index) => <span key={`${item.expected}-${index}`} title={item.heard ? `Transcript heard “${item.heard}”` : "This word did not appear in the transcript"} className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-bold text-rose-800">{item.expected}{item.heard ? ` → ${item.heard}` : " · missed"}</span>)}</div></div> : <p className="mt-3 text-sm font-semibold text-emerald-700">Every word matched in the transcript.</p>}<p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">Transcript matching can mishear clear speech; this is a practice guide, not a pronunciation grade. The audio is sent to Groq for transcription and isn’t saved by BrenUp.</p></div> : null}
-      {phase === "active" || phase === "paused" ? <p className="mt-3 text-center text-xs font-semibold text-[var(--br-text-muted)]">{phase === "paused" ? "Paused" : modeRef.current === "record" ? `Recording your reading · ${elapsed}s` : "Follow the moving highlight at your own pace"}</p> : null}
+      {!isRunning ? <div className={styles.startOptions}>
+        <button type="button" disabled={disabled || busy} onClick={() => void start("record")} className={`${styles.startOption} ${styles.recordOption}`}>
+          <span className={styles.optionIcon}>{busy ? <Loader2 className={styles.spin} /> : <MicIcon />}</span><span className={styles.optionCopy}><strong>{phase === "transcribing" ? "Checking your reading…" : "Record and read"}</strong><small>Get a text match and Clarity review</small></span><span className={styles.optionArrow} aria-hidden="true">→</span>
+        </button>
+        <button type="button" disabled={disabled || busy} onClick={() => void start("practice")} className={`${styles.startOption} ${styles.practiceOption}`}>
+          <span className={styles.optionIcon}><BookIcon /></span><span className={styles.optionCopy}><strong>Practice without recording</strong><small>Follow the highlight · no score saved</small></span><span className={styles.optionArrow} aria-hidden="true">→</span>
+        </button>
+      </div> : <div className={`${styles.actionsRow} ${styles.activeControls}`}>
+        <div className={styles.recordArea}><span className={`${styles.sessionIcon} ${modeRef.current === "record" && phase === "active" ? styles.recording : ""}`} aria-hidden="true">{modeRef.current === "record" ? <MicIcon /> : <BookIcon />}</span><div className={styles.controlCopy}><strong>{phase === "countdown" ? "Get ready" : phase === "starting" ? "Starting" : phase === "paused" ? "Paused" : modeRef.current === "record" ? "Recording your reading" : "Practice mode"}</strong><span>{phase === "countdown" ? `Paragraph ${currentParagraph + 1} begins after the countdown` : phase === "starting" ? "Your microphone will start on GO" : phase === "paused" ? "Resume when you are ready" : modeRef.current === "record" ? `Microphone on · ${elapsed}s` : "Follow the highlight at your pace"}</span></div></div>
+        <div className={styles.actionButtons}><button type="button" onClick={pause} disabled={phase === "countdown" || phase === "starting"} className={styles.pauseButton}>{phase === "paused" ? "Resume" : "Pause"}</button><button type="button" onClick={stop} disabled={phase === "countdown" || phase === "starting"} className={styles.finishButton}>Finish reading</button></div>
+      </div>}
+      <div className={styles.statusLine}><span className={`${styles.statusDot} ${isRunning ? styles.live : ""}`} /><span>{status}</span>{audioUrl ? <><span>·</span><span>Your recording is ready below</span></> : null}</div>
+      {phase === "result" && practiceDone ? <div className={styles.practiceDone}>Practice complete. No recording or score was saved.</div> : null}
+      {phase === "result" && !timed && result?.elapsed_seconds === MAX_READING_RECORD_SECONDS ? <p role="status" className={styles.alert}>Three-minute recording limit reached. Your reading was checked.</p> : null}
+      {phase === "error" ? <p role="alert" className={styles.alert}>{error}</p> : null}
+      {audioUrl ? <div className={styles.audioReview}><Volume2 size={19} /><div className={styles.audioCopy}><strong>Your reading</strong><audio controls src={audioUrl} /></div><button type="button" onClick={reset} className={styles.retryButton}><RotateCcw size={15} />Try again</button></div> : null}
+      {result ? <section className={styles.resultPanel} aria-live="polite">
+        <div className={styles.resultTop}><div><span className={styles.resultKicker}>Your reading</span><h2>Practice summary</h2></div>{timed ? <span className={styles.goalPill}>{result.target_reached ? "Goal reached" : "Time limit reached"}</span> : null}</div>
+        <div className={styles.metrics}>
+          <div className={`${styles.metric} ${styles.match}`}><span className={styles.metricLabel}>{timed ? "Words matched" : "Text match"}</span><strong>{readMatch}</strong><small>{result.match_percent}% matched in the transcript</small><span className={styles.metricIcon}><MatchIcon /></span></div>
+          <div className={`${styles.metric} ${styles.time}`}><span className={styles.metricLabel}>{timed ? "Time target" : "Reading time"}</span><strong>{timed ? `${formatTime(result.elapsed_seconds)} / ${formatTime(config.time_limit_seconds ?? 0)}` : formatTime(result.elapsed_seconds)}</strong><small>{timed ? result.elapsed_seconds <= (config.time_limit_seconds ?? 0) ? "Finished within the time limit" : "Time limit reached" : `Estimated pace · ${readPace} WPM`}</small><span className={styles.metricIcon}><ClockIcon /></span></div>
+          <div className={`${styles.metric} ${timed ? styles.goal : styles.clarity}`}><span className={styles.metricLabel}>{timed ? "Result" : "Words to review"}</span><strong>{timed ? result.target_reached ? "Target reached" : "Keep practising" : result.clarity_words.length}</strong><small>{timed ? "Based on time and transcript match" : "Transcript mismatches for clarity"}</small><span className={styles.metricIcon}>{timed ? <GoalIcon /> : <ClarityIcon />}</span></div>
+        </div>
+        <div className={styles.reviewBlock}><p className={styles.reviewHeading}>Words to review for clarity</p>{result.clarity_words.length ? <div className={styles.reviewText}>{result.clarity_words.map((item, index) => <span key={`${item.expected}-${index}`} title={item.heard ? `Transcript heard “${item.heard}”` : "This word did not appear in the transcript"} className={styles.flaggedWord}>{item.expected}{item.heard ? ` → ${item.heard}` : " · missed"}{index < result.clarity_words.length - 1 ? "  " : ""}</span>)}</div> : <p className={styles.reviewText}>Every word matched in the transcript.</p>}<p className={styles.resultNote}>A transcript mismatch can point to a word worth reviewing; it is not a pronunciation grade.</p></div>
+        <p className={styles.privacyNote}>The audio is sent to Groq for transcription and isn’t saved by BrenUp.</p>
+      </section> : null}
     </div>
   </section>;
 }
