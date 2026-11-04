@@ -46,6 +46,7 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "DICTATION", label: "Dictation", description: "Listen and type exactly what is heard.", skills: ["LISTENING", "WRITING"] },
   { type: "LISTEN_AND_SELECT", label: "Listen and Select", description: "Listen and choose the correct option.", skills: ["LISTENING"] },
   { type: "SHADOWING", label: "Shadowing", description: "Listen, repeat, and build fluency.", skills: ["LISTENING", "SPEAKING"] },
+  { type: "READ_ALOUD", label: "Read Aloud / Speed Reading", description: "Read a teacher-selected passage with a guided rhythm and optional timed challenge.", skills: ["READING", "SPEAKING"] },
   { type: "NOTE_TAKING_CHALLENGE", label: "Note-Taking Challenge", description: "Capture useful details while listening.", skills: ["LISTENING", "WRITING"] },
   { type: "SOUND_DISCRIMINATION", label: "Sound Discrimination", description: "Identify differences between sounds.", skills: ["LISTENING", "SPEAKING"] },
   { type: "IPA_PRACTICE", label: "IPA Practice Lab", description: "Build transcription, sound comparison, and phoneme sorting rounds from the IPA chart.", skills: ["CORE", "LISTENING", "SPEAKING"] },

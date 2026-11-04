@@ -52,6 +52,10 @@ function writingRows(data: Record<string, unknown>, type: LessonScoredQuestion["
 export function lessonScoredQuestions(activityType: string, value: Json | null): LessonScoredQuestion[] {
   const data = asRecord(value);
 
+  if (activityType === "READ_ALOUD") {
+    return [common({ ...data, id: "reading", question_text: data.prompt ?? "Read the passage aloud.", max_points: 100 }, 0, "READ_ALOUD", true, data as unknown as Json)];
+  }
+
   if (activityType === "MCQ" || activityType === "INFERENCE_DETECTION" || activityType === "MULTIPLE_SELECT") {
     return rows(data, "questions").map((row, index) => {
       const raw = row.answers ?? row.correct_answer ?? row.answer ?? [];

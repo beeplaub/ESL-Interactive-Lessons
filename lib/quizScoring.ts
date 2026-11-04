@@ -28,6 +28,7 @@ export type ScoredQuestion = {
     | "DICTATION"
     | "LISTEN_AND_SELECT"
     | "SHADOWING"
+    | "READ_ALOUD"
     | "NOTE_TAKING_CHALLENGE"
     | "SOUND_DISCRIMINATION"
     | "IPA_PRACTICE"
@@ -97,6 +98,7 @@ export function questionTotal(question: ScoredQuestion): number {
 }
 
 function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
+  if (question.question_type === "READ_ALOUD") return Math.max(0, Math.min(1, Number(asRecord(answer as Json).match_percent ?? 0) / 100));
   if (isWritingQuestionType(question.question_type)) {
     const outcome = resolveWritingOutcome(answer);
     return outcome.isTerminal && outcome.scorePercent !== null
@@ -210,6 +212,10 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
 }
 
 export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
+  if (question.question_type === "READ_ALOUD") {
+    const result = asRecord(value as Json);
+    return result.completed === true && Number(result.match_percent ?? 0) >= 90 && (result.time_limit_seconds == null || result.target_reached === true);
+  }
   if (question.question_type === "ORAL_RESPONSE") {
     const oral = asRecord(value as Json);
     return oral.mode === "SELF_GRADED" ? oral.selfMarked === true : typeof oral.score === "number" && oral.score >= 60;

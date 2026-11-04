@@ -20,6 +20,7 @@ import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { shadowingPhases, shadowingSentenceText } from "@/lib/shadowing";
 import { makeIpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
+import { ReadingActivityPanel } from "@/components/ReadingPractice";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -285,6 +286,16 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         show_live_match: data.show_live_match !== false,
       } as Json,
       correct_answer: targetText as Json,
+    }];
+  }
+  if (activityType === "READ_ALOUD") {
+    return [{
+      id: "reading",
+      question_number: 1,
+      question_type: "READ_ALOUD",
+      question_text: String(data.prompt ?? "Read the passage aloud."),
+      options: data as Json,
+      correct_answer: true,
     }];
   }
   if (activityType === "NOTE_TAKING_CHALLENGE") {
@@ -1706,7 +1717,17 @@ function TextRoleplayPanel({
 
 /* ─── Main Activity Panel ────────────────────────────────────────── */
 
-export function LessonActivityPanel({
+export function LessonActivityPanel(props: {
+  activity: LessonSlideActivity; onNext: () => void; nextLabel?: string;
+  previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void; courseItemId?: string | null; lessonId?: string | null; preserveDraft?: boolean; onPracticeSave?: (answers: Json) => Promise<void>; practiceAnswers?: Json;
+}) {
+  if (props.activity.activity_type === "READ_ALOUD") {
+    return <ReadingActivityPanel activity={props.activity} lessonId={props.lessonId} courseItemId={props.courseItemId} previewOnly={props.previewOnly} onNext={props.onNext} />;
+  }
+  return <GenericLessonActivityPanel {...props} />;
+}
+
+function GenericLessonActivityPanel({
   activity, onNext, nextLabel = "Next", previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null, preserveDraft = true, onPracticeSave, practiceAnswers,
 }: {
   activity: LessonSlideActivity; onNext: () => void; nextLabel?: string;

@@ -17,6 +17,7 @@ import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPrefe
 import { shadowingSentenceText } from "@/lib/shadowing";
 import { ShadowingSentenceEditor } from "@/components/ShadowingSentenceEditor";
 import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
+import { ReadingQuestionFields } from "@/components/ReadingPractice";
 
 type BuilderQuestion = {
   id: string;
@@ -58,7 +59,7 @@ const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
   "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION",
   "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
-  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "LISTEN_AND_GAP_FILL",
+  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "READ_ALOUD", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "LISTEN_AND_GAP_FILL",
   "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING"
 ];
 
@@ -83,6 +84,7 @@ const typeLabels: Record<string, string> = {
   DICTATION: "Dictation (Listen & Type)",
   LISTEN_AND_SELECT: "Listen & Select",
   SHADOWING: "Shadowing / Repeat After Me",
+  READ_ALOUD: "Read Aloud / Speed Reading",
   NOTE_TAKING_CHALLENGE: "Note-Taking Challenge",
   SOUND_DISCRIMINATION: "Sound Discrimination",
   IPA_PRACTICE: "IPA Practice Lab",
@@ -193,6 +195,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "DICTATION") return { id, questionType: type, questionText: "Listen to the audio and type what you hear.", description: "", options: { audio_url: "", hint: "", ignore_punctuation: true }, correctAnswer: "The quick brown fox jumps over the lazy dog.", assessment };
   if (type === "LISTEN_AND_SELECT") return { id, questionType: type, questionText: "Listen to the audio clip and select the matching option.", description: "", options: { audio_url: "", choices: [{ id: "0", text: "Option A", image_url: "" }, { id: "1", text: "Option B", image_url: "" }] }, correctAnswer: "0", assessment };
   if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare.", description: "", options: { shadowing_mode: "SENTENCE_AB", max_attempts: 3, audio_url: "", target_text: "" }, correctAnswer: "", assessment };
+  if (type === "READ_ALOUD") return { id, questionType: type, questionText: "Read the passage aloud.", description: "", options: { source: "custom", title: "", passage: "", level: "A1", time_limit_seconds: null, pace_wpm: 115 }, correctAnswer: true, assessment: { ...assessment, maxPoints: 1 } };
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
   if (type === "IPA_PRACTICE") {
@@ -946,6 +949,9 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+  if (question.questionType === "READ_ALOUD") {
+    return { id: question.id, activity_type: "READ_ALOUD", activity_data: { prompt: question.questionText, ...options } as Json };
+  }
   if (question.questionType === "ORAL_RESPONSE") {
     return {
       id: question.id,
@@ -1098,6 +1104,10 @@ function QuestionFields({ question, onChange, quizId }: { question: BuilderQuest
   if (question.questionType === "IPA_PRACTICE") {
     const config = makeIpaPracticeConfig(options as Partial<IpaPracticeConfig>, question.id);
     return <IpaPracticeSettings value={config} seed={question.id} onChange={next => onChange({ options: next as unknown as Json, correctAnswer: next.correct_answer as unknown as Json })} />;
+  }
+
+  if (question.questionType === "READ_ALOUD") {
+    return <ReadingQuestionFields value={question.options} onChange={(options) => onChange({ options })} />;
   }
 
   if (question.questionType === "ORAL_RESPONSE") {

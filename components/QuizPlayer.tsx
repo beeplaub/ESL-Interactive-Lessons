@@ -26,13 +26,14 @@ import { IpaPracticePlayer } from "@/components/ipa/IpaPracticePlayer";
 import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 import { makeIpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 import { TongueTwisterPracticeCard } from "@/components/LessonBlockPreview";
+import { ReadingPracticePlayer } from "@/components/ReadingPractice";
 
 export type QuizQuestion = {
   id: string;
   /** Parent lesson activity UUID. Quiz questions leave this unset and use their own id. */
   source_activity_id?: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "IPA_PRACTICE" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "READ_ALOUD" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "IPA_PRACTICE" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -262,6 +263,7 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
       return phaseRepetitions.length >= requiredRepeats && phaseRepetitions.slice(0, requiredRepeats).every((item) => options.require_all_green === false || asRecord(item.match as Json).allGreen === true);
     });
   }
+  if (question.question_type === "READ_ALOUD") return asRecord(value as Json).completed === true;
   if (question.question_type === "PRONUNCIATION") {
     const opts = asRecord(question.options) as { level?: string; targets?: unknown[]; max_attempts?: number };
     const level = opts.level === "sentence" || opts.level === "paragraph" ? "sentence" : "word";
@@ -1095,7 +1097,8 @@ export function QuestionCard({
     question.question_type === "CREATIVE_WRITING" ||
     question.question_type === "PEER_REVIEW_EDITING" ||
     question.question_type === "DIALOGUE_WRITING" ||
-    question.question_type === "ORAL_RESPONSE";
+    question.question_type === "ORAL_RESPONSE" ||
+    question.question_type === "READ_ALOUD";
   const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "TABLE_COMPLETION" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL" || question.question_type === "IPA_PRACTICE";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
@@ -1181,6 +1184,7 @@ export function QuestionCard({
         {question.question_type === "DICTATION" ? <DictationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_SELECT" ? <ListenSelectPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} /> : null}
+      {question.question_type === "READ_ALOUD" ? <ReadingPracticePlayer config={{ title: String(asRecord(question.options).title ?? "Reading passage"), passage: String(asRecord(question.options).passage ?? ""), level: String(asRecord(question.options).level ?? "A1"), time_limit_seconds: asRecord(question.options).time_limit_seconds ? Number(asRecord(question.options).time_limit_seconds) : null, pace_wpm: Number(asRecord(question.options).pace_wpm ?? 115) }} disabled={submitted} onResult={(result) => onChange({ ...result, score: result.match_percent } as unknown as Json)} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}

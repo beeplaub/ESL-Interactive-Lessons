@@ -14,6 +14,7 @@ import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading";
 import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
+import { ReadingPracticeEditor } from "@/components/ReadingPractice";
 
 type Activity = {
   id: string;
@@ -939,6 +940,8 @@ function ActivityPanel({
                 <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                   {activity.activity_type === "SHADOWING"
                     ? "This Shadowing activity needs model audio and one complete sentence before it can be published."
+                    : activity.activity_type === "READ_ALOUD"
+                      ? "Add a passage title and reading text, then save this activity before publishing."
                     : "This activity has missing answers. Please fill them in before publishing."}
                 </p>
               ) : null}
@@ -964,6 +967,7 @@ function ActivityPanel({
               {activity.activity_type === "DICTATION" ? <DictationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LISTEN_AND_SELECT" ? <ListenSelectEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SHADOWING" ? <ShadowingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "READ_ALOUD" ? <ReadingPracticeEditor value={activity.activity_data} onSave={save} /> : null}
               {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "IPA_PRACTICE" ? <IpaPracticeEditor activity={activity} onSave={save} /> : null}
@@ -981,7 +985,7 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "IPA_LISTEN_BUILD", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "READ_ALOUD", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "IPA_LISTEN_BUILD", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
