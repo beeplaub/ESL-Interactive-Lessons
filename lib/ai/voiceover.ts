@@ -137,7 +137,9 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
     const interaction = await client.interactions.create({
       model: VOICEOVER_MODEL,
       input: prompt,
-      response_format: { type: "audio", mime_type: "audio/l16", sample_rate: 24_000, delivery: "inline" },
+      // Gemini 3.1 TTS returns headerless PCM for its default audio response.
+      // This model rejects an explicit `audio/l16` mime type in response_format.
+      response_format: { type: "audio" },
       generation_config: {
         speech_config: [{ voice: geminiVoiceName(request.voiceName), language: request.languageCode }],
       },
