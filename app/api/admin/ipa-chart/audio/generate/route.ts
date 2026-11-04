@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { IPA_CHARTS, IPA_ACCENTS, plainWord } from "@/lib/ipa/chart";
 import { IPA_GEMINI_VOICES, type IpaGeminiVoice } from "@/lib/ipa/audio";
-import { VOICEOVER_PACES, VOICEOVER_STYLES, generateVoiceoverAudio, isVoiceoverQuotaError, voiceoverRequestHash } from "@/lib/ai/voiceover";
+import { IPA_VOICEOVER_MODEL, VOICEOVER_PACES, VOICEOVER_STYLES, generateVoiceoverAudio, isVoiceoverQuotaError, voiceoverRequestHash } from "@/lib/ai/voiceover";
 import { claimAiGeneration, releaseAiGeneration } from "@/lib/ai/efficiency";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadMediaObject } from "@/lib/storage/mediaStorage";
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     pace: settings.pace,
     provider: "google" as const,
     googleApi: "interactions" as const,
+    model: IPA_VOICEOVER_MODEL,
   };
   const requestHash = voiceoverRequestHash(voiceRequest, "google");
   const lockKey = `ipa-chart-audio:${requestHash}`;
@@ -126,7 +127,9 @@ export async function POST(request: Request) {
           ? "Audio generation finished, but the review record could not be saved. Existing learner audio is unchanged."
           : status && status >= 500
             ? "Gemini is temporarily unavailable. Completed recordings are saved; retry the remaining items later."
-            : "Gemini could not generate this audio. Completed recordings are saved; retry this item later.";
+            : status === 400
+              ? "Gemini rejected this audio request. No recording was saved; check the saved voice settings and retry this item."
+              : "Gemini could not generate this audio. No recording was saved; retry this item later.";
     const safeDetail = error instanceof Error
       ? error.message.replace(/AIza[0-9A-Za-z_-]{20,}/g, "[redacted]").replace(/Bearer\s+\S+/gi, "Bearer [redacted]").replace(/\s+/g, " ").slice(0, 240)
       : "";
@@ -134,10 +137,10 @@ export async function POST(request: Request) {
     const { data: current } = await admin.from("ipa_chart_audio_assets").select("live_public_url,status,pending_public_url")
       .eq("accent", input.accent).eq("sound_id", sound.id).eq("asset_type", input.assetType).eq("word", word).maybeSingle();
     if (!current?.live_public_url && !current?.pending_public_url) {
-      await admin.from("ipa_chart_audio_assets").upsert({ accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, status: "FAILED", generated_by: session.user.id, error_message: failureMessage, updated_at: new Date().toISOString() }, { onConflict: "accent,sound_id,asset_type,word" });
+      await admin.from("ipa_chart_audio_assets").upsert({ accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, status: "FAILED", voice_name: settings.voice_name, style: settings.style, pace: settings.pace, settings_revision: settings.settings_revision ?? 1, generation_model: IPA_VOICEOVER_MODEL, generated_by: session.user.id, error_message: failureMessage, updated_at: new Date().toISOString() }, { onConflict: "accent,sound_id,asset_type,word" });
     }
     await admin.from("ai_generations").insert({ user_id: session.user.id, user_role: session.profile?.role ?? "ADMIN", feature_key: "ipa_chart_audio", model_used: "Gemini TTS", prompt_raw: `${instruction}\n\n${voiceRequest.script}`.slice(0, 2_000), error_message: failureMessage, provider: "google", status: "FAILED", latency_ms: Date.now() - startedAt, cache_key: requestHash, prompt_version: "ipa-chart-audio-v1", completed_at: new Date().toISOString() });
-    return errorResponse(failureMessage, quota ? 429 : 503);
+    return errorResponse(failureMessage, quota ? 429 : status === 400 ? 502 : tooLong ? 422 : 503);
   } finally {
     await releaseAiGeneration(lockKey, lock.ownerToken);
   }

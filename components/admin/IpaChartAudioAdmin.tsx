@@ -26,6 +26,7 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
   const [accent, setAccent] = useState<IpaAccent>("uk");
   const [genderFilter, setGenderFilter] = useState<"All" | "Female" | "Male">("All");
   const [settings, setSettings] = useState(initialSettings);
+  const [savedSettings, setSavedSettings] = useState(initialSettings);
   const [assets, setAssets] = useState(initialAssets);
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -39,6 +40,13 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
   const accentSettings = storedSettings.settingsRevision === 1 && storedSettings.voiceName === "Aoede"
     ? { ...storedSettings, voiceName: (accent === "uk" ? "Charon" : "Aoede") as IpaGeminiVoice }
     : storedSettings;
+  const savedStoredSettings = savedSettings.find(item => item.accent === accent) ?? storedSettings;
+  const savedAccentSettings = savedStoredSettings.settingsRevision === 1 && savedStoredSettings.voiceName === "Aoede"
+    ? { ...savedStoredSettings, voiceName: (accent === "uk" ? "Charon" : "Aoede") as IpaGeminiVoice }
+    : savedStoredSettings;
+  const hasUnsavedSettings = accentSettings.voiceName !== savedAccentSettings.voiceName
+    || accentSettings.style !== savedAccentSettings.style
+    || accentSettings.pace !== savedAccentSettings.pace;
   const visibleVoices = IPA_GEMINI_VOICES.filter(voice => genderFilter === "All" || IPA_GEMINI_VOICE_DETAILS[voice].gender === genderFilter);
   const sounds = IPA_CHARTS[accent];
   const targets = useMemo<Target[]>(() => sounds.flatMap(sound => [
@@ -73,7 +81,9 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
     startSaving(async () => {
       try {
         await saveIpaChartAudioSettings(accentSettings);
-        setSettings(current => current.map(item => item.accent === accent ? { ...item, voiceName: accentSettings.voiceName, style: accentSettings.style, pace: accentSettings.pace, settingsRevision: item.settingsRevision + 1 } : item));
+        const saved = { ...accentSettings, settingsRevision: accentSettings.settingsRevision + 1 };
+        setSettings(current => current.map(item => item.accent === accent ? saved : item));
+        setSavedSettings(current => current.map(item => item.accent === accent ? saved : item));
         setMessage(`${IPA_ACCENTS[accent].label} voice settings saved. Existing approved audio stays live until you regenerate and approve a replacement.`);
         router.refresh();
       } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save voice settings."); }
@@ -81,7 +91,7 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
   }
 
   async function generate(target: Target, forceRegenerate = false) {
-    if (busy) return false;
+    if (busy || saving || hasUnsavedSettings) return "failed" as const;
     setBusy(target.key); setMessage("");
     try {
       const response = await fetch("/api/admin/ipa-chart/audio/generate", {
@@ -89,8 +99,11 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
         body: JSON.stringify({ accent, soundId: target.soundId, assetType: target.type, word: target.word, forceRegenerate }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Audio could not be generated.");
-      if (data.skipped) { setMessage(data.message || "This item already has audio, so it was left unchanged."); return true; }
+      if (!response.ok) {
+        setMessage(typeof data.error === "string" ? data.error : "Audio could not be generated.");
+        return response.status === 429 ? "quota" as const : "failed" as const;
+      }
+      if (data.skipped) { setMessage(data.message || "This item already has audio, so it was left unchanged."); return "ok" as const; }
       const item: LocalAsset = {
         id: data.id, accent, soundId: target.soundId, assetType: target.type, word: target.word,
         status: "READY_FOR_REVIEW", livePublicUrl: assetMap.get(target.key)?.livePublicUrl ?? null,
@@ -100,35 +113,43 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
       };
       setAssets(current => [...current.filter(existing => existing.id !== item.id && !(existing.accent === accent && existing.soundId === target.soundId && existing.assetType === target.type && existing.word === target.word)), item]);
       router.refresh();
-      return true;
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Audio generation failed."); return false; }
+      return "ok" as const;
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Audio generation failed."); return "failed" as const; }
     finally { setBusy(null); }
   }
 
   async function generateSelected() {
     const chosen = targets.filter(target => selected.includes(target.key));
+    const failed: string[] = [];
+    let completed = 0;
+    let quotaReached = false;
     for (const [index, target] of chosen.entries()) {
-      const ok = await generate(target, false);
-      if (!ok) {
-        setSelected(chosen.slice(index).map(item => item.key));
-        return;
-      }
+      const result = await generate(target, false);
+      if (result === "ok") completed++;
+      if (result === "failed") failed.push(target.key);
+      if (result === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; break; }
     }
-    setSelected([]);
+    setSelected(failed.length ? failed : []);
+    if (failed.length) setMessage(`${completed} clip${completed === 1 ? "" : "s"} generated. ${quotaReached ? "Quota limit reached; remaining clips were left selected." : `${failed.length} clip${failed.length === 1 ? " needs" : "s need"} retrying.`}`);
+    else if (completed) setMessage(`${completed} selected clip${completed === 1 ? " was" : "s were"} generated successfully.`);
   }
 
   async function generateAllRemaining() {
     if (busy || approvedCount === 0 || remainingTargets.length === 0) return;
     const chosen = remainingTargets;
     setSelected(chosen.map(target => target.key));
+    const failed: string[] = [];
+    let completed = 0;
+    let quotaReached = false;
     for (const [index, target] of chosen.entries()) {
-      const ok = await generate(target, false);
-      if (!ok) {
-        setSelected(chosen.slice(index).map(item => item.key));
-        return;
-      }
+      const result = await generate(target, false);
+      if (result === "ok") completed++;
+      if (result === "failed") failed.push(target.key);
+      if (result === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; break; }
     }
-    setSelected([]);
+    setSelected(failed.length ? failed : []);
+    if (failed.length) setMessage(`${completed} clip${completed === 1 ? "" : "s"} generated. ${quotaReached ? "Quota limit reached; remaining clips were left selected." : `${failed.length} clip${failed.length === 1 ? " needs" : "s need"} retrying.`}`);
+    else if (completed) setMessage(`${completed} remaining clip${completed === 1 ? " was" : "s were"} generated successfully.`);
   }
 
   async function approve(asset: LocalAsset) {
@@ -150,9 +171,10 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
 
     <div className="flex flex-wrap items-center justify-between gap-3"><div className="inline-flex rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-1" role="group" aria-label="Accent audio settings">{(["uk", "us"] as IpaAccent[]).map(value => <button key={value} type="button" aria-pressed={accent === value} onClick={() => { setAccent(value); setGenderFilter("All"); setSelected([]); setMessage(""); }} className={`rounded-lg px-4 py-2 text-sm font-bold ${accent === value ? "bg-[var(--br-surface)] text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)]"}`}>{value === "uk" ? "British · BRE" : "American · AME"}</button>)}</div><div className="text-xs font-semibold text-[var(--br-text-muted)]">{IPA_ACCENTS[accent].lang} · {targets.length} selectable clips · {readyCount}/{targets.length} live</div></div>
 
-    <details className="rounded-xl border border-[var(--br-border)]"><summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-bold text-[var(--br-text)]"><Settings2 size={16} /> Gemini voice settings <ChevronDown size={15} className="ml-auto" /></summary><div className="grid gap-3 border-t border-[var(--br-border)] p-4 sm:grid-cols-4"><label className="text-xs font-bold text-[var(--br-text-muted)]">Voice presentation<select value={genderFilter} onChange={event => changeGenderFilter(event.target.value as "All" | "Female" | "Male")} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]"><option value="All">All voices</option><option value="Female">Female</option><option value="Male">Male</option></select></label><label className="text-xs font-bold text-[var(--br-text-muted)]">Gemini voice<select value={accentSettings.voiceName} onChange={event => updateSettings({ voiceName: event.target.value as IpaGeminiVoice })} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]">{visibleVoices.map(voice => <option key={voice} value={voice}>{voice} · {IPA_GEMINI_VOICE_DETAILS[voice].style}{IPA_GEMINI_VOICE_DETAILS[voice].gender !== "Unspecified" ? ` · ${IPA_GEMINI_VOICE_DETAILS[voice].gender}` : ""}</option>)}</select></label><label className="text-xs font-bold text-[var(--br-text-muted)]">Style<select value={accentSettings.style} onChange={event => updateSettings({ style: event.target.value as typeof VOICEOVER_STYLES[number] })} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]">{VOICEOVER_STYLES.map(style => <option key={style}>{style}</option>)}</select></label><label className="text-xs font-bold text-[var(--br-text-muted)]">Pace<select value={accentSettings.pace} onChange={event => updateSettings({ pace: event.target.value as typeof VOICEOVER_PACES[number] })} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]">{VOICEOVER_PACES.map(pace => <option key={pace}>{pace}</option>)}</select></label><div className="flex items-end"><button type="button" onClick={saveSettings} disabled={saving} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 text-sm font-bold text-white disabled:opacity-60">{saving ? <LoaderCircle size={15} className="animate-spin" /> : <Save size={15} />}Save settings</button></div><p className="text-xs leading-5 text-[var(--br-text-muted)] sm:col-span-4">30 Gemini voices are available. Male/Female filtering uses the voices whose gender presentation is already verified in BrenUp; Google describes the rest by style but does not label their gender. UK and US choices save separately, with distinct starting voices. Existing learner audio stays live when these settings change.</p></div></details>
+    <details className="rounded-xl border border-[var(--br-border)]"><summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-bold text-[var(--br-text)]"><Settings2 size={16} /> Gemini voice settings <ChevronDown size={15} className="ml-auto" /></summary><div className="grid gap-3 border-t border-[var(--br-border)] p-4 sm:grid-cols-4"><label className="text-xs font-bold text-[var(--br-text-muted)]">Voice presentation<select value={genderFilter} onChange={event => changeGenderFilter(event.target.value as "All" | "Female" | "Male")} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]"><option value="All">All voices</option><option value="Female">Female</option><option value="Male">Male</option></select></label><label className="text-xs font-bold text-[var(--br-text-muted)]">Gemini voice<select value={accentSettings.voiceName} onChange={event => updateSettings({ voiceName: event.target.value as IpaGeminiVoice })} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]">{visibleVoices.map(voice => <option key={voice} value={voice}>{voice} · {IPA_GEMINI_VOICE_DETAILS[voice].style}{IPA_GEMINI_VOICE_DETAILS[voice].gender !== "Unspecified" ? ` · ${IPA_GEMINI_VOICE_DETAILS[voice].gender}` : ""}</option>)}</select></label><label className="text-xs font-bold text-[var(--br-text-muted)]">Style<select value={accentSettings.style} onChange={event => updateSettings({ style: event.target.value as typeof VOICEOVER_STYLES[number] })} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]">{VOICEOVER_STYLES.map(style => <option key={style}>{style}</option>)}</select></label><label className="text-xs font-bold text-[var(--br-text-muted)]">Pace<select value={accentSettings.pace} onChange={event => updateSettings({ pace: event.target.value as typeof VOICEOVER_PACES[number] })} className="mt-1 block min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm font-semibold text-[var(--br-text)]">{VOICEOVER_PACES.map(pace => <option key={pace}>{pace}</option>)}</select></label><div className="flex items-end"><button type="button" onClick={saveSettings} disabled={saving || !hasUnsavedSettings} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 text-sm font-bold text-white disabled:opacity-60">{saving ? <LoaderCircle size={15} className="animate-spin" /> : <Save size={15} />}{saving ? "Saving settings" : hasUnsavedSettings ? "Save settings" : "Settings saved"}</button></div><p className="text-xs leading-5 text-[var(--br-text-muted)] sm:col-span-4">30 Gemini voices are available. Male/Female filtering uses the voices whose gender presentation is already verified in BrenUp; Google describes the rest by style but does not label their gender. UK and US choices save separately, with distinct starting voices. Existing learner audio stays live when these settings change.</p></div></details>
 
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--br-surface-muted)] p-3"><div><p className="text-sm text-[var(--br-text-muted)]">{approvedCount ? "Pilot approved. You can generate the remaining missing clips when you’re ready; saved previews and live audio will be skipped." : "Open a sound row below, tick the phoneme or example words you want, then choose Generate selected. Approve a pilot clip before bulk generation is unlocked. If quota runs out, retry later—finished clips will be skipped."}</p></div><div className="flex flex-wrap gap-2">{approvedCount > 0 && remainingTargets.length > 0 ? <button type="button" onClick={() => void generateAllRemaining()} disabled={Boolean(busy)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-4 text-sm font-bold text-[var(--br-brand)] disabled:cursor-not-allowed disabled:opacity-50">{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />}Generate all remaining ({remainingTargets.length})</button> : null}<button type="button" onClick={() => void generateSelected()} disabled={!selected.length || Boolean(busy)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--br-action)] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />}Generate selected{selected.length ? ` (${selected.length})` : ""}</button></div></div>
+    {hasUnsavedSettings ? <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Save the selected voice settings before generating; audio uses the saved settings for this accent.</p> : null}
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--br-surface-muted)] p-3"><div><p className="text-sm text-[var(--br-text-muted)]">{approvedCount ? "Pilot approved. You can generate the remaining missing clips when you’re ready; saved previews and live audio will be skipped." : "Open a sound row below, tick the phoneme or example words you want, then choose Generate selected. Approve a pilot clip before bulk generation is unlocked. Failed clips stay selected so you can retry them."}</p></div><div className="flex flex-wrap gap-2">{approvedCount > 0 && remainingTargets.length > 0 ? <button type="button" onClick={() => void generateAllRemaining()} disabled={Boolean(busy) || saving || hasUnsavedSettings} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-4 text-sm font-bold text-[var(--br-brand)] disabled:cursor-not-allowed disabled:opacity-50">{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />}Generate all remaining ({remainingTargets.length})</button> : null}<button type="button" onClick={() => void generateSelected()} disabled={!selected.length || Boolean(busy) || saving || hasUnsavedSettings} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--br-action)] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />}Generate selected{selected.length ? ` (${selected.length})` : ""}</button></div></div>
 
     <div className="space-y-2">{sounds.map(sound => {
       const soundTarget = targets.find(target => target.type === "sound" && target.soundId === sound.id)!;
@@ -164,7 +186,7 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
           const isBusy = busy === target.key || busy === asset?.id;
           const src = asset?.pendingPublicUrl || asset?.livePublicUrl;
           const stale = asset?.settingsRevision !== null && asset?.settingsRevision !== undefined && asset.settingsRevision !== accentSettings.settingsRevision;
-          return <article key={target.key} className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-[var(--br-border)] p-2.5"><label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2"><input type="checkbox" checked={selected.includes(target.key)} disabled={Boolean(busy) || Boolean(asset?.livePublicUrl || asset?.pendingPublicUrl) || asset?.status === "APPROVED" || asset?.status === "READY_FOR_REVIEW"} onChange={event => setSelected(current => event.target.checked ? [...current, target.key] : current.filter(key => key !== target.key))} className="size-4 rounded border-[var(--br-border)]" /><span className="min-w-0"><span className="block truncate text-sm font-bold text-[var(--br-text)]">{target.type === "sound" ? "Phoneme sound" : target.word}</span><span className="block text-[11px] text-[var(--br-text-muted)]">{statusLabel(asset)}{stale ? " · older voice settings" : ""}</span></span></label>{src ? <audio controls preload="none" src={src} aria-label={`Preview ${target.description}`} className="h-9 max-w-40" /> : null}{asset?.pendingPublicUrl ? <button type="button" onClick={() => void approve(asset)} disabled={Boolean(busy)} className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-emerald-700 px-2.5 text-xs font-bold text-white disabled:opacity-50"><Check size={14} />Publish</button> : null}{asset?.status === "APPROVED" && !stale ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Check size={13} />Live</span> : null}<button type="button" onClick={() => void generate(target, Boolean(asset?.livePublicUrl || asset?.pendingPublicUrl))} disabled={Boolean(busy)} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[var(--br-border)] px-2.5 text-xs font-bold text-[var(--br-brand)] disabled:opacity-50">{isBusy ? <LoaderCircle size={14} className="animate-spin" /> : asset?.livePublicUrl || asset?.pendingPublicUrl ? <Volume2 size={14} /> : <Sparkles size={14} />}{asset?.livePublicUrl || asset?.pendingPublicUrl ? "Regenerate" : "Generate"}</button></article>;
+          return <article key={target.key} className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-[var(--br-border)] p-2.5"><label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2"><input type="checkbox" checked={selected.includes(target.key)} disabled={Boolean(busy) || Boolean(asset?.livePublicUrl || asset?.pendingPublicUrl) || asset?.status === "APPROVED" || asset?.status === "READY_FOR_REVIEW"} onChange={event => setSelected(current => event.target.checked ? [...current, target.key] : current.filter(key => key !== target.key))} className="size-4 rounded border-[var(--br-border)]" /><span className="min-w-0"><span className="block truncate text-sm font-bold text-[var(--br-text)]">{target.type === "sound" ? "Phoneme sound" : target.word}</span><span className="block text-[11px] text-[var(--br-text-muted)]">{statusLabel(asset)}{stale ? " · older voice settings" : ""}</span></span></label>{src ? <audio controls preload="none" src={src} aria-label={`Preview ${target.description}`} className="h-9 max-w-40" /> : null}{asset?.pendingPublicUrl ? <button type="button" onClick={() => void approve(asset)} disabled={Boolean(busy)} className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-emerald-700 px-2.5 text-xs font-bold text-white disabled:opacity-50"><Check size={14} />Publish</button> : null}{asset?.status === "APPROVED" && !stale ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700"><Check size={13} />Live</span> : null}<button type="button" onClick={() => void generate(target, Boolean(asset?.livePublicUrl || asset?.pendingPublicUrl))} disabled={Boolean(busy) || saving || hasUnsavedSettings} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[var(--br-border)] px-2.5 text-xs font-bold text-[var(--br-brand)] disabled:opacity-50">{isBusy ? <LoaderCircle size={14} className="animate-spin" /> : asset?.livePublicUrl || asset?.pendingPublicUrl ? <Volume2 size={14} /> : <Sparkles size={14} />}{asset?.livePublicUrl || asset?.pendingPublicUrl ? "Regenerate" : "Generate"}</button></article>;
         })}
       </div></details>;
     })}</div>

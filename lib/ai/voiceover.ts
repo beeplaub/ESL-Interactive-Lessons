@@ -8,6 +8,9 @@ import { IPA_GEMINI_VOICES } from "@/lib/ipa/audio-options";
 export { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
 
 export const VOICEOVER_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
+// IPA chart audio is isolated from the shared voiceover pipeline so its model
+// can be kept current without changing creator voiceovers or other callers.
+export const IPA_VOICEOVER_MODEL = process.env.IPA_GEMINI_TTS_MODEL || "gemini-3.8-flash-lite-tts";
 export const KOKORO_VOICEOVER_MODEL = process.env.KOKORO_TTS_MODEL || "kokoro-82m";
 export const MAX_VOICEOVER_SCRIPT_LENGTH = 4_000;
 
@@ -21,6 +24,7 @@ type VoiceoverRequest = {
   googleApi?: "generateContent" | "interactions";
   outputFormat?: "opus" | "wav";
   instruction?: string;
+  model?: string;
 };
 
 let client: GoogleGenAI | null = null;
@@ -44,7 +48,7 @@ export function isVoiceoverQuotaError(error: unknown) {
 }
 
 export function voiceoverRequestHash(request: VoiceoverRequest, provider = voiceoverProviderForRequest(request)) {
-  const providerModel = provider === "kokoro" ? KOKORO_VOICEOVER_MODEL : VOICEOVER_MODEL;
+  const providerModel = provider === "kokoro" ? KOKORO_VOICEOVER_MODEL : request.model || VOICEOVER_MODEL;
   const providerVoice = provider === "kokoro"
     ? VOICEOVER_VOICES.find((candidate) => candidate.name === request.voiceName)?.kokoroVoice || "af_heart"
     : request.voiceName;
@@ -115,6 +119,8 @@ export function pcmToWav(pcm: Uint8Array, sampleRate = 24_000) {
 }
 
 async function generateGeminiVoiceover(request: VoiceoverRequest) {
+  const model = request.model || VOICEOVER_MODEL;
+  const isCurrentTts = model.startsWith("gemini-3.8-") && model.endsWith("-tts");
   const styleInstruction = request.style === "Natural" ? "natural and clear" : request.style.toLowerCase();
   const paceInstruction = request.pace === "Natural" ? "a natural speaking pace" : `a ${request.pace.toLowerCase()} speaking pace`;
   const prompt = [
@@ -135,13 +141,32 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
   let outputTokens: number | undefined;
   if (request.googleApi === "interactions") {
     const interaction = await client.interactions.create({
-      model: VOICEOVER_MODEL,
-      input: prompt,
-      // Gemini 3.1 TTS returns headerless PCM for its default audio response.
-      // This model rejects an explicit `audio/l16` mime type in response_format.
+      model,
+      input: isCurrentTts
+        ? [{
+            type: "user_input",
+            content: [{
+              type: "text",
+              // Gemini 3.8 TTS expects only the transcript here; its style and
+              // accent guidance belongs in speech_metadata, not in the text.
+              text: request.script.trim(),
+              annotations: [{
+                type: "speech_metadata",
+                style: [
+                  request.instruction?.trim(),
+                  request.languageCode === "en-US" ? "Use a General American English accent." : "Use a British English accent.",
+                  `${styleInstruction}, ${paceInstruction}`,
+                ].filter(Boolean).join(" "),
+              }],
+            }],
+          }] as never
+        : prompt,
       response_format: { type: "audio" },
       generation_config: {
-        speech_config: [{ voice: geminiVoiceName(request.voiceName), language: request.languageCode }],
+        speech_config: [{
+          voice: geminiVoiceName(request.voiceName),
+          ...(!isCurrentTts ? { language: request.languageCode } : {}),
+        }],
       },
       store: false,
     });
@@ -170,9 +195,35 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
     outputTokens = generated.usageMetadata?.candidatesTokenCount;
   }
   if (!encoded) throw new Error("Gemini did not return audio. Try a shorter script or another voice.");
-  const pcm = new Uint8Array(Buffer.from(encoded, "base64"));
-  const sampleRate = outputSampleRate || sampleRateFromMime(mimeType);
-  const wav = pcmToWav(pcm, sampleRate);
+  const audioBytes = new Uint8Array(Buffer.from(encoded, "base64"));
+  const isWav = audioBytes.byteLength >= 44
+    && Buffer.from(audioBytes.subarray(0, 4)).toString("ascii") === "RIFF"
+    && Buffer.from(audioBytes.subarray(8, 12)).toString("ascii") === "WAVE";
+  let sampleRate = outputSampleRate || sampleRateFromMime(mimeType);
+  let durationSeconds: number;
+  let wav: Uint8Array;
+  if (isWav) {
+    wav = audioBytes;
+    let dataSize = 0;
+    let byteRate = sampleRate * 2;
+    for (let offset = 12; offset + 8 <= audioBytes.byteLength;) {
+      const chunkId = Buffer.from(audioBytes.subarray(offset, offset + 4)).toString("ascii");
+      const chunkSize = Buffer.from(audioBytes).readUInt32LE(offset + 4);
+      if (chunkId === "fmt " && chunkSize >= 16 && offset + 16 <= audioBytes.byteLength) {
+        sampleRate = Buffer.from(audioBytes).readUInt32LE(offset + 12);
+        byteRate = Buffer.from(audioBytes).readUInt32LE(offset + 16);
+      } else if (chunkId === "data") {
+        dataSize = Math.min(chunkSize, audioBytes.byteLength - offset - 8);
+        break;
+      }
+      offset += 8 + chunkSize + (chunkSize % 2);
+    }
+    durationSeconds = byteRate > 0 ? dataSize / byteRate : 0;
+  } else {
+    const pcm = audioBytes;
+    wav = pcmToWav(pcm, sampleRate);
+    durationSeconds = pcm.byteLength / (sampleRate * 2);
+  }
   const compact = request.outputFormat === "wav"
     ? { bytes: wav, mimeType: "audio/wav", extension: "wav" }
     : await optimizeAudioForStorage({ bytes: wav, mimeType: "audio/wav", fileName: "gemini-voiceover.wav" });
@@ -181,8 +232,8 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
     mimeType: compact.mimeType,
     extension: compact.extension,
     sampleRate,
-    durationSeconds: pcm.byteLength / (sampleRate * 2),
-    model: modelVersion || VOICEOVER_MODEL,
+    durationSeconds,
+    model: modelVersion || model,
     tokenEstimate: totalTokens ?? Math.ceil(request.script.length / 4),
     inputTokens: inputTokens ?? Math.ceil(request.script.length / 4),
     outputTokens: outputTokens ?? 0,
