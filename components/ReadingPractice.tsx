@@ -99,7 +99,7 @@ export function ReadingQuestionFields({ value, onChange }: { value: Json | null;
   </div>;
 }
 
-export function ReadingPracticePlayer({ config, previewOnly = false, disabled = false, onResult }: { config: ReadingConfig; previewOnly?: boolean; disabled?: boolean; onResult?: (result: ReadingPracticeResult) => void }) {
+export function ReadingPracticePlayer({ config, disabled = false, onResult }: { config: ReadingConfig; disabled?: boolean; onResult?: (result: ReadingPracticeResult) => void }) {
   const timed = Boolean(config.time_limit_seconds);
   const paragraphs = useMemo(() => config.passage.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean), [config.passage]);
   const tokens = useMemo(() => readingTokens(config.passage), [config.passage]);
@@ -215,7 +215,6 @@ export function ReadingPracticePlayer({ config, previewOnly = false, disabled = 
 
   async function start(mode: "record" | "practice") {
     if (disabled || phase === "starting" || phase === "active" || phase === "paused") return;
-    if (previewOnly && mode === "record") { setError("Recording is available in a published learner activity. You can still try the highlight practice here."); setPhase("error"); return; }
     if (!tokens.length) { setError("This reading passage is empty."); setPhase("error"); return; }
     setError(""); setResult(null); setPracticeDone(false); setAudioUrl(null); if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; setElapsed(0); setSecondsLeft(config.time_limit_seconds ?? 0); elapsedRef.current = 0; groupIndexRef.current = 0; chunksRef.current = []; setActiveGroup(-1);
     modeRef.current = mode; setPhase("starting");
@@ -332,7 +331,7 @@ export function ReadingActivityPanel({ activity, lessonId, courseItemId, preview
     } finally { savingRef.current = false; setSaving(false); }
   }
   return <div className="space-y-3">
-    <ReadingPracticePlayer config={config} previewOnly={previewOnly} onResult={(result) => void saveResult(result)} />
+    <ReadingPracticePlayer config={config} onResult={(result) => void saveResult(result)} />
     {saving ? <p role="status" className="text-center text-sm font-semibold text-[var(--br-text-muted)]">Saving your result…</p> : null}
     {savedMessage ? <p role="status" className="text-center text-sm font-semibold text-emerald-700">{savedMessage}</p> : null}
     {saveError ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{saveError}</p> : null}
