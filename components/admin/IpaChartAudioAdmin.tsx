@@ -11,12 +11,13 @@ import { approveIpaChartAudioAsset, saveIpaChartAudioSettings } from "@/app/admi
 
 type Target = { key: string; soundId: string; symbol: string; type: "sound" | "word"; word: string; description: string };
 type LocalAsset = IpaChartAudioAsset;
+type GenerateResult = { status: "ok" | "failed" | "quota"; message?: string };
 
 function statusLabel(asset?: LocalAsset) {
   if (!asset) return "Not generated";
   if (asset.status === "APPROVED") return "Live";
   if (asset.status === "READY_FOR_REVIEW") return asset.livePublicUrl ? "Review replacement · old audio live" : "Review audio";
-  if (asset.status === "FAILED") return asset.livePublicUrl ? "Old audio live · retry needed" : "Retry needed";
+  if (asset.status === "FAILED") return asset.errorMessage || (asset.livePublicUrl ? "Old audio live · retry needed" : "Retry needed");
   return "Not generated";
 }
 
@@ -91,7 +92,7 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
   }
 
   async function generate(target: Target, forceRegenerate = false) {
-    if (busy || saving || hasUnsavedSettings) return "failed" as const;
+    if (busy || saving || hasUnsavedSettings) return { status: "failed" } satisfies GenerateResult;
     setBusy(target.key); setMessage("");
     try {
       const response = await fetch("/api/admin/ipa-chart/audio/generate", {
@@ -100,10 +101,11 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setMessage(typeof data.error === "string" ? data.error : "Audio could not be generated.");
-        return response.status === 429 ? "quota" as const : "failed" as const;
+        const message = typeof data.error === "string" ? data.error : "Audio could not be generated.";
+        setMessage(message);
+        return { status: response.status === 429 ? "quota" : "failed", message } satisfies GenerateResult;
       }
-      if (data.skipped) { setMessage(data.message || "This item already has audio, so it was left unchanged."); return "ok" as const; }
+      if (data.skipped) { setMessage(data.message || "This item already has audio, so it was left unchanged."); return { status: "ok" } satisfies GenerateResult; }
       const item: LocalAsset = {
         id: data.id, accent, soundId: target.soundId, assetType: target.type, word: target.word,
         status: "READY_FOR_REVIEW", livePublicUrl: assetMap.get(target.key)?.livePublicUrl ?? null,
@@ -113,8 +115,12 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
       };
       setAssets(current => [...current.filter(existing => existing.id !== item.id && !(existing.accent === accent && existing.soundId === target.soundId && existing.assetType === target.type && existing.word === target.word)), item]);
       router.refresh();
-      return "ok" as const;
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Audio generation failed."); return "failed" as const; }
+      return { status: "ok" } satisfies GenerateResult;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Audio generation failed.";
+      setMessage(message);
+      return { status: "failed", message } satisfies GenerateResult;
+    }
     finally { setBusy(null); }
   }
 
@@ -123,14 +129,17 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
     const failed: string[] = [];
     let completed = 0;
     let quotaReached = false;
+    let firstFailure = "";
     for (const [index, target] of chosen.entries()) {
       const result = await generate(target, false);
-      if (result === "ok") completed++;
-      if (result === "failed") failed.push(target.key);
-      if (result === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; break; }
+      if (result.status === "ok") completed++;
+      if (result.status === "failed") { failed.push(target.key); firstFailure ||= result.message || "Some clips could not be generated."; }
+      if (result.status === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; firstFailure = result.message || "Gemini quota reached. Retry after it resets."; break; }
     }
     setSelected(failed.length ? failed : []);
-    if (failed.length) setMessage(`${completed} clip${completed === 1 ? "" : "s"} generated. ${quotaReached ? "Quota limit reached; remaining clips were left selected." : `${failed.length} clip${failed.length === 1 ? " needs" : "s need"} retrying.`}`);
+    if (failed.length) setMessage(quotaReached
+      ? `${firstFailure}${completed ? ` ${completed} clip${completed === 1 ? " was" : "s were"} generated.` : ""} Remaining clips stay selected.`
+      : `${completed} clip${completed === 1 ? "" : "s"} generated; ${failed.length} need retrying. ${firstFailure}`);
     else if (completed) setMessage(`${completed} selected clip${completed === 1 ? " was" : "s were"} generated successfully.`);
   }
 
@@ -141,14 +150,17 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
     const failed: string[] = [];
     let completed = 0;
     let quotaReached = false;
+    let firstFailure = "";
     for (const [index, target] of chosen.entries()) {
       const result = await generate(target, false);
-      if (result === "ok") completed++;
-      if (result === "failed") failed.push(target.key);
-      if (result === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; break; }
+      if (result.status === "ok") completed++;
+      if (result.status === "failed") { failed.push(target.key); firstFailure ||= result.message || "Some clips could not be generated."; }
+      if (result.status === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; firstFailure = result.message || "Gemini quota reached. Retry after it resets."; break; }
     }
     setSelected(failed.length ? failed : []);
-    if (failed.length) setMessage(`${completed} clip${completed === 1 ? "" : "s"} generated. ${quotaReached ? "Quota limit reached; remaining clips were left selected." : `${failed.length} clip${failed.length === 1 ? " needs" : "s need"} retrying.`}`);
+    if (failed.length) setMessage(quotaReached
+      ? `${firstFailure}${completed ? ` ${completed} clip${completed === 1 ? " was" : "s were"} generated.` : ""} Remaining clips stay selected.`
+      : `${completed} clip${completed === 1 ? "" : "s"} generated; ${failed.length} need retrying. ${firstFailure}`);
     else if (completed) setMessage(`${completed} remaining clip${completed === 1 ? " was" : "s were"} generated successfully.`);
   }
 

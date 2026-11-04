@@ -33,6 +33,16 @@ function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function geminiQuotaMessage(error: unknown) {
+  const detail = error instanceof Error ? error.message : String(error ?? "");
+  const dailyLimit = detail.match(/limit:\s*(\d+)\s+requests?\s+per\s+day/i)?.[1];
+  const retry = detail.match(/retry in\s+((?:\d+\s*(?:hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\s*)+)/i)?.[1]?.trim().replace(/\s+/g, " ");
+  const retryText = retry ? ` Retry in ${retry}.` : " Retry after the limit resets.";
+  return dailyLimit
+    ? `Gemini daily limit reached (${dailyLimit} requests/day).${retryText}`
+    : `Gemini quota or rate limit reached.${retryText}`;
+}
+
 export async function POST(request: Request) {
   let session;
   try { session = await requireAdmin(); }
@@ -118,7 +128,7 @@ export async function POST(request: Request) {
     const tooLong = error instanceof IpaAudioTooLongError;
     const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
     const failureMessage = quota
-      ? "Gemini audio quota or rate limit reached. Completed recordings are saved; retry remaining items after quota resets."
+      ? geminiQuotaMessage(error)
       : tooLong
         ? `Gemini returned an audio clip that is too long (${Math.ceil(error.durationSeconds)} seconds; maximum ${error.maxSeconds}). It was not saved. Regenerate this item with a shorter result.`
       : failureStage === "storage"
