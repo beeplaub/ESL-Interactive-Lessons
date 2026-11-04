@@ -3,23 +3,101 @@ export type ReadingToken = {
   normalized: string;
   kind: "anchor" | "function";
   punctuation: string;
+  syllables: string[];
+  stressIndex: number;
 };
+
+/** Starting highlight cadence by broad CEFR band; learners can always adjust it. */
+export function defaultReadingPace(level: string): number {
+  if (level.startsWith("A")) return 100;
+  if (level.startsWith("C")) return 130;
+  return 115;
+}
+
+/** Treat the former universal 115 WPM value as an old default, while preserving other explicit values. */
+export function readingPaceForLevel(level: string, savedPace?: number | null): number {
+  if (savedPace !== undefined && savedPace !== null && Number.isFinite(savedPace) && savedPace !== 115) return savedPace;
+  return defaultReadingPace(level);
+}
 
 const FUNCTION_WORDS = new Set((
   "a an the and but or so yet as at by for from in into of off on onto out over per to up via with within without about above across after against along among around before behind below beneath beside between beyond down during except inside near outside past since through toward under until upon versus"
   + " am is are was were be been being do does did have has had can could may might must shall should will would this that these those I you he she it we they me him her us them my your his its our their mine yours ours theirs who whom whose which what when where why how not no nor if than then because while although though unless whether"
 ).split(/\s+/));
 
+const SECOND_SYLLABLE_STRESS = new Set((
+  "about above across again ahead along among around become before behind below between beyond complete contain decide depend explain forget include instead involve provide receive return support today together"
+).split(/\s+/));
+
+const SYLLABLE_OVERRIDES: Record<string, string[]> = {
+  quiet: ["qui", "et"], science: ["sci", "ence"], fire: ["fi", "re"], hour: ["hour"],
+  idea: ["i", "de", "a"], create: ["cre", "ate"], created: ["cre", "a", "ted"],
+  being: ["be", "ing"], poem: ["po", "em"], client: ["cli", "ent"], diet: ["di", "et"],
+  various: ["var", "i", "ous"], area: ["ar", "e", "a"], museum: ["mu", "se", "um"],
+};
+
+/** A small deterministic syllable estimate for visual cadence; it is not a pronunciation dictionary. */
+function splitSyllables(word: string): string[] {
+  const lower = word.toLocaleLowerCase().replaceAll("’", "'");
+  const override = SYLLABLE_OVERRIDES[lower];
+  if (override) return override.map((part, index) => word.slice(override.slice(0, index).join("").length, override.slice(0, index + 1).join("").length));
+
+  const nuclei: Array<{ start: number; end: number }> = [];
+  let index = 0;
+  const isVowel = (char: string) => "aeiouy".includes(char);
+  const silentU = (position: number) => lower[position] === "u" && (lower[position - 1] === "q" || (lower[position - 1] === "g" && isVowel(lower[position + 1] ?? "")));
+  while (index < lower.length) {
+    if (!isVowel(lower[index]) || silentU(index)) { index += 1; continue; }
+    const start = index;
+    index += 1;
+    while (index < lower.length && isVowel(lower[index]) && !silentU(index)) index += 1;
+    nuclei.push({ start, end: index });
+  }
+  const silentEndingE = lower.endsWith("e") && !lower.endsWith("le") && !lower.endsWith("ee") && !lower.endsWith("ye");
+  const silentPluralE = lower.endsWith("es") && !/(?:s|x|z|ch|sh)es$/.test(lower);
+  const silentPastE = lower.endsWith("ed") && !/(?:t|d)ed$/.test(lower);
+  if ((silentEndingE || silentPluralE || silentPastE) && nuclei.length > 1) nuclei.pop();
+  if (nuclei.length <= 1) return [word];
+
+  const legalOnsets = new Set(["bl", "br", "ch", "cl", "cr", "dr", "fl", "fr", "gl", "gr", "kl", "pl", "pr", "sc", "sh", "sk", "sl", "sm", "sn", "sp", "st", "sw", "th", "tr", "tw", "wh", "wr"]);
+  const boundaries = [0];
+  for (let n = 1; n < nuclei.length; n += 1) {
+    const gapStart = nuclei[n - 1].end;
+    const gapEnd = nuclei[n].start;
+    const consonants = lower.slice(gapStart, gapEnd);
+    const pair = consonants.slice(-2);
+    const onsetLength = legalOnsets.has(pair) ? 2 : consonants.length ? 1 : 0;
+    boundaries.push(Math.max(boundaries[boundaries.length - 1] + 1, gapEnd - onsetLength));
+  }
+  boundaries.push(word.length);
+  return boundaries.slice(0, -1).map((start, partIndex) => word.slice(start, boundaries[partIndex + 1]));
+}
+
+function primaryStressIndex(word: string, syllableCount: number, isFunction: boolean): number {
+  if (isFunction) return -1;
+  if (syllableCount <= 1) return 0;
+  const lower = word.toLocaleLowerCase();
+  if (/\b(?:ee|eer|ese|ique|oon)$/.test(lower)) return syllableCount - 1;
+  if (/(?:tion|sion|ic|ical)$/.test(lower)) return Math.max(0, syllableCount - 2);
+  if (/(?:ity|graphy|ology)$/.test(lower)) return Math.max(0, syllableCount - 3);
+  if (SECOND_SYLLABLE_STRESS.has(lower)) return Math.min(1, syllableCount - 1);
+  return 0;
+}
+
 export function readingTokens(text: string): ReadingToken[] {
   return (text.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*[.,!?;:]?/gu) ?? []).map((raw) => {
     const word = raw.replace(/[.,!?;:]+$/, "");
     const punctuation = raw.slice(word.length);
     const normalized = word.toLocaleLowerCase().replaceAll("’", "'");
+    const kind = FUNCTION_WORDS.has(normalized) ? "function" : "anchor";
+    const syllables = splitSyllables(word);
     return {
       text: word,
       normalized,
-      kind: FUNCTION_WORDS.has(normalized) ? "function" : "anchor",
+      kind,
       punctuation,
+      syllables,
+      stressIndex: primaryStressIndex(word, syllables.length, kind === "function"),
     };
   });
 }
@@ -52,6 +130,63 @@ export function splitReadingParagraphs(text: string, minWords = 50, maxWords = 6
     start = end;
   }
   return output;
+}
+
+export type ReadingChunkRange = { start: number; end: number };
+
+/**
+ * Conservative, non-AI phrase segmentation for the optional reading cadence.
+ * Prefer punctuation and clause starts; keep serial-list commas inside a chunk.
+ */
+export function readingChunkRanges(text: string, level = "B1"): ReadingChunkRange[] {
+  const tokens = readingTokens(text);
+  if (!tokens.length) return [];
+  const targetWords = level.startsWith("A") ? 8 : level.startsWith("C") ? 12 : 10;
+  const clauseOpeners = new Set(["that", "which", "who", "where", "when", "while", "because", "although", "if", "as"]);
+  const ranges: ReadingChunkRange[] = [];
+  let start = 0;
+  let sentenceStart = 0;
+
+  function isSerialListComma(index: number) {
+    let andIndex = -1;
+    for (let look = index + 1; look < tokens.length && look <= index + 6; look += 1) {
+      if (/[.!?]/.test(tokens[look - 1]?.punctuation ?? "")) break;
+      if (tokens[look].normalized === "and" || tokens[look].normalized === "or") { andIndex = look; break; }
+    }
+    if (andIndex < 0) return false;
+    const commaBeforeConjunction = tokens.slice(index + 1, andIndex).some((token) => token.punctuation.includes(","));
+    const conjunctionAfterListItem = andIndex === index + 1 && index > 0 && tokens[index - 1].punctuation.includes(",");
+    return commaBeforeConjunction || conjunctionAfterListItem;
+  }
+
+  for (let index = 1; index < tokens.length; index += 1) {
+    const previous = tokens[index - 1];
+    const current = tokens[index];
+    const wordsBefore = index - start;
+    const beginsNewSentence = /[.!?]/.test(previous.punctuation);
+    let shouldBreak = beginsNewSentence || /[;:]/.test(previous.punctuation)
+      || (previous.punctuation.includes(",") && !isSerialListComma(index - 1));
+
+    if (!beginsNewSentence && wordsBefore >= 3 && clauseOpeners.has(current.normalized) && index > sentenceStart && !(previous.normalized === "from" && current.normalized === "where")) shouldBreak = true;
+    if (!beginsNewSentence && wordsBefore >= 3 && current.normalized === "from" && tokens[index + 1]?.normalized !== "where") shouldBreak = true;
+    if (wordsBefore >= targetWords && current.kind === "function" && wordsBefore >= 5 && !(previous.normalized === "from" && current.normalized === "where")) shouldBreak = true;
+
+    if (shouldBreak && wordsBefore >= 3) {
+      ranges.push({ start, end: index - 1 });
+      start = index;
+    }
+    if (beginsNewSentence) sentenceStart = index;
+  }
+
+  ranges.push({ start, end: tokens.length - 1 });
+  // Avoid leaving a tiny function-word tail as its own breathing group.
+  for (let index = ranges.length - 1; index > 0; index -= 1) {
+    if (ranges[index].end - ranges[index].start + 1 < 3) {
+      ranges[index - 1].end = ranges[index].end;
+      ranges.splice(index, 1);
+    }
+  }
+  return ranges;
 }
 
 export type WordMismatch = { expected: string; heard: string };
