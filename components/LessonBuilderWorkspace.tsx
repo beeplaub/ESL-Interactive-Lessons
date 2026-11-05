@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, CheckCircle2, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Printer, Redo2, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
+import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, CheckCircle2, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Printer, Redo2, RefreshCw, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -332,10 +332,10 @@ function BuilderHeaderUndoRedo({ undo, redo, canUndo, canRedo }: {
 }) {
   return (
     <div className="inline-flex overflow-hidden rounded-md border border-[var(--br-border)] bg-surface shadow-sm" aria-label="Text history controls">
-      <button type="button" title="Undo text change (Ctrl/Command Z)" disabled={!canUndo} onMouseDown={(event) => event.preventDefault()} onClick={undo} className="grid size-9 place-items-center text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)] disabled:cursor-not-allowed disabled:opacity-35">
+      <button type="button" title="Undo text change (Ctrl/Command Z)" aria-label="Undo text change" disabled={!canUndo} onMouseDown={(event) => event.preventDefault()} onClick={undo} className="grid size-9 place-items-center text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)] disabled:cursor-not-allowed disabled:opacity-35">
         <Undo2 size={16} />
       </button>
-      <button type="button" title="Redo text change (Ctrl/Command Shift Z)" disabled={!canRedo} onMouseDown={(event) => event.preventDefault()} onClick={redo} className="grid size-9 place-items-center border-l border-[var(--br-border)] text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)] disabled:cursor-not-allowed disabled:opacity-35">
+      <button type="button" title="Redo text change (Ctrl/Command Shift Z)" aria-label="Redo text change" disabled={!canRedo} onMouseDown={(event) => event.preventDefault()} onClick={redo} className="grid size-9 place-items-center border-l border-[var(--br-border)] text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)] disabled:cursor-not-allowed disabled:opacity-35">
         <Redo2 size={16} />
       </button>
     </div>
@@ -947,10 +947,15 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
             <ChevronRight size={13} className="shrink-0 text-white/35" />
             <span className="truncate font-bold text-white/75">{lesson.title}</span>
           </nav>
-          <div className="mt-1.5 flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-base font-black sm:text-lg">{lesson.title}</h1>
-            <span className="shrink-0 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] font-black">{lesson.level}</span>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${lesson.status === "PUBLISHED" ? "bg-[var(--br-success)] text-on-dark" : "bg-white/10 text-white/65"}`}>{lesson.status}</span>
+          <div className="mt-1.5 flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="truncate text-base font-black sm:text-lg">{lesson.title}</h1>
+              <span className="shrink-0 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] font-black">{lesson.level}</span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${lesson.status === "PUBLISHED" ? "bg-[var(--br-success)] text-on-dark" : "bg-white/10 text-white/65"}`}>{lesson.status}</span>
+            </div>
+            <button type="button" onClick={() => window.location.reload()} className="grid size-9 shrink-0 place-items-center rounded-lg border border-white/15 text-white/80 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Reload page" title="Reload page">
+              <RefreshCw size={16} />
+            </button>
           </div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
