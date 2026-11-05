@@ -266,6 +266,8 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     } catch { /* The in-memory limit still works when browser storage is unavailable. */ }
   }, [config.usage_key]);
 
+  const ribbonLayoutRef = useRef<{ top: number; containerWidth: number } | null>(null);
+
   function moveRibbon(cue: Extract<CadenceCue, { kind: "syllable" }>) {
     const ribbon = ribbonRef.current;
     const container = readingTextRef.current;
@@ -278,11 +280,18 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     if (!ribbonSizeRef.current) ribbonSizeRef.current = { width: Math.max(32, wordBox.width + 4), height: Math.max(30, target.height + 4) };
     const { width, height } = ribbonSizeRef.current;
     const isNewParagraph = ribbonParagraphRef.current !== groups[cue.groupIndex]?.paragraphIndex;
+    const targetTop = target.top - box.top;
+    const previousLayout = ribbonLayoutRef.current;
+    // Use rendered coordinates so wrapped lines follow the actual viewport and font layout.
+    // A line return must not consume the first syllable's short reading cue.
+    const isNewLine = previousLayout !== null && Math.abs(targetTop - previousLayout.top) > target.height / 2;
+    const layoutChanged = previousLayout !== null && Math.abs(box.width - previousLayout.containerWidth) > 1;
     ribbon.style.width = `${width}px`;
     ribbon.style.height = `${height}px`;
-    ribbon.style.transition = isNewParagraph ? "none" : `transform ${Math.max(1, cue.durationMs)}ms ${cue.slowAtEnd ? "cubic-bezier(.35,0,.55,1)" : "linear"}`;
+    ribbon.style.transition = isNewParagraph || isNewLine || layoutChanged ? "none" : `transform ${Math.max(1, cue.durationMs)}ms ${cue.slowAtEnd ? "cubic-bezier(.35,0,.55,1)" : "linear"}`;
     ribbon.style.transform = `translate3d(${target.left - box.left + target.width / 2 - width / 2}px, ${target.top - box.top + target.height / 2 - height / 2}px, 0)`;
     ribbonParagraphRef.current = groups[cue.groupIndex]?.paragraphIndex ?? null;
+    ribbonLayoutRef.current = { top: targetTop, containerWidth: box.width };
   }
 
   useEffect(() => () => {
