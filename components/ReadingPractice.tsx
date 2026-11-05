@@ -176,36 +176,47 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     };
     return groups.map((group, groupIndex) => {
       const functionIndices = group.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "function");
-      const anchorIndex = group.tokenIndices.find((tokenIndex) => tokens[tokenIndex]?.kind === "anchor") ?? group.tokenIndices[0];
+      const foundAnchorIndex = group.tokenIndices.find((tokenIndex) => tokens[tokenIndex]?.kind === "anchor");
+      const hasAnchor = foundAnchorIndex !== undefined;
+      const anchorIndex = foundAnchorIndex ?? group.tokenIndices[0];
       const anchor = tokens[anchorIndex];
       const stressIndex = Math.max(0, anchor?.stressIndex ?? 0);
       const previous = groups[groupIndex - 1];
       const next = groups[groupIndex + 1];
       const startsParagraph = !previous || previous.paragraphIndex !== group.paragraphIndex;
       const continuesParagraph = next?.paragraphIndex === group.paragraphIndex;
+      const nextHasAnchor = next?.tokenIndices.some((tokenIndex) => tokens[tokenIndex]?.kind === "anchor") ?? false;
       const continuesChunk = config.chunking_enabled && continuesParagraph && next?.chunkIndex === group.chunkIndex;
       const chunkEndsHere = config.chunking_enabled && continuesParagraph && !continuesChunk;
 
-      const introItems = startsParagraph
+      const introItems = startsParagraph && hasAnchor
         ? [...functionIndices.flatMap((tokenIndex) => makeSyllables(tokenIndex, groupIndex, "weak")), ...makeSyllables(anchorIndex, groupIndex, "anchor", 0, stressIndex)]
         : [];
       const introDuration = Math.max(group.leadInMs, introItems.some((item) => item.unit === "anchor") ? beatMs * 0.12 * introItems.filter((item) => item.unit === "anchor").length : 0);
       const intro = distribute(introItems, introDuration);
 
-      const intervalItems = [
+      // A trailing function-word group has no stressed anchor. The preceding
+      // anchor's beat must not consume those same words, or the ribbon travels
+      // to the end and then rewinds when this final group runs.
+      const intervalItems = hasAnchor ? [
         ...makeSyllables(anchorIndex, groupIndex, "anchor", stressIndex),
-        ...(continuesParagraph && next && (!config.chunking_enabled || continuesChunk) ? next.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "function").flatMap((tokenIndex) => makeSyllables(tokenIndex, groupIndex + 1, "weak")) : []),
-      ];
-      if (continuesParagraph && next && (!config.chunking_enabled || continuesChunk)) {
+        ...(continuesParagraph && next && nextHasAnchor && (!config.chunking_enabled || continuesChunk) ? next.tokenIndices.filter((tokenIndex) => tokens[tokenIndex]?.kind === "function").flatMap((tokenIndex) => makeSyllables(tokenIndex, groupIndex + 1, "weak")) : []),
+      ] : group.tokenIndices.flatMap((tokenIndex) => makeSyllables(tokenIndex, groupIndex, "weak"));
+      if (hasAnchor && continuesParagraph && next && nextHasAnchor && (!config.chunking_enabled || continuesChunk)) {
         const nextAnchorIndex = next.tokenIndices.find((tokenIndex) => tokens[tokenIndex]?.kind === "anchor");
         if (nextAnchorIndex !== undefined) {
           const nextStressIndex = Math.max(0, tokens[nextAnchorIndex]?.stressIndex ?? 0);
           intervalItems.push(...makeSyllables(nextAnchorIndex, groupIndex + 1, "anchor", 0, nextStressIndex));
         }
       }
-      const interval = distribute(intervalItems, beatMs);
+      const intervalDuration = hasAnchor ? beatMs : Math.max(1, group.leadInMs);
+      const interval = distribute(intervalItems, intervalDuration);
       const punctuationPauseMs = Math.max(0, group.anchorMs - (beatMs - group.leadInMs));
-      if (punctuationPauseMs > 0) {
+      if (!hasAnchor) {
+        // Animate weak words quickly, then hold on the final one for the normal
+        // beat and punctuation pause so playback ends with the ribbon at the text's end.
+        interval.push({ kind: "pause", durationMs: Math.max(0, group.anchorMs - intervalDuration) });
+      } else if (punctuationPauseMs > 0) {
         const anchorEnd = anchor?.syllables.length ?? 1;
         const pauseCue: CadenceCue = { kind: "pause", durationMs: punctuationPauseMs };
         const beforePause = interval.findIndex((cue) => cue.kind === "syllable" && cue.tokenIndex === anchorIndex && cue.syllableIndex === anchorEnd - 1);
