@@ -192,14 +192,8 @@
     const currentPosition = { value:1 };
     const ladders = [[3,22],[8,30],[20,41],[28,55],[36,57],[51,72],[71,92],[80,99]];
     const snakes = [[17,7],[54,34],[62,19],[64,60],[87,24],[93,73],[95,75],[98,79]];
-    const fallbackQuestions = [
-      {type:'HEAR AND IDENTIFY', text:'Which word contains /iː/?', sound:'/iː/', choices:['ship','sheep','good','bed'], answer:'sheep'},
-      {type:'WORD TO IPA', text:'Choose the phonemic transcription for “ship”.', sound:'Hear “ship”', choices:['/ʃɪp/','/ʃiːp/','/sɪp/','/ʃeɪp/'], answer:'/ʃɪp/'},
-      {type:'SOUND CONTRAST', text:'Which word has the short /ɪ/ sound?', sound:'Compare the words', choices:['seat','sheep','ship','wait'], answer:'ship'},
-      {type:'SOUND FEATURE', text:'Is /θ/ voiced or voiceless?', sound:'/θ/', choices:['Voiced','Voiceless','A vowel','A diphthong'], answer:'Voiceless'},
-      {type:'SPELLING CLUE', text:'Which letters usually represent /ʃ/ in “sheep”?', sound:'Listen to “sheep”', choices:['sh','ee','p','e'], answer:'sh'}
-    ];
-    let questions=fallbackQuestions;
+    const QUESTION_TYPES=['HEAR AND IDENTIFY','WORD TO IPA','SOUND CONTRAST','SOUND FEATURE','SPELLING CLUE'];
+    let questions=[];
     let practiceData=null,audioManifest={};
     const accentSelect=document.getElementById('accent');
     const practiceDataPromise=fetch('/api/ipa-chart/practice-data').then(response=>response.ok?response.json():null).catch(()=>null);
@@ -207,29 +201,57 @@
     function shuffle(items){const result=[...items];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}return result;}
     function makeOptions(answer,values,count=4){return shuffle([answer,...shuffle([...new Set(values.map(String).filter(value=>value!==String(answer)))]).slice(0,count-1)]);}
     function getIpaSoundSource(symbol,accent=document.getElementById('accent').value){const sound=practiceData?.[accent]?.sounds.find(item=>item.symbol===symbol);return sound?audioManifest[accent]?.[sound.id]?.sound?.src:undefined;}
-    function getIpaPracticeSource(word){const accent=document.getElementById('accent').value;const normalized=String(word||'').toLowerCase();const example=practiceData?.[accent]?.examples.find(item=>item.word.toLowerCase()===normalized);const recordings=example?audioManifest[accent]?.[example.soundId]?.words:undefined;const key=recordings&&Object.keys(recordings).find(item=>item.toLowerCase()===normalized);return key?recordings[key]?.src:undefined;}
+    function getIpaPracticeSource(word,accent=document.getElementById('accent').value){const normalized=String(word||'').toLowerCase();const example=practiceData?.[accent]?.examples.find(item=>item.word.toLowerCase()===normalized);const recordings=example?audioManifest[accent]?.[example.soundId]?.words:undefined;const key=recordings&&Object.keys(recordings).find(item=>item.toLowerCase()===normalized);return key?recordings[key]?.src:undefined;}
     function markedText(spelling){return [...spelling.matchAll(/\[([^\]]+)\]/g)].map(match=>match[1]).join('…');}
     function plainSpelling(spelling){return spelling.replace(/\[([^\]]+)\]/g,'$1');}
-    function buildQuestionRound(accent){
-      const data=practiceData?.[accent];if(!data)return fallbackQuestions;
-      const examples=shuffle([...new Map(data.examples.filter(item=>item.word&&item.ipa).map(item=>[item.word,item])).values()]);
-      const words=examples.map(item=>item.word),ipas=examples.map(item=>`/${item.ipa}/`);
-      if(examples.length<8||!data.pairs.length)return fallbackQuestions;
-      const used=new Set();const chooseExample=()=>{const item=examples.find(example=>!used.has(example.word));if(!item)return examples[Math.floor(Math.random()*examples.length)];used.add(item.word);return item;};
-      const first=chooseExample(),second=chooseExample();
-      const pair=data.pairs[Math.floor(Math.random()*data.pairs.length)],chooseLeft=Math.random()<.5,target=chooseLeft?pair.leftSymbol:pair.rightSymbol,expectedPairWord=chooseLeft?pair.left.word:pair.right.word;
-      const consonants=data.sounds.filter(sound=>sound.group==='consonant'),feature=consonants[Math.floor(Math.random()*consonants.length)];
-      const marked=data.sounds.flatMap(sound=>sound.examples.map(example=>({sound,example,answer:markedText(example.spelling)}))).filter(item=>item.answer&&item.example.spelling);
-      const spellingItem=marked[Math.floor(Math.random()*marked.length)]||{sound:data.sounds[0],example:{spelling:'[s]ee'},answer:'s'};
-      const spellingChoices=marked.map(item=>item.answer).filter(Boolean);
-      const identifyDistractors=examples.filter(item=>item.word!==first.word&&!item.ipa.includes(first.symbol)).map(item=>item.word);
-      return [
-        {type:'HEAR AND IDENTIFY',text:`Which word contains /${first.symbol}/?`,sound:`Hear /${first.symbol}/`,choices:makeOptions(first.word,identifyDistractors),answer:first.word,soundId:first.soundId,soundSymbol:first.symbol},
-        {type:'WORD TO IPA',text:`Choose the phonemic transcription for “${second.word}”.`,sound:`Hear “${second.word}”`,choices:makeOptions(`/${second.ipa}/`,ipas),answer:`/${second.ipa}/`,soundId:second.soundId,soundSymbol:second.symbol,audioWord:second.word},
-        {type:'SOUND CONTRAST',text:`Which word contains the /${target}/ sound?`,sound:'Compare the words',choices:shuffle([pair.left.word,pair.right.word]),answer:expectedPairWord,soundId:data.sounds.find(item=>item.symbol===target)?.id,soundSymbol:target,audioWord:expectedPairWord,audioWords:[pair.left.word,pair.right.word]},
-        {type:'SOUND FEATURE',text:`Is /${feature.symbol}/ voiced or voiceless?`,sound:`Hear /${feature.symbol}/`,choices:['Voiced','Voiceless','A vowel','A diphthong'],answer:feature.voiced?'Voiced':'Voiceless',soundId:feature.id,soundSymbol:feature.symbol},
-        {type:'SPELLING CLUE',text:`Which letters represent /${spellingItem.sound.symbol}/ in “${plainSpelling(spellingItem.example.spelling)}”?`,sound:`Hear “${plainSpelling(spellingItem.example.spelling)}”`,choices:makeOptions(spellingItem.answer,spellingChoices),answer:spellingItem.answer,soundId:spellingItem.sound.id,soundSymbol:spellingItem.sound.symbol,audioWord:plainSpelling(spellingItem.example.spelling)}
-      ];
+    function chartWord(spelling){return plainSpelling(String(spelling||'')).trim().toLowerCase();}
+    function tokenizeChartIpa(ipa,sounds){const inventory=sounds.map(sound=>sound.symbol).filter(Boolean).sort((a,b)=>b.length-a.length);const tokens=[];for(let index=0;index<ipa.length;){const mark=ipa[index];if(mark==='ˈ'||mark==='ˌ'){index++;continue;}const symbol=inventory.find(value=>ipa.startsWith(value,index));if(symbol){tokens.push(symbol);index+=symbol.length;}else{index++;}}return tokens;}
+    function buildQuestionDeck(accent){
+      const data=practiceData?.[accent];if(!data)return Object.fromEntries(QUESTION_TYPES.map(type=>[type,[]]));
+      const decks=Object.fromEntries(QUESTION_TYPES.map(type=>[type,[]]));const seen=new Set();
+      const add=(question)=>{if(!question||!question.id||seen.has(question.id)||question.choices.length<2||!question.audioSources?.length||question.audioSources.some(src=>!src))return;seen.add(question.id);decks[question.type].push(question);};
+      const examples=[...new Map((data.examples||[]).filter(item=>item.word&&item.ipa).map(item=>[`${item.word.toLowerCase()}|${item.ipa}`,item])).values()];
+      const playableExamples=examples.map(item=>({...item,word:item.word.toLowerCase(),audioSrc:getIpaPracticeSource(item.word,accent)})).filter(item=>item.audioSrc);
+      const ipaChoices=[...new Set(playableExamples.map(item=>`/${item.ipa}/`))];
+      const ipaTokens=new Map(examples.map(item=>[`${item.word.toLowerCase()}|${item.ipa}`,new Set(tokenizeChartIpa(item.ipa,data.sounds||[]))]));
+
+      for(const sound of data.sounds||[]){
+        const soundSrc=getIpaSoundSource(sound.symbol,accent);if(!soundSrc)continue;
+        const matching=examples.filter(item=>ipaTokens.get(`${item.word.toLowerCase()}|${item.ipa}`)?.has(sound.symbol));
+        const distractors=examples.filter(item=>!ipaTokens.get(`${item.word.toLowerCase()}|${item.ipa}`)?.has(sound.symbol)).map(item=>item.word.toLowerCase());
+        for(const item of matching){const answer=item.word.toLowerCase();add({id:`${accent}:hear:${sound.id}:${answer}`,type:'HEAR AND IDENTIFY',text:`Which word contains /${sound.symbol}/?`,sound:`Hear /${sound.symbol}/`,choices:makeOptions(answer,distractors),answer,audioSources:[soundSrc]});}
+      }
+
+      for(const item of playableExamples){const answer=`/${item.ipa}/`;add({id:`${accent}:word-ipa:${item.word}:${item.ipa}`,type:'WORD TO IPA',text:`Choose the phonemic transcription for “${item.word}”.`,sound:`Hear “${item.word}”`,choices:makeOptions(answer,ipaChoices),answer,audioSources:[item.audioSrc]});}
+
+      for(const pair of data.pairs||[]){const leftSrc=getIpaPracticeSource(pair.left.word,accent),rightSrc=getIpaPracticeSource(pair.right.word,accent);if(!leftSrc||!rightSrc)continue;
+        for(const side of ['left','right']){const target=side==='left'?pair.leftSymbol:pair.rightSymbol,answer=pair[side].word;add({id:`${accent}:contrast:${[pair.left.word,pair.right.word].sort().join('|')}:${target}`,type:'SOUND CONTRAST',text:`Which word contains the /${target}/ sound?`,sound:'Compare the words',choices:shuffle([pair.left.word,pair.right.word]),answer,audioSources:[leftSrc,rightSrc],audioGap:280});}
+      }
+
+      for(const sound of (data.sounds||[]).filter(item=>item.group==='consonant')){const soundSrc=getIpaSoundSource(sound.symbol,accent);if(!soundSrc)continue;add({id:`${accent}:feature:${sound.id}`,type:'SOUND FEATURE',text:`Is /${sound.symbol}/ voiced or voiceless?`,sound:`Hear /${sound.symbol}/`,choices:['Voiced','Voiceless'],answer:sound.voiced?'Voiced':'Voiceless',audioSources:[soundSrc]});}
+
+      for(const sound of data.sounds||[]){for(const example of sound.examples||[]){const spelling=example.spelling||'',answer=markedText(spelling),word=chartWord(spelling),audioSrc=getIpaPracticeSource(word,accent);if(!answer||!word||!audioSrc)continue;const distractors=(data.sounds||[]).flatMap(item=>(item.examples||[]).map(candidate=>markedText(candidate.spelling||''))).filter(Boolean);add({id:`${accent}:spelling:${sound.id}:${word}:${answer}`,type:'SPELLING CLUE',text:`Which letters represent /${sound.symbol}/ in “${word}”?`,sound:`Hear “${word}”`,choices:makeOptions(answer,distractors),answer,audioSources:[audioSrc]});}}
+
+      for(const type of QUESTION_TYPES)decks[type]=shuffle(decks[type]);
+      return decks;
+    }
+    const questionDecks={};
+    const questionProgress={uk:{asked:new Set(),cycle:[],lastType:null},us:{asked:new Set(),cycle:[],lastType:null}};
+    function getQuestionDeck(accent){return questionDecks[accent]||(questionDecks[accent]=buildQuestionDeck(accent));}
+    function takeNextQuestion(accent){
+      const decks=getQuestionDeck(accent),state=questionProgress[accent],all=QUESTION_TYPES.flatMap(type=>decks[type]);
+      if(!all.length)return null;
+      let available=QUESTION_TYPES.filter(type=>decks[type].some(item=>!state.asked.has(item.id)));
+      if(!available.length){state.asked.clear();state.cycle=[];available=QUESTION_TYPES.filter(type=>decks[type].length);}
+      if(!state.cycle.length)state.cycle=shuffle(available);
+      state.cycle=state.cycle.filter(type=>available.includes(type));
+      if(!state.cycle.length)state.cycle=shuffle(available);
+      if(state.cycle[0]===state.lastType&&available.some(type=>type!==state.lastType)){
+        const alternate=state.cycle.findIndex(type=>type!==state.lastType);if(alternate>0)[state.cycle[0],state.cycle[alternate]]=[state.cycle[alternate],state.cycle[0]];
+      }
+      const type=state.cycle.shift();const question=decks[type].find(item=>!state.asked.has(item.id));
+      if(!question)return takeNextQuestion(accent);
+      state.asked.add(question.id);state.lastType=type;return question;
     }
     let qIndex=0, correct=0, answered=false;
     let isMoving=false, turnActive=false, loadingQuestions=false, showSummary=false, turnScore=0, questionPoints=[], questionCorrect=[],saveToastTimer=0;
@@ -244,10 +266,6 @@
         audio.addEventListener('ended',onEnded,{once:true});audio.addEventListener('error',onError,{once:true});
         audio.play().catch(()=>finish(false));
       });
-    }
-    function speakQuestionWord(word,accent){
-      if(!word||!('speechSynthesis'in window))return Promise.resolve(false);
-      return new Promise(resolve=>{window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(word);utterance.lang=accent==='us'?'en-US':'en-GB';utterance.rate=.82;utterance.onend=()=>resolve(true);utterance.onerror=()=>resolve(false);window.speechSynthesis.speak(utterance);});
     }
     let soundOn=true, soundStarted=false, audioContext=null, musicTimer=null, musicIndex=0;
     function getAudioContext(){
@@ -419,8 +437,10 @@
       document.getElementById('turnStatus').textContent='Preparing your question…';
       practiceData=practiceData||await practiceDataPromise;
       audioManifest=await audioManifestPromise;
-      const questionBank=buildQuestionRound(document.getElementById('accent').value);
-      questions=[questionBank[Math.floor(Math.random()*questionBank.length)]];
+      const accent=document.getElementById('accent').value;
+      const question=takeNextQuestion(accent);
+      if(!question){turnActive=false;loadingQuestions=false;document.getElementById('turnStatus').textContent=`No chart questions with approved audio are available for ${accent==='uk'?'British':'American'} English yet.`;return;}
+      questions=[question];
       questionPoints=[1+Math.floor(Math.random()*5)];
       loadingQuestions=false;renderQuestion();modal.classList.add('open');document.getElementById('accentLabel').textContent=document.getElementById('accent').selectedOptions[0].textContent;
     }
@@ -462,6 +482,7 @@
     try {
       const saved=JSON.parse(localStorage.getItem(progressStorageKey)||'null');
       if(Number.isInteger(saved?.position)&&saved.position>=1&&saved.position<=100){currentPosition.value=saved.position;lastSavedPosition=saved.position;hasSavedCheckpoint=true;}
+      for(const accent of ['uk','us']){const savedProgress=saved?.questionProgress?.[accent];if(savedProgress){questionProgress[accent]={asked:new Set(Array.isArray(savedProgress.asked)?savedProgress.asked:[]),cycle:Array.isArray(savedProgress.cycle)?savedProgress.cycle.filter(type=>QUESTION_TYPES.includes(type)):[],lastType:QUESTION_TYPES.includes(savedProgress.lastType)?savedProgress.lastType:null};}}
     } catch {}
     document.getElementById('playButton').textContent=hasSavedCheckpoint?'Resume':'Play';
     const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -487,7 +508,8 @@
     document.getElementById('saveButton').addEventListener('click',()=>{
       if(isMoving||loadingQuestions){document.getElementById('turnStatus').textContent='Wait for the move to finish before saving.';return;}
       try {
-        localStorage.setItem(progressStorageKey,JSON.stringify({position:currentPosition.value}));
+        const savedQuestionProgress=Object.fromEntries(['uk','us'].map(accent=>[accent,{asked:[...questionProgress[accent].asked],cycle:questionProgress[accent].cycle,lastType:questionProgress[accent].lastType}]));
+        localStorage.setItem(progressStorageKey,JSON.stringify({position:currentPosition.value,questionProgress:savedQuestionProgress}));
         lastSavedPosition=currentPosition.value;
         hasSavedCheckpoint=true;
         document.getElementById('playButton').textContent='Resume';
@@ -498,6 +520,7 @@
     document.getElementById('restartButton').addEventListener('click',()=>{
       if(isMoving||loadingQuestions){document.getElementById('turnStatus').textContent='Wait for the move to finish before restarting.';return;}
       currentPosition.value=1;lastSavedPosition=1;hasSavedCheckpoint=false;setPlayerPoint(square(1),1,false);
+      for(const accent of ['uk','us'])questionProgress[accent]={asked:new Set(),cycle:[],lastType:null};
       try { localStorage.removeItem(progressStorageKey); } catch {}
       modal.classList.remove('open');showSummary=false;turnActive=false;turnScore=0;
       document.getElementById('playButton').textContent='Play';
@@ -514,23 +537,12 @@
     document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
     document.getElementById('audioButton').addEventListener('click',async()=>{
       const q=questions[qIndex];if(currentAudio){currentAudio.pause();currentAudio=null;}
-      const accent=document.getElementById('accent').value;
-      if(q.audioWords?.length){
-        for(let index=0;index<q.audioWords.length;index++){
-          const word=q.audioWords[index],wordSource=getIpaPracticeSource(word);
-          if(!(await playQuestionRecording(wordSource)))await speakQuestionWord(word,accent);
-          if(index<q.audioWords.length-1)await wait(280);
-        }
-        return;
+      for(let index=0;index<q.audioSources.length;index++){
+        await playQuestionRecording(q.audioSources[index]);
+        if(index<q.audioSources.length-1)await wait(q.audioGap||280);
       }
-      const source=q.soundSymbol?getIpaSoundSource(q.soundSymbol,accent):(q.soundId?audioManifest[accent]?.[q.soundId]?.sound?.src:undefined);
-      const wordSource=q.audioWord?getIpaPracticeSource(q.audioWord):undefined;
-      for(const src of [...new Set([source,wordSource].filter(Boolean))])if(await playQuestionRecording(src))return;
-      const spoken=q.audioWord||q.soundSymbol;
-      if(await speakQuestionWord(spoken,accent))return;
-      document.getElementById('feedback').textContent='No playable recording is available for this sound yet.';
     });
-    document.getElementById('rulesButton').addEventListener('click',()=>window.alert('Each turn has one IPA question with a hidden value from one to five points. Answer correctly to reveal its value and move that many squares; an incorrect answer earns no movement. The value is randomly assigned again on your next turn. Landing on a ladder climbs up; landing on a snake slides down.'));
+    document.getElementById('rulesButton').addEventListener('click',()=>window.alert('Each turn has one IPA question with a hidden value from one to five points. Questions use the selected accent’s IPA chart and approved audio. Question types rotate, and a question will not repeat until the available question pool has been used. Answer correctly to reveal its value and move that many squares; an incorrect answer earns no movement. Landing on a ladder climbs up; landing on a snake slides down.'));
     accentSelect.addEventListener('change',e=>{document.getElementById('accentLabel').textContent=e.target.selectedOptions[0].textContent;});
     modal.addEventListener('click',e=>{if(e.target===modal){if(!quitDialog.hidden)closeQuitConfirmation();else modal.classList.remove('open');}});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open')){if(!quitDialog.hidden)closeQuitConfirmation();else modal.classList.remove('open');}});
