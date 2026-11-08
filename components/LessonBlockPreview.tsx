@@ -1446,6 +1446,7 @@ function ReadingPassageGlossaryText({ text, entries }: { text: string; entries: 
   const pattern = usableEntries.length ? new RegExp(`(${usableEntries.sort((a, b) => b.word.length - a.word.length).map((entry) => `(?<![\\p{L}\\p{N}])${escapeGlossaryPattern(entry.word.trim())}(?![\\p{L}\\p{N}])`).join("|")})`, "giu") : null;
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const findEntry = (part: string) => usableEntries.find((entry) => entry.word.trim().toLocaleLowerCase() === part.toLocaleLowerCase());
+  const seenGlossaryTerms = new Set<string>();
   const dictionaryCard = activeEntry && mounted ? createPortal(
     <div className="fixed inset-0 z-[120] grid place-items-center bg-[var(--br-brand)]/20 p-4 backdrop-blur-[2px]" role="presentation" onClick={() => setActiveEntry(null)}>
       <div role="dialog" aria-modal="true" aria-label={`${activeEntry.word} glossary definition`} className="w-[min(23rem,100%)] rounded-2xl border border-[var(--br-border)] bg-surface p-4 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}>
@@ -1460,7 +1461,14 @@ function ReadingPassageGlossaryText({ text, entries }: { text: string; entries: 
   return <><div className="space-y-2 text-base leading-7 text-[var(--br-text-muted)]">{lines.map((line, lineIndex) => {
     if (!line.trim()) return <div key={lineIndex} className="h-2" aria-hidden />;
     const parts = pattern ? line.split(pattern) : [line];
-    return <p key={lineIndex}>{parts.map((part, partIndex) => { const entry = findEntry(part); return entry ? <button key={partIndex} type="button" onClick={() => setActiveEntry(entry)} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button> : <InlineText key={partIndex} text={part} />; })}</p>;
+    return <p key={lineIndex}>{parts.map((part, partIndex) => {
+      const entry = findEntry(part);
+      if (!entry) return <InlineText key={partIndex} text={part} />;
+      const termKey = entry.word.trim().toLocaleLowerCase();
+      if (seenGlossaryTerms.has(termKey)) return <InlineText key={partIndex} text={part} />;
+      seenGlossaryTerms.add(termKey);
+      return <button key={partIndex} type="button" onClick={() => setActiveEntry(entry)} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button>;
+    })}</p>;
   })}</div>{dictionaryCard}</>;
 }
 
@@ -1474,9 +1482,17 @@ function ReadingPassageComparison({ pairs, entries, mode }: { pairs: ReadingSent
   const usableEntries = entries.filter((entry) => entry.word.trim());
   const pattern = usableEntries.length ? new RegExp(`(${usableEntries.sort((a, b) => b.word.length - a.word.length).map((entry) => `(?<![\\p{L}\\p{N}])${escapeGlossaryPattern(entry.word.trim())}(?![\\p{L}\\p{N}])`).join("|")})`, "giu") : null;
   const findEntry = (part: string) => usableEntries.find((entry) => entry.word.trim().toLocaleLowerCase() === part.toLocaleLowerCase());
+  const seenGlossaryTerms = new Set<string>();
   const renderOriginal = (text: string, index: number) => {
     const parts = pattern ? text.split(pattern) : [text];
-    return parts.map((part, partIndex) => { const entry = findEntry(part); return entry ? <button key={partIndex} type="button" onClick={(event) => { event.stopPropagation(); setActiveEntry(entry); }} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button> : <InlineText key={partIndex} text={part} />; });
+    return parts.map((part, partIndex) => {
+      const entry = findEntry(part);
+      if (!entry) return <InlineText key={partIndex} text={part} />;
+      const termKey = entry.word.trim().toLocaleLowerCase();
+      if (seenGlossaryTerms.has(termKey)) return <InlineText key={partIndex} text={part} />;
+      seenGlossaryTerms.add(termKey);
+      return <button key={partIndex} type="button" onClick={(event) => { event.stopPropagation(); setActiveEntry(entry); }} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button>;
+    });
   };
   const dictionaryCard = activeEntry && mounted ? createPortal(
     <div className="fixed inset-0 z-[120] grid place-items-center bg-[var(--br-brand)]/20 p-4 backdrop-blur-[2px]" role="presentation" onClick={() => setActiveEntry(null)}>
