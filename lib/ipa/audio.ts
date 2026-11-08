@@ -8,7 +8,7 @@ import { IPA_GEMINI_VOICES, type IpaGeminiVoice } from "./audio-options";
 export { IPA_GEMINI_VOICES, type IpaGeminiVoice } from "./audio-options";
 export type IpaChartAudioSettings = { accent: IpaAccent; voiceName: IpaGeminiVoice; style: typeof VOICEOVER_STYLES[number]; pace: typeof VOICEOVER_PACES[number]; settingsRevision: number };
 export type IpaChartAudioAsset = {
-  id: string; accent: IpaAccent; soundId: string; assetType: "sound" | "word"; word: string;
+  id: string; accent: IpaAccent; soundId: string; assetType: "sound" | "word"; word: string; wordId: string | null;
   status: "MISSING" | "READY_FOR_REVIEW" | "APPROVED" | "FAILED";
   livePublicUrl: string | null; pendingPublicUrl: string | null; mimeType: string | null;
   voiceName: string | null; style: string | null; pace: string | null; settingsRevision: number | null;
@@ -27,27 +27,52 @@ const schema = z.object({ uk: z.record(z.string(), entry).optional(), us: z.reco
 /** Only explicitly reviewed assets are published; missing recordings remain optional. */
 export async function getIpaAudioManifest(): Promise<IpaAudioManifest> {
   const fallback = schema.parse(manifest);
-  const { data: rows, error } = await createAdminClient().from("ipa_chart_audio_assets")
-    .select("accent,sound_id,asset_type,word,live_public_url,reviewed_at")
-    .not("live_public_url", "is", null);
-  if (error) {
-    console.error("IPA chart audio lookup failed", error.code ?? "unknown");
+  const admin = createAdminClient();
+  const [assetsResult, wordsResult, pronunciationsResult] = await Promise.all([
+    admin.from("ipa_chart_audio_assets").select("id,accent,sound_id,asset_type,word,live_public_url,reviewed_at").not("live_public_url", "is", null).order("reviewed_at", { ascending: false }),
+    admin.from("ipa_chart_words").select("id,is_active"),
+    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id"),
+  ]);
+  if (assetsResult.error) {
+    console.error("IPA chart audio lookup failed", assetsResult.error.code ?? "unknown");
     return fallback;
   }
+  const linksResult = await admin.from("ipa_chart_audio_assets").select("id,word_id").eq("asset_type", "word");
+  const wordIdByAssetId = new Map((linksResult.data ?? []).map(row => [row.id, row.word_id as string | null]));
+  const activeWordIds = new Set((wordsResult.data ?? []).filter(row => row.is_active).map(row => row.id));
+  const soundIdsByWordAccent = new Map<string, string[]>();
+  for (const row of pronunciationsResult.data ?? []) {
+    if (row.accent !== "uk" && row.accent !== "us") continue;
+    const key = `${row.word_id}:${row.accent}`;
+    soundIdsByWordAccent.set(key, [...(soundIdsByWordAccent.get(key) ?? []), row.sound_id]);
+  }
   const data: IpaAudioManifest = structuredClone(fallback);
-  for (const row of rows ?? []) {
+  const assignedWordAudio = new Set<string>();
+  for (const row of assetsResult.data ?? []) {
     const accent = row.accent as IpaAccent;
-    const sound = IPA_CHARTS[accent]?.find(item => item.id === row.sound_id);
-    if (!sound || !row.live_public_url) continue;
-    if (!row.reviewed_at) continue;
+    if (!IPA_CHARTS[accent] || !row.live_public_url || !row.reviewed_at) continue;
     const reviewedAt = new Date(row.reviewed_at).toISOString().slice(0, 10);
     const recording = { src: row.live_public_url, reviewedBy: "BrenUp pronunciation team", reviewedAt, source: "BrenUp Gemini TTS" };
     data[accent] ??= {};
-    data[accent]![sound.id] ??= {};
-    if (row.asset_type === "sound") data[accent]![sound.id]!.sound = recording;
-    if (row.asset_type === "word" && sound.examples.some(example => plainWord(example) === row.word)) {
-      data[accent]![sound.id]!.words ??= {};
-      data[accent]![sound.id]!.words![row.word] = recording;
+    if (row.asset_type === "sound") {
+      if (!IPA_CHARTS[accent].some(sound => sound.id === row.sound_id)) continue;
+      data[accent]![row.sound_id] ??= {};
+      data[accent]![row.sound_id]!.sound = recording;
+    }
+    if (row.asset_type === "word") {
+      const wordId = wordIdByAssetId.get(row.id);
+      if (wordId && !activeWordIds.has(wordId)) continue;
+      const assignmentKey = `${accent}:${wordId ?? row.word.toLocaleLowerCase("en-US")}`;
+      if (assignedWordAudio.has(assignmentKey)) continue;
+      assignedWordAudio.add(assignmentKey);
+      const soundIds = wordId && activeWordIds.has(wordId)
+        ? soundIdsByWordAccent.get(`${wordId}:${accent}`) ?? []
+        : IPA_CHARTS[accent].filter(sound => sound.examples.some(example => plainWord(example) === row.word)).map(sound => sound.id);
+      for (const soundId of new Set(soundIds)) {
+        data[accent]![soundId] ??= {};
+        data[accent]![soundId]!.words ??= {};
+        data[accent]![soundId]!.words![row.word] = recording;
+      }
     }
   }
   return schema.parse(data);
@@ -63,9 +88,11 @@ export async function getIpaChartAudioAdminState(): Promise<{ configured: boolea
     console.error("IPA chart audio admin state lookup failed", settingsResult.error?.code ?? assetsResult.error?.code ?? "unknown");
     return { configured: false, settings: [], assets: [] };
   }
+  const linksResult = await admin.from("ipa_chart_audio_assets").select("id,word_id").eq("asset_type", "word");
+  const wordIdByAssetId = new Map((linksResult.data ?? []).map(row => [row.id, row.word_id as string | null]));
   return {
     configured: true,
     settings: (settingsResult.data ?? []).map(row => ({ accent: row.accent as IpaAccent, voiceName: IPA_GEMINI_VOICES.includes(row.voice_name as IpaGeminiVoice) ? row.voice_name as IpaGeminiVoice : "Aoede", style: VOICEOVER_STYLES.includes(row.style as typeof VOICEOVER_STYLES[number]) ? row.style as typeof VOICEOVER_STYLES[number] : "Natural", pace: VOICEOVER_PACES.includes(row.pace as typeof VOICEOVER_PACES[number]) ? row.pace as typeof VOICEOVER_PACES[number] : "Natural", settingsRevision: row.settings_revision ?? 1 })),
-    assets: (assetsResult.data ?? []).map(row => ({ id: row.id, accent: row.accent as IpaAccent, soundId: row.sound_id, assetType: row.asset_type as "sound" | "word", word: row.word || "", status: row.status as IpaChartAudioAsset["status"], livePublicUrl: row.live_public_url, pendingPublicUrl: row.pending_public_url, mimeType: row.mime_type, voiceName: row.voice_name, style: row.style, pace: row.pace, settingsRevision: row.settings_revision, generatedBy: row.generated_by, reviewedBy: row.reviewed_by, reviewedAt: row.reviewed_at, errorMessage: row.error_message })),
+    assets: (assetsResult.data ?? []).map(row => ({ id: row.id, accent: row.accent as IpaAccent, soundId: row.sound_id, assetType: row.asset_type as "sound" | "word", word: row.word || "", wordId: wordIdByAssetId.get(row.id) ?? null, status: row.status as IpaChartAudioAsset["status"], livePublicUrl: row.live_public_url, pendingPublicUrl: row.pending_public_url, mimeType: row.mime_type, voiceName: row.voice_name, style: row.style, pace: row.pace, settingsRevision: row.settings_revision, generatedBy: row.generated_by, reviewedBy: row.reviewed_by, reviewedAt: row.reviewed_at, errorMessage: row.error_message })),
   };
 }

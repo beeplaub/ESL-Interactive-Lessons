@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Heart, KeyRound, RotateCcw, Sparkles, Square, Trophy, Volume2, X } from "lucide-react";
-import { IPA_ACCENTS, IPA_CHARTS, type IpaAccent } from "@/lib/ipa/chart";
+import { IPA_ACCENTS, IPA_CHARTS, type IpaAccent, type IpaSound } from "@/lib/ipa/chart";
 import { getIpaMinimalPairs, getIpaPracticeExamples, normalizeIpaAnswer, normalizeWordAnswer, phonemeSound, type IpaPracticeExample } from "@/lib/ipa/practice";
 import type { IpaAudioManifest } from "@/lib/ipa/chart";
 import { useIpaPlayback } from "./useIpaPlayback";
@@ -50,12 +50,12 @@ function choiceSet(answer: string, options: string[]): string[] {
   return shuffle([answer, ...shuffle(options.filter(option => option !== answer)).slice(0, 3)]);
 }
 
-function buildQuest(accent: IpaAccent): QuestQuestion[] {
-  const examples = uniqueExamples(getIpaPracticeExamples(accent));
+function buildQuest(accent: IpaAccent, charts: Record<IpaAccent, IpaSound[]>): QuestQuestion[] {
+  const examples = uniqueExamples(getIpaPracticeExamples(accent, charts));
   const first = shuffle(examples).slice(0, 3);
   const used = new Set(first.map(example => example.word));
   const second = shuffle(examples.filter(example => !used.has(example.word))).slice(0, 3);
-  const pairs = shuffle(getIpaMinimalPairs(accent)).slice(0, 3);
+  const pairs = shuffle(getIpaMinimalPairs(accent, charts)).slice(0, 3);
 
   const decode = first.map((example, index) => ({
     id: `decode-${index}`,
@@ -88,7 +88,7 @@ function buildQuest(accent: IpaAccent): QuestQuestion[] {
       expected,
       target,
       options: shuffle([pair.left.word, pair.right.word]),
-      soundId: IPA_CHARTS[accent].find(sound => sound.symbol === target)?.id,
+      soundId: charts[accent].find(sound => sound.symbol === target)?.id,
       soundSymbol: target,
       hint: phonemeSound(accent, target)?.cue ?? `Compare the two words and find the one containing /${target}/.`
     };
@@ -104,7 +104,7 @@ function answerIsCorrect(question: QuestQuestion, answer: string): boolean {
 
 const IPA_KEYS = [...new Set(IPA_CHARTS.uk.concat(IPA_CHARTS.us).map(sound => sound.symbol))].sort((a, b) => b.length - a.length);
 
-export function IpaSoundQuest() {
+export function IpaSoundQuest({ charts = IPA_CHARTS }: { charts?: Record<IpaAccent, IpaSound[]> }) {
   const [accent, setAccent] = useState<IpaAccent>("uk");
   const [questions, setQuestions] = useState<QuestQuestion[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -141,7 +141,7 @@ export function IpaSoundQuest() {
   const progress = questions.length ? Math.round((questionIndex / questions.length) * 100) : 0;
 
   function startQuest() {
-    setQuestions(buildQuest(accent));
+    setQuestions(buildQuest(accent, charts));
     setQuestionIndex(0);
     setDraft("");
     setLives(3);
@@ -193,7 +193,7 @@ export function IpaSoundQuest() {
   }
 
   function playWord(word: string) {
-    const example = getIpaPracticeExamples(accent).find(item => item.word === word);
+    const example = getIpaPracticeExamples(accent, charts).find(item => item.word === word);
     const src = example ? audioManifest[accent]?.[example.soundId]?.words?.[word]?.src : undefined;
     void audioPlayback.play(`word:${word}`, src, word);
   }

@@ -345,7 +345,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   if (activityType === "IPA_LISTEN_BUILD") {
     const items = (Array.isArray(data.items) ? data.items : []).map((value, index) => {
       const row = asRecord(value as Json);
-      return { id: String(row.id ?? `word-${index + 1}`), prompt: String(row.word ?? ""), expected: String(row.ipa_uk ?? ""), expected_by_accent: { uk: String(row.ipa_uk ?? ""), us: String(row.ipa_us ?? "") }, audio_url: String(row.audio_url ?? "") };
+      return { id: String(row.id ?? `word-${index + 1}`), word_id: String(row.word_id ?? ""), prompt: String(row.word ?? ""), expected: String(row.ipa_uk ?? ""), expected_by_accent: { uk: String(row.ipa_uk ?? ""), us: String(row.ipa_us ?? "") }, audio_url_uk: String(row.audio_url_uk ?? ""), audio_url_us: String(row.audio_url_us ?? ""), audio_url: String(row.audio_url ?? "") };
     });
     return [{
       id: "1", question_number: 1, question_type: "IPA_PRACTICE",

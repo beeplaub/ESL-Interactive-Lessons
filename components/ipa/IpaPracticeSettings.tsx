@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { generateIpaPracticeItems, getIpaMinimalPairs, getIpaPracticeExamples, ipaPairKey, tokenizeIpa, type IpaConversionDirection, type IpaCustomExample, type IpaPracticeMode, type IpaSortMode } from "@/lib/ipa/practice";
-import { IPA_CHARTS, type IpaAccent } from "@/lib/ipa/chart";
+import { IPA_CHARTS, type IpaAccent, type IpaSound } from "@/lib/ipa/chart";
 
 export type IpaPracticeConfig = {
   accent: IpaAccent;
@@ -21,7 +21,7 @@ export type IpaPracticeConfig = {
   correct_answer: Record<string, string>;
 };
 
-export function makeIpaPracticeConfig(input: Partial<IpaPracticeConfig>, seed: string): IpaPracticeConfig {
+export function makeIpaPracticeConfig(input: Partial<IpaPracticeConfig>, seed: string, charts: Record<IpaAccent, IpaSound[]> = IPA_CHARTS): IpaPracticeConfig {
   const accent = input.accent === "us" ? "us" as const : "uk" as const;
   const previousItems = Array.isArray(input.items) ? input.items : [];
   const legacyWords = previousItems.map(item => item.direction === "word-to-ipa" ? item.prompt : item.expected);
@@ -34,13 +34,13 @@ export function makeIpaPracticeConfig(input: Partial<IpaPracticeConfig>, seed: s
     return [{ word, ipa, accent: example.accent }];
   }).slice(0, 100);
   const availableWords = new Set([
-    ...getIpaPracticeExamples(accent).map(example => example.word),
+    ...getIpaPracticeExamples(accent, charts).map(example => example.word),
     ...customExamples.filter(example => example.accent === accent).map(example => example.word),
   ]);
   const selectedWords = [...new Set(rawSelectedWords.map(String).filter(word => availableWords.has(word)))].slice(0, 12);
-  const availablePairs = getIpaMinimalPairs(accent);
+  const availablePairs = getIpaMinimalPairs(accent, charts);
   const selectedPairs = [...new Set((Array.isArray(input.selectedPairs) ? input.selectedPairs : []).map(String).filter(key => availablePairs.some(pair => ipaPairKey(pair) === key)))].slice(0, 12);
-  const availableSounds = new Set(IPA_CHARTS[accent].map(sound => sound.id));
+  const availableSounds = new Set(charts[accent].map(sound => sound.id));
   const rawTargetSoundIds = Array.isArray(input.targetSoundIds) ? input.targetSoundIds : typeof (input as Partial<IpaPracticeConfig> & { targetSoundId?: string }).targetSoundId === "string" ? [(input as Partial<IpaPracticeConfig> & { targetSoundId?: string }).targetSoundId as string] : [];
   const targetSoundIds = [...new Set(rawTargetSoundIds.map(String).filter(id => availableSounds.has(id)))].slice(0, 12);
   const selectedSounds = [...new Set((Array.isArray(input.selectedSounds) ? input.selectedSounds : []).map(String).filter(id => availableSounds.has(id)))].slice(0, 12);
@@ -58,35 +58,43 @@ export function makeIpaPracticeConfig(input: Partial<IpaPracticeConfig>, seed: s
     customExamples,
     seed,
   };
-  const items = generateIpaPracticeItems(config);
+  const items = generateIpaPracticeItems({ ...config, charts });
   return { ...config, items, correct_answer: Object.fromEntries(items.map(item => [item.id, item.expected])) };
 }
 
 export function IpaPracticeSettings({ value, seed, onChange }: { value: Partial<IpaPracticeConfig>; seed: string; onChange: (config: IpaPracticeConfig) => void }) {
+  const [charts, setCharts] = useState(IPA_CHARTS);
   const [search, setSearch] = useState("");
   const [customWord, setCustomWord] = useState("");
   const [customIpa, setCustomIpa] = useState("");
   const [customError, setCustomError] = useState("");
-  function update(patch: Partial<IpaPracticeConfig>, nextSeed = value.seed || seed) { onChange(makeIpaPracticeConfig({ ...value, ...patch }, nextSeed)); }
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/ipa-chart/practice-data").then(response => response.ok ? response.json() : null).then(data => {
+      if (!cancelled && data?.chart?.uk && data?.chart?.us) setCharts(data.chart as Record<IpaAccent, IpaSound[]>);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+  function update(patch: Partial<IpaPracticeConfig>, nextSeed = value.seed || seed) { onChange(makeIpaPracticeConfig({ ...value, ...patch }, nextSeed, charts)); }
   const count = Number(value.count ?? 6);
   const examples = useMemo(() => {
     const seen = new Set<string>();
     const accent: IpaAccent = value.accent === "us" ? "us" : "uk";
     const custom = (value.customExamples ?? []).filter(example => example.accent === accent).map(example => ({ ...example, symbol: "Custom" }));
-    const targets = IPA_CHARTS[accent].filter(sound => (value.targetSoundIds ?? []).includes(sound.id));
-    return [...getIpaPracticeExamples(accent), ...custom].filter(example => (!targets.length || targets.some(target => tokenizeIpa(example.ipa, accent).includes(target.symbol)))).filter(example => {
+    const targets = charts[accent].filter(sound => (value.targetSoundIds ?? []).includes(sound.id));
+    return [...getIpaPracticeExamples(accent, charts), ...custom].filter(example => (!targets.length || targets.some(target => tokenizeIpa(example.ipa, accent, charts).includes(target.symbol)))).filter(example => {
       if (seen.has(example.word)) return false;
       seen.add(example.word);
       return true;
     });
-  }, [value.accent, value.customExamples, value.targetSoundIds]);
+  }, [charts, value.accent, value.customExamples, value.targetSoundIds]);
   const selectedWords = Array.isArray(value.selectedWords) ? value.selectedWords : [];
-  const availablePairs = useMemo(() => getIpaMinimalPairs(value.accent === "us" ? "us" : "uk"), [value.accent]);
+  const availablePairs = useMemo(() => getIpaMinimalPairs(value.accent === "us" ? "us" : "uk", charts), [charts, value.accent]);
   const selectedPairs = Array.isArray(value.selectedPairs) ? value.selectedPairs : [];
-  const sortSounds = useMemo(() => IPA_CHARTS[value.accent === "us" ? "us" : "uk"], [value.accent]);
+  const sortSounds = useMemo(() => charts[value.accent === "us" ? "us" : "uk"], [charts, value.accent]);
   const selectedSounds = Array.isArray(value.selectedSounds) ? value.selectedSounds : [];
   const targetSoundIds = Array.isArray(value.targetSoundIds) ? value.targetSoundIds : [];
-  const availableTargetSounds = IPA_CHARTS[value.accent === "us" ? "us" : "uk"].filter(sound => targetSoundIds.includes(sound.id));
+  const availableTargetSounds = charts[value.accent === "us" ? "us" : "uk"].filter(sound => targetSoundIds.includes(sound.id));
   const hasHandPickedQuestions = value.mode === "conversion" ? selectedWords.length > 0 : value.mode === "compare" ? selectedPairs.length > 0 : value.mode === "sort" ? selectedSounds.length > 0 : false;
   const showQuestionCount = !hasHandPickedQuestions && !(value.mode === "sort" && targetSoundIds.length > 0);
   const questionCountOptions = [...new Set([3, 6, 9, 12, count])].sort((left, right) => left - right);
@@ -123,7 +131,7 @@ export function IpaPracticeSettings({ value, seed, onChange }: { value: Partial<
     <label className="text-sm font-bold">Mode<select value={value.mode ?? "conversion"} onChange={event => update({ mode: event.target.value as IpaPracticeMode })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2.5 font-normal"><option value="conversion">IPA ↔ word conversion</option><option value="compare">Hear & Compare minimal pairs</option><option value="sort">Phoneme Sort</option></select></label>
     {showQuestionCount ? <label className="text-sm font-bold">Questions per round<select value={count} onChange={event => update({ count: Number(event.target.value) })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2.5 font-normal">{questionCountOptions.map(number => <option key={number} value={number}>{number}</option>)}</select></label> : null}
     <label className="text-sm font-bold">Accent<select value={value.accent ?? "uk"} onChange={event => update({ accent: event.target.value as IpaAccent })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2.5 font-normal"><option value="uk">British English</option><option value="us">American English</option></select></label>
-    <section className="grid gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3" aria-label="Choose target phonemes"><div><p className="text-sm font-bold">Target phonemes <span className="font-normal text-[var(--br-text-muted)]">(optional, choose multiple)</span></p><p className="text-xs leading-5 text-[var(--br-text-muted)]">{value.mode === "conversion" || !value.mode ? "Generated questions will use only chart words containing the selected phonemes, with at least one question per selected phoneme." : value.mode === "compare" ? "Generated questions will use chart minimal pairs contrasting the selected phonemes, with at least one question per selected phoneme." : "Each selected phoneme becomes a sort question; the question count follows your selected targets."}</p></div><select value="" disabled={hasHandPickedQuestions || targetSoundIds.length >= 12} onChange={event => { const id = event.target.value; if (id) update({ targetSoundIds: [...targetSoundIds, id], count: Math.max(count, targetSoundIds.length + 1) }); }} className="min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"><option value="">Add a target phoneme…</option>{IPA_CHARTS[value.accent === "us" ? "us" : "uk"].filter(sound => !targetSoundIds.includes(sound.id)).map(sound => <option key={sound.id} value={sound.id}>/{sound.symbol}/ · {sound.name}</option>)}</select>{targetSoundIds.length ? <div className="flex flex-wrap gap-2">{availableTargetSounds.map(sound => <span key={sound.id} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-brand)]">/{sound.symbol}/<button type="button" disabled={hasHandPickedQuestions} onClick={() => update({ targetSoundIds: targetSoundIds.filter(id => id !== sound.id) })} className="ml-1 rounded-full px-1 text-sm leading-none hover:bg-black/10 disabled:cursor-not-allowed" aria-label={`Remove target phoneme ${sound.symbol}`}>×</button></span>)}</div> : null}{hasHandPickedQuestions ? <p className="text-xs text-amber-700">Clear hand-picked questions before adding target phonemes.</p> : null}</section>
+    <section className="grid gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3" aria-label="Choose target phonemes"><div><p className="text-sm font-bold">Target phonemes <span className="font-normal text-[var(--br-text-muted)]">(optional, choose multiple)</span></p><p className="text-xs leading-5 text-[var(--br-text-muted)]">{value.mode === "conversion" || !value.mode ? "Generated questions will use only chart words containing the selected phonemes, with at least one question per selected phoneme." : value.mode === "compare" ? "Generated questions will use chart minimal pairs contrasting the selected phonemes, with at least one question per selected phoneme." : "Each selected phoneme becomes a sort question; the question count follows your selected targets."}</p></div><select value="" disabled={hasHandPickedQuestions || targetSoundIds.length >= 12} onChange={event => { const id = event.target.value; if (id) update({ targetSoundIds: [...targetSoundIds, id], count: Math.max(count, targetSoundIds.length + 1) }); }} className="min-h-10 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"><option value="">Add a target phoneme…</option>{charts[value.accent === "us" ? "us" : "uk"].filter(sound => !targetSoundIds.includes(sound.id)).map(sound => <option key={sound.id} value={sound.id}>/{sound.symbol}/ · {sound.name}</option>)}</select>{targetSoundIds.length ? <div className="flex flex-wrap gap-2">{availableTargetSounds.map(sound => <span key={sound.id} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-brand)]">/{sound.symbol}/<button type="button" disabled={hasHandPickedQuestions} onClick={() => update({ targetSoundIds: targetSoundIds.filter(id => id !== sound.id) })} className="ml-1 rounded-full px-1 text-sm leading-none hover:bg-black/10 disabled:cursor-not-allowed" aria-label={`Remove target phoneme ${sound.symbol}`}>×</button></span>)}</div> : null}{hasHandPickedQuestions ? <p className="text-xs text-amber-700">Clear hand-picked questions before adding target phonemes.</p> : null}</section>
     {value.mode === "conversion" || !value.mode ? <label className="text-sm font-bold">Conversion direction<select value={value.direction ?? "both"} onChange={event => update({ direction: event.target.value as IpaConversionDirection })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2.5 font-normal"><option value="both">Both directions</option><option value="ipa-to-word">IPA to word</option><option value="word-to-ipa">Word to IPA</option></select></label> : null}
     {value.mode === "sort" ? <label className="text-sm font-bold">Sort by<select value={value.sortMode ?? "kind"} onChange={event => update({ sortMode: event.target.value as IpaSortMode })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2.5 font-normal"><option value="kind">Vowel or consonant</option><option value="voicing">Voiced or voiceless</option><option value="group">Monophthong, diphthong, or consonant</option></select></label> : null}
     {!hasHandPickedQuestions ? <label className="flex items-start gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3 text-sm"><input type="checkbox" checked={value.refresh_each_attempt === true} onChange={event => update({ refresh_each_attempt: event.target.checked })} className="mt-0.5 accent-[var(--br-action-strong)]" /><span><span className="font-bold">Refresh questions on each attempt</span><span className="mt-0.5 block text-xs font-normal leading-5 text-[var(--br-text-muted)]">Starts a new question set when the learner retries. Hand-picked questions stay fixed; a target sound stays as the filter.</span></span></label> : null}
@@ -136,7 +144,7 @@ export function IpaPracticeSettings({ value, seed, onChange }: { value: Partial<
       </div>
       <details className="rounded-lg border border-[var(--br-border)] bg-[var(--br-action)]/10 p-2">
         <summary className="cursor-pointer text-xs font-bold text-[var(--br-brand)]">Open IPA keyboard</summary>
-        <div className="mt-2 flex flex-wrap gap-1">{[...new Set([...IPA_CHARTS[value.accent === "us" ? "us" : "uk"].map(sound => sound.symbol), "ˈ", "ˌ"])].map(symbol => <button key={symbol} type="button" onClick={() => setCustomIpa(current => `${current}${symbol}`)} className="min-w-8 rounded-md border border-[var(--br-border)] bg-[var(--br-surface)] px-1.5 py-1 font-data text-sm font-bold shadow-sm hover:border-[var(--br-action)]" aria-label={`Insert ${symbol}`}>{symbol}</button>)}<span className="min-h-8 min-w-8" aria-hidden="true" /><button type="button" onClick={() => setCustomIpa(current => current.slice(0, -1))} disabled={!customIpa} className="min-h-8 min-w-10 rounded-md border border-[var(--br-action-strong)] bg-[var(--br-action-strong)] px-2 py-1 text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45" aria-label="Delete last IPA character" title="Delete last IPA character">⌫</button></div>
+        <div className="mt-2 flex flex-wrap gap-1">{[...new Set([...charts[value.accent === "us" ? "us" : "uk"].map(sound => sound.symbol), "ˈ", "ˌ"])].map(symbol => <button key={symbol} type="button" onClick={() => setCustomIpa(current => `${current}${symbol}`)} className="min-w-8 rounded-md border border-[var(--br-border)] bg-[var(--br-surface)] px-1.5 py-1 font-data text-sm font-bold shadow-sm hover:border-[var(--br-action)]" aria-label={`Insert ${symbol}`}>{symbol}</button>)}<span className="min-h-8 min-w-8" aria-hidden="true" /><button type="button" onClick={() => setCustomIpa(current => current.slice(0, -1))} disabled={!customIpa} className="min-h-8 min-w-10 rounded-md border border-[var(--br-action-strong)] bg-[var(--br-action-strong)] px-2 py-1 text-sm font-bold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45" aria-label="Delete last IPA character" title="Delete last IPA character">⌫</button></div>
       </details>
       {customError ? <p role="alert" className="text-xs font-semibold text-red-700">{customError}</p> : null}
     </section> : null}

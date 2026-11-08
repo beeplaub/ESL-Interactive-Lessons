@@ -4,38 +4,68 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { IPA_GEMINI_VOICES } from "@/lib/ipa/audio";
+import { IPA_CHARTS } from "@/lib/ipa/chart";
 import { VOICEOVER_PACES, VOICEOVER_STYLES } from "@/lib/ai/voiceoverCatalog";
 import type { IpaAccent } from "@/lib/ipa/chart";
 
-export async function publishIpaChartView(view: "A" | "B") {
+export async function addIpaChartWord(input: {
+  spelling: string;
+  spellingMarkup: string;
+  ukIpa: string;
+  ukSoundId: string;
+  usIpa: string;
+  usSoundId: string;
+}) {
   const { user } = await requireAdmin();
-  if (view !== "A" && view !== "B") throw new Error("Choose Version A or Version B.");
+  const spelling = input.spelling.trim().replace(/\s+/g, " ");
+  const spellingMarkup = input.spellingMarkup.trim().replace(/\s+/g, " ");
+  const normalized = spelling.toLocaleLowerCase("en-US");
+  const plainMarkup = spellingMarkup.replace(/\[([^\]]+)\]/g, "$1");
+  if (!spelling || spelling.length > 80 || /[\[\]]/.test(spelling)) throw new Error("Enter a word without brackets (80 characters maximum).");
+  if (!spellingMarkup || spellingMarkup.length > 80 || !/\[[^\]]+\]/.test(spellingMarkup) || plainMarkup.toLocaleLowerCase("en-US") !== normalized) {
+    throw new Error("Use square brackets around the letters that show the target sound, and keep the full word unchanged.");
+  }
+  if (!input.ukIpa.trim() || input.ukIpa.trim().length > 120 || !input.usIpa.trim() || input.usIpa.trim().length > 120) throw new Error("Add both British and American IPA transcriptions.");
+  if (!IPA_CHARTS.uk.some(sound => sound.id === input.ukSoundId) || !IPA_CHARTS.us.some(sound => sound.id === input.usSoundId)) throw new Error("Choose a sound from each accent chart.");
 
   const admin = createAdminClient();
-  const { data: current, error: readError } = await admin.from("ipa_chart_settings")
-    .select("revision,active_view").eq("id", true).maybeSingle();
-  if (readError) throw new Error("IPA Chart settings are not ready. Apply the IPA Chart settings migration first.");
-  if (current?.active_view === view) return;
+  const { data: existing, error: existingError } = await admin.from("ipa_chart_words").select("id,is_active").eq("normalized_spelling", normalized).maybeSingle();
+  if (existingError) throw new Error("The word catalog is not ready. Apply the IPA word catalog migration first.");
+  if (existing) throw new Error(existing.is_active ? "This word is already in the chart." : "This word is archived. Restore it from the word list before adding it again.");
 
-  const revision = (current?.revision ?? 0) + 1;
-  const now = new Date().toISOString();
-  const { error } = await admin.from("ipa_chart_settings").upsert({
-    id: true,
-    active_view: view,
-    revision,
-    updated_by: user.id,
-    updated_at: now,
-  });
-  if (error) throw new Error("The learner chart view could not be published.");
+  const { data: word, error: insertError } = await admin.from("ipa_chart_words")
+    .insert({ spelling, normalized_spelling: normalized, created_by: user.id })
+    .select("id").single();
+  if (insertError || !word) throw new Error("The word could not be added to the chart.");
 
-  const { error: historyError } = await admin.from("ipa_chart_view_history").insert({
-    revision,
-    active_view: view,
-    changed_by: user.id,
-    created_at: now,
-  });
-  if (historyError) throw new Error("The chart view was published, but its change history could not be saved.");
+  const { error: pronunciationError } = await admin.from("ipa_chart_word_pronunciations").insert([
+    { word_id: word.id, accent: "uk", sound_id: input.ukSoundId, ipa: input.ukIpa.trim(), spelling_markup: spellingMarkup, is_default: true },
+    { word_id: word.id, accent: "us", sound_id: input.usSoundId, ipa: input.usIpa.trim(), spelling_markup: spellingMarkup, is_default: true },
+  ]);
+  if (pronunciationError) {
+    await admin.from("ipa_chart_words").update({ is_active: false }).eq("id", word.id);
+    throw new Error("The IPA entries could not be saved, so the word was kept out of the learner chart.");
+  }
 
+  revalidatePath("/ipa-chart");
+  revalidatePath("/admin/ipa-chart");
+  return { id: word.id, spelling };
+}
+
+export async function archiveIpaChartWord(wordId: string) {
+  await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(wordId)) throw new Error("Choose a valid chart word.");
+  const { error } = await createAdminClient().from("ipa_chart_words").update({ is_active: false }).eq("id", wordId);
+  if (error) throw new Error("The word could not be archived.");
+  revalidatePath("/ipa-chart");
+  revalidatePath("/admin/ipa-chart");
+}
+
+export async function restoreIpaChartWord(wordId: string) {
+  await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(wordId)) throw new Error("Choose a valid chart word.");
+  const { error } = await createAdminClient().from("ipa_chart_words").update({ is_active: true }).eq("id", wordId);
+  if (error) throw new Error("The word could not be restored.");
   revalidatePath("/ipa-chart");
   revalidatePath("/admin/ipa-chart");
 }

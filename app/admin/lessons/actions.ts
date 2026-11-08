@@ -2278,7 +2278,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     return { prompt, ...config, items, correct_answer: Object.fromEntries(items.map(item => [item.id, item.expected])) } as unknown as Json;
   }
   if (activityType === "IPA_LISTEN_BUILD") {
-    return { title: "Listen & Build IPA", prompt: "Listen to the word and build its IPA.", accent: "uk", items: Array.from({ length: 5 }, (_, index) => ({ id: `word-${index + 1}`, word: "", ipa_uk: "", ipa_us: "", audio_url: "" })) } as unknown as Json;
+    return { title: "Listen & Build IPA", prompt: "Listen to the word and build its IPA.", accent: "uk", items: [{ id: crypto.randomUUID(), word_id: "", word: "", ipa_uk: "", ipa_us: "", audio_url_uk: "", audio_url_us: "" }] } as unknown as Json;
   }
   if (activityType === "MULTIPLE_SELECT") {
     return {

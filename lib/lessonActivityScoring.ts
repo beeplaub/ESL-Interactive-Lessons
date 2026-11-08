@@ -239,7 +239,7 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
       title: text(data.title),
       items: items.map((item, index) => {
         const row = asRecord(item as Json);
-        return { id: text(row.id || `word-${index + 1}`), prompt: text(row.word), expected: text(row.ipa_uk), expected_by_accent: { uk: text(row.ipa_uk), us: text(row.ipa_us) }, audio_url: text(row.audio_url) };
+        return { id: text(row.id || `word-${index + 1}`), word_id: text(row.word_id), prompt: text(row.word), expected: text(row.ipa_uk), expected_by_accent: { uk: text(row.ipa_uk), us: text(row.ipa_us) }, audio_url_uk: text(row.audio_url_uk), audio_url_us: text(row.audio_url_us), audio_url: text(row.audio_url) };
       }),
       correct_by_accent: Object.fromEntries(items.map((item, index) => {
         const row = asRecord(item as Json);

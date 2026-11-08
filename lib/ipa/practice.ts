@@ -39,11 +39,11 @@ export function ipaPairKey(pair: IpaMinimalPair): string {
   return [pair.left.word, pair.right.word].sort().join("|");
 }
 
-export function getIpaPracticeExamples(accent: IpaAccent): IpaPracticeExample[] {
+export function getIpaPracticeExamples(accent: IpaAccent, charts: Record<IpaAccent, IpaSound[]> = IPA_CHARTS): IpaPracticeExample[] {
   const examples: IpaPracticeExample[] = [];
   const seen = new Set<string>();
 
-  for (const sound of IPA_CHARTS[accent]) {
+  for (const sound of charts[accent]) {
     for (const example of sound.examples) {
       const word = plainWord(example).toLowerCase();
       const key = `${word}|${example.ipa}`;
@@ -56,8 +56,8 @@ export function getIpaPracticeExamples(accent: IpaAccent): IpaPracticeExample[] 
   return examples;
 }
 
-export function tokenizeIpa(ipa: string, accent: IpaAccent): string[] {
-  const inventory = [...new Set(IPA_CHARTS[accent].map(sound => sound.symbol))].sort((a, b) => b.length - a.length);
+export function tokenizeIpa(ipa: string, accent: IpaAccent, charts: Record<IpaAccent, IpaSound[]> = IPA_CHARTS): string[] {
+  const inventory = [...new Set(charts[accent].map(sound => sound.symbol))].sort((a, b) => b.length - a.length);
   const tokens: string[] = [];
   for (let index = 0; index < ipa.length;) {
     const character = ipa[index];
@@ -78,10 +78,10 @@ export function tokenizeIpa(ipa: string, accent: IpaAccent): string[] {
   return tokens;
 }
 
-export function getIpaMinimalPairs(accent: IpaAccent): IpaMinimalPair[] {
-  const examples = getIpaPracticeExamples(accent);
-  const sounds = IPA_CHARTS[accent];
-  const tokensByWord = new Map(examples.map(example => [example.word, tokenizeIpa(example.ipa, accent)]));
+export function getIpaMinimalPairs(accent: IpaAccent, charts: Record<IpaAccent, IpaSound[]> = IPA_CHARTS): IpaMinimalPair[] {
+  const examples = getIpaPracticeExamples(accent, charts);
+  const sounds = charts[accent];
+  const tokensByWord = new Map(examples.map(example => [example.word, tokenizeIpa(example.ipa, accent, charts)]));
   const pairs: IpaMinimalPair[] = [];
   const seen = new Set<string>();
 
@@ -162,14 +162,16 @@ export function generateIpaPracticeItems(config: {
   customExamples?: IpaCustomExample[];
   count?: number;
   seed?: string;
+  charts?: Record<IpaAccent, IpaSound[]>;
 }): IpaPracticeItem[] {
+  const charts = config.charts ?? IPA_CHARTS;
   const count = Math.max(1, Math.min(12, Math.trunc(config.count ?? 6)));
   const seed = `${config.seed ?? "ipa-practice"}:${config.accent}:${config.mode}:${config.direction ?? "both"}:${config.sortMode ?? "kind"}`;
-  const targetSounds = IPA_CHARTS[config.accent].filter(sound => config.targetSoundIds?.includes(sound.id));
+  const targetSounds = charts[config.accent].filter(sound => config.targetSoundIds?.includes(sound.id));
   const targetSymbols = new Set(targetSounds.map(sound => sound.symbol));
 
   if (config.mode === "conversion") {
-    const chartExamples = getIpaPracticeExamples(config.accent);
+    const chartExamples = getIpaPracticeExamples(config.accent, charts);
     const customExamples = (config.customExamples ?? [])
       .filter(example => example.accent === config.accent)
       .map(example => ({
@@ -182,7 +184,7 @@ export function generateIpaPracticeItems(config: {
         voiced: true,
       }))
       .filter(example => example.word && example.ipa);
-    const availableExamples = [...chartExamples, ...customExamples].filter(example => !targetSymbols.size || tokenizeIpa(example.ipa, config.accent).some(symbol => targetSymbols.has(symbol)));
+    const availableExamples = [...chartExamples, ...customExamples].filter(example => !targetSymbols.size || tokenizeIpa(example.ipa, config.accent, charts).some(symbol => targetSymbols.has(symbol)));
     const examples = config.selectedWords?.length
       ? config.selectedWords.flatMap(word => {
         const example = availableExamples.find(item => item.word === word);
@@ -193,7 +195,7 @@ export function generateIpaPracticeItems(config: {
           const required: typeof availableExamples = [];
           const usedWords = new Set<string>();
           for (const sound of targetSounds) {
-            const candidates = seededShuffle(availableExamples.filter(example => tokenizeIpa(example.ipa, config.accent).includes(sound.symbol) && !usedWords.has(example.word)), `${seed}:target:${sound.id}`);
+            const candidates = seededShuffle(availableExamples.filter(example => tokenizeIpa(example.ipa, config.accent, charts).includes(sound.symbol) && !usedWords.has(example.word)), `${seed}:target:${sound.id}`);
             const chosen = candidates[0];
             if (chosen) { required.push(chosen); usedWords.add(chosen.word); }
           }
@@ -215,7 +217,7 @@ export function generateIpaPracticeItems(config: {
   }
 
   if (config.mode === "compare") {
-    const availablePairs = getIpaMinimalPairs(config.accent).filter(pair => !targetSymbols.size || targetSymbols.has(pair.leftSymbol) || targetSymbols.has(pair.rightSymbol));
+    const availablePairs = getIpaMinimalPairs(config.accent, charts).filter(pair => !targetSymbols.size || targetSymbols.has(pair.leftSymbol) || targetSymbols.has(pair.rightSymbol));
     const seedParity = seed.split("").reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 0) % 2;
     const makeItem = (pair: IpaMinimalPair, index: number, forcedTarget?: string): IpaPracticeItem => {
       const useLeft = forcedTarget ? pair.leftSymbol === forcedTarget : (index + seedParity) % 2 === 0;
@@ -249,7 +251,7 @@ export function generateIpaPracticeItems(config: {
 
   const mode = config.sortMode ?? "kind";
   const buckets = mode === "kind" ? ["Vowel", "Consonant"] : mode === "voicing" ? ["Voiced", "Voiceless"] : ["Monophthong", "Diphthong", "R-colored vowel", "Consonant"];
-  const sounds = IPA_CHARTS[config.accent];
+  const sounds = charts[config.accent];
   const selected = config.selectedSounds?.length
     ? config.selectedSounds.flatMap(id => {
       const sound = sounds.find(item => item.id === id);

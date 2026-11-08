@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { IpaSoundQuest } from "@/components/ipa/IpaSoundQuest";
 import { requireUser } from "@/lib/auth";
+import { getIpaChartCatalog } from "@/lib/ipa/catalog";
 
 export const metadata: Metadata = {
   title: "IPA Sound Quest | BrenUp",
@@ -10,5 +11,6 @@ export const metadata: Metadata = {
 
 export default async function IpaQuestPage() {
   await requireUser();
-  return <LearnerAppShell active="ipa-quest" showRightSidebar={false}><IpaSoundQuest /></LearnerAppShell>;
+  const charts = await getIpaChartCatalog();
+  return <LearnerAppShell active="ipa-quest" showRightSidebar={false}><IpaSoundQuest charts={charts} /></LearnerAppShell>;
 }

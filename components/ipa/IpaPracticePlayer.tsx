@@ -144,6 +144,7 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
   const currentData = current ? record(current as unknown as Json) : {};
   const expectedMap = record(currentData.expected_by_accent as Json);
   const expected = String(expectedMap[accent] ?? current?.expected ?? "");
+  const targetAudioUrl = String(currentData[`audio_url_${accent}`] ?? currentData.audio_url ?? "");
   const answer = value?.[current?.id ?? ""] ?? "";
   const isCorrectAnswer = Boolean(answer && normalizeIpaAnswer(answer) === normalizeIpaAnswer(expected));
   const allSounds = IPA_CHARTS[accent].filter(sound => group === "all" || (group === "consonant" ? sound.group === "consonant" : sound.group !== "consonant"));
@@ -183,7 +184,7 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
       {String(question.question_text ?? "").trim() ? <p className="mt-0.5 text-xs leading-4 text-[var(--br-text-muted)] sm:text-sm">{question.question_text}</p> : null}
     </header> : null}
     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-1.5 sm:gap-2 sm:p-2">
-      <button type="button" disabled={disabled} onClick={() => play(String(currentData.audio_url ?? ""))} className="inline-flex min-h-9 items-center justify-self-start gap-1.5 rounded-lg bg-[var(--br-action)] px-2.5 text-[11px] font-extrabold text-white hover:brightness-95 disabled:opacity-50 sm:px-3 sm:text-xs" aria-label="Play target word">{playing ? <Square size={14} /> : <Volume2 size={15} />}<span className="truncate">Play target word</span></button>
+      <button type="button" disabled={disabled || !targetAudioUrl} onClick={() => play(targetAudioUrl)} className="inline-flex min-h-9 items-center justify-self-start gap-1.5 rounded-lg bg-[var(--br-action)] px-2.5 text-[11px] font-extrabold text-white hover:brightness-95 disabled:opacity-50 sm:px-3 sm:text-xs" aria-label="Play target word">{playing ? <Square size={14} /> : <Volume2 size={15} />}<span className="truncate">Play target word</span></button>
       <div className="flex items-center justify-center gap-1.5" role="group" aria-label="Word progress">{items.map((item, dotIndex) => <button key={item.id} type="button" onClick={() => setIndex(dotIndex)} aria-label={`Word ${dotIndex + 1}`} aria-current={index === dotIndex ? "step" : undefined} className={`h-2.5 w-2.5 rounded-full transition ${index === dotIndex ? "scale-125 bg-[var(--br-action)] ring-2 ring-[var(--br-action)]/25 ring-offset-2" : value[item.id] ? "bg-[var(--br-brand)]" : "bg-[var(--br-border-strong)]"}`} />)}</div>
       <div className="inline-flex justify-self-end gap-0.5 rounded-lg border border-[var(--br-border)] bg-white p-0.5" role="group" aria-label="Accent">
         {(["uk", "us"] as const).map(valueAccent => <button key={valueAccent} type="button" aria-pressed={accent === valueAccent} onClick={() => { setAccent(valueAccent); setGroup("all"); if (current && answer) onChange({ ...value, [`__accent:${current.id}`]: valueAccent }); }} className={`min-h-8 rounded-md px-2 text-[10px] font-extrabold sm:px-2.5 sm:text-xs ${accent === valueAccent ? "bg-[var(--br-brand)] text-white" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>{valueAccent === "uk" ? "British" : "American"}</button>)}

@@ -3,13 +3,14 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AudioLines, Check, ChevronDown, CircleAlert, LoaderCircle, Save, Settings2, Sparkles, Volume2 } from "lucide-react";
-import { IPA_ACCENTS, IPA_CHARTS, plainWord, type IpaAccent } from "@/lib/ipa/chart";
+import { IPA_ACCENTS, plainWord, type IpaAccent, type IpaSound } from "@/lib/ipa/chart";
+import type { IpaChartCatalogWord } from "@/lib/ipa/catalog";
 import type { IpaChartAudioAsset, IpaChartAudioSettings } from "@/lib/ipa/audio";
 import { IPA_GEMINI_VOICES, IPA_GEMINI_VOICE_DETAILS, type IpaGeminiVoice } from "@/lib/ipa/audio-options";
 import { VOICEOVER_PACES, VOICEOVER_STYLES } from "@/lib/ai/voiceoverCatalog";
 import { approveIpaChartAudioAsset, saveIpaChartAudioSettings } from "@/app/admin/ipa-chart/actions";
 
-type Target = { key: string; soundId: string; symbol: string; type: "sound" | "word"; word: string; description: string };
+type Target = { key: string; soundId: string; symbol: string; type: "sound" | "word"; word: string; wordId: string | null; description: string };
 type LocalAsset = IpaChartAudioAsset;
 type GenerateResult = { status: "ok" | "failed" | "quota"; message?: string };
 
@@ -21,8 +22,9 @@ function statusLabel(asset?: LocalAsset) {
   return "Not generated";
 }
 
-export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets }: {
+export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets, charts, catalogWords }: {
   configured: boolean; initialSettings: IpaChartAudioSettings[]; initialAssets: IpaChartAudioAsset[];
+  charts: Record<IpaAccent, IpaSound[]>; catalogWords: IpaChartCatalogWord[];
 }) {
   const [accent, setAccent] = useState<IpaAccent>("uk");
   const [genderFilter, setGenderFilter] = useState<"All" | "Female" | "Male">("All");
@@ -49,15 +51,29 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
     || accentSettings.style !== savedAccentSettings.style
     || accentSettings.pace !== savedAccentSettings.pace;
   const visibleVoices = IPA_GEMINI_VOICES.filter(voice => genderFilter === "All" || IPA_GEMINI_VOICE_DETAILS[voice].gender === genderFilter);
-  const sounds = IPA_CHARTS[accent];
-  const targets = useMemo<Target[]>(() => sounds.flatMap(sound => [
-    { key: `${accent}:${sound.id}:sound:`, soundId: sound.id, symbol: sound.symbol, type: "sound" as const, word: "", description: "Isolated phoneme" },
-    ...sound.examples.map(example => {
-      const word = plainWord(example);
-      return { key: `${accent}:${sound.id}:word:${word}`, soundId: sound.id, symbol: sound.symbol, type: "word" as const, word, description: `Example word for /${sound.symbol}/` };
-    }),
-  ]), [accent, sounds]);
-  const assetMap = useMemo(() => new Map(assets.filter(item => item.accent === accent).map(item => [`${accent}:${item.soundId}:${item.assetType}:${item.word}`, item])), [accent, assets]);
+  const sounds = charts[accent];
+  const targets = useMemo<Target[]>(() => {
+    const wordIds = new Map(catalogWords.filter(word => word.isActive).map(word => [word.normalizedSpelling, word.id]));
+    const seenWords = new Set<string>();
+    return sounds.flatMap(sound => [
+      { key: `${accent}:${sound.id}:sound:`, soundId: sound.id, symbol: sound.symbol, type: "sound" as const, word: "", wordId: null, description: "Isolated phoneme" },
+      ...sound.examples.flatMap(example => {
+        const word = plainWord(example);
+        const wordId = wordIds.get(word.toLocaleLowerCase("en-US")) ?? null;
+        if (wordId && seenWords.has(wordId)) return [];
+        if (wordId) seenWords.add(wordId);
+        return [{ key: wordId ? `${accent}:word:${wordId}` : `${accent}:${sound.id}:word:${word}`, soundId: sound.id, symbol: sound.symbol, type: "word" as const, word, wordId, description: `Example word for /${sound.symbol}/` }];
+      }),
+    ]);
+  }, [accent, sounds, catalogWords]);
+  const assetMap = useMemo(() => {
+    const result = new Map<string, LocalAsset>();
+    for (const item of assets.filter(asset => asset.accent === accent).sort((left, right) => Date.parse(right.reviewedAt ?? "") - Date.parse(left.reviewedAt ?? ""))) {
+      const key = item.assetType === "word" && item.wordId ? `${accent}:word:${item.wordId}` : `${accent}:${item.soundId}:${item.assetType}:${item.word}`;
+      if (!result.has(key) || (!result.get(key)?.livePublicUrl && item.livePublicUrl)) result.set(key, item);
+    }
+    return result;
+  }, [accent, assets]);
   const readyCount = targets.filter(target => Boolean(assetMap.get(target.key)?.livePublicUrl)).length;
   const approvedCount = targets.filter(target => assetMap.get(target.key)?.status === "APPROVED").length;
   const remainingTargets = targets.filter(target => {
@@ -97,7 +113,7 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
     try {
       const response = await fetch("/api/admin/ipa-chart/audio/generate", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ accent, soundId: target.soundId, assetType: target.type, word: target.word, forceRegenerate }),
+        body: JSON.stringify({ accent, soundId: target.soundId, assetType: target.type, word: target.word, wordId: target.wordId, forceRegenerate }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -107,7 +123,7 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets 
       }
       if (data.skipped) { setMessage(data.message || "This item already has audio, so it was left unchanged."); return { status: "ok" } satisfies GenerateResult; }
       const item: LocalAsset = {
-        id: data.id, accent, soundId: target.soundId, assetType: target.type, word: target.word,
+        id: data.id, accent, soundId: target.soundId, assetType: target.type, word: target.word, wordId: target.wordId,
         status: "READY_FOR_REVIEW", livePublicUrl: assetMap.get(target.key)?.livePublicUrl ?? null,
         pendingPublicUrl: data.url, mimeType: data.mimeType ?? "audio/ogg", voiceName: accentSettings.voiceName,
         style: accentSettings.style, pace: accentSettings.pace, settingsRevision: accentSettings.settingsRevision,

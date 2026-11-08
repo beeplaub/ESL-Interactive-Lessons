@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { IpaChart } from "@/components/ipa/IpaChart";
 import { getIpaAudioManifest } from "@/lib/ipa/audio";
-import { getIpaChartSettings } from "@/lib/ipa/settings";
+import { getIpaChartCatalog } from "@/lib/ipa/catalog";
 
 export const metadata: Metadata = {
   title: "Interactive IPA Chart | BrenUp",
@@ -10,6 +10,6 @@ export const metadata: Metadata = {
 };
 
 export default async function IpaChartPage() {
-  const [audio, settings] = await Promise.all([getIpaAudioManifest(), getIpaChartSettings()]);
-  return <LearnerAppShell active="ipa-chart" showRightSidebar={false}><IpaChart audio={audio} view={settings.view} /></LearnerAppShell>;
+  const [audio, charts] = await Promise.all([getIpaAudioManifest(), getIpaChartCatalog()]);
+  return <LearnerAppShell active="ipa-chart" showRightSidebar={false}><IpaChart audio={audio} charts={charts} /></LearnerAppShell>;
 }

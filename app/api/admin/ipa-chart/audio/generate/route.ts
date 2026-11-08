@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
-import { IPA_CHARTS, IPA_ACCENTS, plainWord } from "@/lib/ipa/chart";
+import { IPA_ACCENTS, plainWord } from "@/lib/ipa/chart";
+import { getIpaChartCatalog } from "@/lib/ipa/catalog";
 import { IPA_GEMINI_VOICES, type IpaGeminiVoice } from "@/lib/ipa/audio";
 import { IPA_VOICEOVER_MODEL, VOICEOVER_PACES, VOICEOVER_STYLES, generateVoiceoverAudio, isVoiceoverQuotaError, voiceoverRequestHash } from "@/lib/ai/voiceover";
 import { claimAiGeneration, releaseAiGeneration } from "@/lib/ai/efficiency";
@@ -26,6 +27,7 @@ const schema = z.object({
   soundId: z.string().trim().min(1).max(40),
   assetType: z.enum(["sound", "word"]),
   word: z.string().trim().max(80).default(""),
+  wordId: z.string().uuid().nullable().optional(),
   forceRegenerate: z.boolean().default(false),
 });
 
@@ -51,12 +53,25 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse("Choose a valid accent, sound, and audio target.", 400);
   const input = parsed.data;
-  const sound = IPA_CHARTS[input.accent].find(item => item.id === input.soundId);
+  const charts = await getIpaChartCatalog();
+  const sound = charts[input.accent].find(item => item.id === input.soundId);
   if (!sound) return errorResponse("That sound is not part of this chart accent.", 404);
   const word = input.assetType === "word" ? input.word : "";
   if (input.assetType === "word" && !sound.examples.some(example => plainWord(example) === word)) return errorResponse("Choose one of this sound’s example words.", 400);
 
   const admin = createAdminClient();
+  let wordId = input.assetType === "word" ? input.wordId ?? null : null;
+  if (wordId) {
+    const [{ data: catalogWord, error: wordError }, { data: pronunciation, error: pronunciationError }] = await Promise.all([
+      admin.from("ipa_chart_words").select("id,spelling,is_active").eq("id", wordId).maybeSingle(),
+      admin.from("ipa_chart_word_pronunciations").select("word_id").eq("word_id", wordId).eq("accent", input.accent).eq("sound_id", sound.id).maybeSingle(),
+    ]);
+    if (wordError || pronunciationError) return errorResponse("The word catalog is unavailable. Apply its migration before generating audio.", 503);
+    if (!catalogWord?.is_active || catalogWord.spelling.toLocaleLowerCase("en-US") !== word.toLocaleLowerCase("en-US") || !pronunciation) return errorResponse("Choose an active chart word and one of its saved accent pronunciations.", 400);
+  } else if (input.assetType === "word") {
+    const { data: existingWord } = await admin.from("ipa_chart_words").select("id").eq("normalized_spelling", word.toLocaleLowerCase("en-US")).maybeSingle();
+    wordId = existingWord?.id ?? null;
+  }
   const { data: settings, error: settingsError } = await admin.from("ipa_chart_audio_settings")
     .select("voice_name,style,pace,settings_revision").eq("accent", input.accent).maybeSingle();
   if (settingsError || !settings) return errorResponse("IPA audio settings are unavailable. Apply the IPA audio migration, then try again.", 503);
@@ -66,8 +81,17 @@ export async function POST(request: Request) {
     .select("id,status,live_public_url,pending_public_url")
     .eq("accent", input.accent).eq("sound_id", sound.id).eq("asset_type", input.assetType).eq("word", word).maybeSingle();
   if (existingError) return errorResponse("IPA audio records are unavailable. Apply the IPA audio migration, then try again.", 503);
-  if (!input.forceRegenerate && (existing?.status === "APPROVED" || existing?.status === "READY_FOR_REVIEW" || Boolean(existing?.live_public_url || existing?.pending_public_url))) {
-    return NextResponse.json({ skipped: true, status: existing?.status, message: "This item already has generated or approved audio; it was left unchanged." });
+  let reusableAsset = existing;
+  if (wordId && input.assetType === "word") {
+    const { data: linkedAsset, error: linkedAssetError } = await admin.from("ipa_chart_audio_assets")
+      .select("id,status,live_public_url,pending_public_url")
+      .eq("accent", input.accent).eq("asset_type", "word").eq("word_id", wordId)
+      .order("reviewed_at", { ascending: false }).limit(1).maybeSingle();
+    if (linkedAssetError) return errorResponse("Linked IPA word audio is unavailable. Apply the IPA word catalog migration, then try again.", 503);
+    reusableAsset = linkedAsset ?? existing;
+  }
+  if (!input.forceRegenerate && (reusableAsset?.status === "APPROVED" || reusableAsset?.status === "READY_FOR_REVIEW" || Boolean(reusableAsset?.live_public_url || reusableAsset?.pending_public_url))) {
+    return NextResponse.json({ skipped: true, status: reusableAsset?.status, message: "This word already has generated or approved audio; it was left unchanged." });
   }
 
   const instruction = input.assetType === "sound"
@@ -105,7 +129,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
     failureStage = "database";
     const { data: savedAsset, error: saveError } = await admin.from("ipa_chart_audio_assets").upsert({
-      accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word,
+      accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, ...(wordId ? { word_id: wordId } : {}),
       status: "READY_FOR_REVIEW", pending_public_url: stored.url,
       pending_storage_provider: stored.provider, pending_storage_bucket: stored.bucket, pending_storage_path: stored.path,
       mime_type: generated.mimeType, file_size: generated.audio.byteLength,
@@ -122,7 +146,7 @@ export async function POST(request: Request) {
       input_tokens: generated.inputTokens, output_tokens: generated.outputTokens, latency_ms: Date.now() - startedAt,
       cache_hit: false, cache_key: requestHash, prompt_version: "ipa-chart-audio-v1", completed_at: now,
     });
-    return NextResponse.json({ ok: true, id: savedAsset.id, status: "READY_FOR_REVIEW", url: stored.url, mimeType: generated.mimeType, soundId: sound.id, assetType: input.assetType, word });
+    return NextResponse.json({ ok: true, id: savedAsset.id, status: "READY_FOR_REVIEW", url: stored.url, mimeType: generated.mimeType, soundId: sound.id, assetType: input.assetType, word, wordId });
   } catch (error) {
     const quota = isVoiceoverQuotaError(error);
     const tooLong = error instanceof IpaAudioTooLongError;
@@ -147,7 +171,7 @@ export async function POST(request: Request) {
     const { data: current } = await admin.from("ipa_chart_audio_assets").select("live_public_url,status,pending_public_url")
       .eq("accent", input.accent).eq("sound_id", sound.id).eq("asset_type", input.assetType).eq("word", word).maybeSingle();
     if (!current?.live_public_url && !current?.pending_public_url) {
-      await admin.from("ipa_chart_audio_assets").upsert({ accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, status: "FAILED", voice_name: settings.voice_name, style: settings.style, pace: settings.pace, settings_revision: settings.settings_revision ?? 1, generation_model: IPA_VOICEOVER_MODEL, generated_by: session.user.id, error_message: failureMessage, updated_at: new Date().toISOString() }, { onConflict: "accent,sound_id,asset_type,word" });
+      await admin.from("ipa_chart_audio_assets").upsert({ accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, ...(wordId ? { word_id: wordId } : {}), status: "FAILED", voice_name: settings.voice_name, style: settings.style, pace: settings.pace, settings_revision: settings.settings_revision ?? 1, generation_model: IPA_VOICEOVER_MODEL, generated_by: session.user.id, error_message: failureMessage, updated_at: new Date().toISOString() }, { onConflict: "accent,sound_id,asset_type,word" });
     }
     await admin.from("ai_generations").insert({ user_id: session.user.id, user_role: session.profile?.role ?? "ADMIN", feature_key: "ipa_chart_audio", model_used: "Gemini TTS", prompt_raw: `${instruction}\n\n${voiceRequest.script}`.slice(0, 2_000), error_message: failureMessage, provider: "google", status: "FAILED", latency_ms: Date.now() - startedAt, cache_key: requestHash, prompt_version: "ipa-chart-audio-v1", completed_at: new Date().toISOString() });
     return errorResponse(failureMessage, quota ? 429 : status === 400 ? 502 : tooLong ? 422 : 503);
