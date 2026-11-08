@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>IPA Snakes and Ladders — Board Mock</title>
   <style>
-    :root { color-scheme: light; --ink:#182338; --muted:#66738a; --line:#dbe1eb; --paper:#f5f6fa; --purple:#6548c7; --purple-dark:#4932a4; --orange:#f16a4c; --mint:#ccefe3; --sky:#cfe8ff; --yellow:#ffedb6; }
+    :root { color-scheme: light; --ink:#182338; --muted:#66738a; --line:#dbe1eb; --paper:#f5f6fa; --purple:#6548c7; --purple-dark:#4932a4; --orange:#f16a4c; --coral:#f16a4c; --mint:#ccefe3; --sky:#cfe8ff; --yellow:#ffedb6; }
     * { box-sizing:border-box }
     [hidden] { display:none !important }
     body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif }
@@ -95,6 +95,33 @@
     .modal-backdrop { position:fixed; inset:0; z-index:10; display:none; place-items:center; padding:16px; background:#10162990; backdrop-filter:blur(4px) }
     .modal-backdrop.open { display:grid }
     .modal { width:min(510px,100%); border:1px solid #ffffff80; border-radius:24px; background:white; box-shadow:0 24px 80px #10162955; padding:22px }
+    .modal-backdrop.result-mode { padding:12px }
+    .modal.result-mode { height:252px; padding:0; overflow:hidden; border:1px solid #e6e2ef; border-radius:22px; box-shadow:0 14px 38px #25204414 }
+    .turn-result { width:100%; height:100%; padding:18px 20px 17px; display:flex; flex-direction:column; justify-content:space-between }
+    .turn-result-header,.turn-result-footer { display:flex; align-items:center; justify-content:space-between; gap:10px }
+    .turn-result-header { align-items:flex-start }
+    .turn-result-kicker { margin:0 0 4px; color:var(--purple); font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase }
+    .turn-result-title { margin:0; color:var(--ink); font-size:23px; line-height:1.1; letter-spacing:-.04em }
+    .turn-result-close { width:32px; height:32px; flex:none; border:1px solid var(--line); border-radius:10px; background:white; color:var(--muted); font-size:20px; line-height:1; cursor:pointer }
+    .turn-result-reward { min-height:86px; display:grid; grid-template-columns:.9fr 1.1fr; align-items:center; gap:14px; padding:11px 14px; border:1px solid #ccebdc; border-radius:15px; background:linear-gradient(105deg,#effaf5,#f7fbfa) }
+    .turn-result-points { display:flex; flex-direction:column; gap:3px }
+    .turn-result-points strong { color:var(--purple-dark); font-size:24px; line-height:1.1; letter-spacing:-.04em }
+    .turn-result-move { border-left:1px solid #d5e9df; padding-left:15px }
+    .turn-result-move strong { font-size:14px; line-height:1.2 }
+    .turn-result-path { display:flex; align-items:center; gap:7px; min-height:17px; margin-top:7px }
+    .turn-result-path i { width:7px; height:7px; border-radius:50%; background:#a793e2 }
+    .turn-result-path i:last-of-type { background:var(--coral) }
+    .turn-result-path svg { width:34px; height:16px; flex:none; color:var(--coral) }
+    .turn-result-review,.turn-result-continue { min-height:40px; padding:0 15px; border-radius:11px; font-size:12px; font-weight:850; cursor:pointer }
+    .turn-result-review { border:1px solid #d9d2ed; background:white; color:var(--purple-dark) }
+    .turn-result-continue { border:0; background:var(--coral); color:white; font-weight:900; box-shadow:0 4px 10px #f16a4c35 }
+    .turn-result-close:focus-visible,.turn-result-review:focus-visible,.turn-result-continue:focus-visible { outline:3px solid #8a72d4; outline-offset:2px }
+    .turn-result-review:hover { background:#f8f6fc }
+    .turn-result-continue:hover { filter:brightness(.97) }
+    .reviewing .next { justify-content:space-between; gap:8px }
+    .reviewing .next button { flex:1; min-width:0 }
+    .reviewing #nextButton { border:1px solid #d9d2ed; background:white; color:var(--purple-dark) }
+    .reviewing #reviewMoveButton { border:0; background:var(--coral); color:white }
     .quit-confirm { width:min(356px,100%); padding:22px 20px 18px; border:1px solid #e8e2f1; border-radius:20px; background:white; box-shadow:0 20px 60px #10162935; text-align:center }
     .quit-confirm[hidden] { display:none!important }
     .quit-confirm-icon { display:grid; width:42px; height:42px; margin:0 auto 11px; place-items:center; border:1px solid #eee8f5; border-radius:14px; background:#f7f4fc; color:#6548c7; font-size:21px; font-weight:850 }
@@ -120,11 +147,14 @@
     .answer.correct { border-color:#4aa883; background:#e4f7ef; color:#166148 }
     .answer.wrong { border-color:#e58373; background:#fff0ed; color:#9e3f31 }
     .feedback { min-height:22px; margin-top:12px; color:#237653; font-size:12px; font-weight:800 }
+    .feedback.review-incorrect { color:#9e3f31 }
     .next { display:flex; justify-content:flex-end; margin-top:12px }
     .small-cta { min-height:42px; border:0; border-radius:11px; background:var(--purple); color:white; padding:0 17px; font-weight:900; cursor:pointer }
     @media (max-width:900px) { .board-note { font-size:10px } }
     @media (prefers-reduced-motion:reduce) { .eye,.pupil,.tongue { animation:none!important } }
     @media (max-width:680px) { .page { padding:16px 4px 30px }.topbar { margin:0 6px 18px }.brand-mark { width:34px;height:34px }.hero { display:block; margin:0 6px 15px }.intro { font-size:13px }.board-card { padding:4px; border-radius:17px }.board-toolbar { margin-bottom:0 }.legend { gap:7px; font-size:9px }.cell { padding:2px; font-size:clamp(7px,2.3vw,11px) }.player-pin { width:8.5%;height:9.5% }.board-note { font-size:10px }.game-controls { gap:5px; margin:0 0 8px }.game-controls button { flex:1; min-width:0; min-height:34px; padding:0 6px; font-size:10px } }
+    @media (max-width:520px) { .turn-result { padding:16px 14px 15px }.turn-result-title { font-size:21px }.turn-result-reward { grid-template-columns:.83fr 1.17fr; gap:8px; padding:10px }.turn-result-points strong { font-size:21px }.turn-result-move { padding-left:10px }.turn-result-move strong { font-size:12px }.turn-result-path { gap:5px }.turn-result-path i { width:6px;height:6px }.turn-result-path svg { width:29px }.turn-result-review,.turn-result-continue { flex:1; min-width:0; padding:0 8px; font-size:11px } }
+    @media (max-width:360px) { .turn-result { padding:14px 11px }.turn-result-title { font-size:20px }.turn-result-reward { grid-template-columns:.78fr 1.22fr; gap:6px; padding:9px }.turn-result-points strong { font-size:19px }.turn-result-move { padding-left:8px }.turn-result-move strong { font-size:11px }.turn-result-review,.turn-result-continue { padding:0 5px; font-size:10px } }
     @media (max-width:390px) { .top-actions { gap:6px }.select-wrap { font-size:10px }select { padding:8px 24px 8px 8px;font-size:11px }.ghost { padding:8px 9px;font-size:11px }.sound-toggle { padding:8px 9px;font-size:10px }.legend { gap:5px }.dot { width:7px;height:7px } }
   </style>
 </head>
@@ -165,14 +195,32 @@
   </main>
   <div class="modal-backdrop" id="modal">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-head"><div><p class="modal-kicker">IPA challenge · <span id="accentLabel">British English</span></p><h2 id="modalTitle">Question <span id="qNumber">1</span> of 1</h2></div><button type="button" class="close" id="closeModal" aria-label="Close question">×</button></div>
-      <div class="progress-wrap"><div class="progress" id="progress"></div></div>
-      <div class="q-meta" id="qType">HEAR AND IDENTIFY</div><p class="question" id="questionText">Which word contains /iː/?</p>
-      <button class="audio-button" type="button" id="audioButton">🔊 <span>Hear the sound</span></button>
-      <div class="answers" id="answers"></div>
-      <div class="feedback" id="feedback" role="status"></div>
-      <div class="score-breakdown" id="scoreBreakdown" hidden></div>
-      <div class="next"><button class="small-cta" type="button" id="nextButton" disabled>Choose an answer</button></div>
+      <div id="questionState">
+        <div class="modal-head"><div><p class="modal-kicker">IPA challenge · <span id="accentLabel">British English</span></p><h2 id="modalTitle">Question <span id="qNumber">1</span> of 1</h2></div><button type="button" class="close" id="closeModal" aria-label="Close question">×</button></div>
+        <div class="progress-wrap"><div class="progress" id="progress"></div></div>
+        <div class="q-meta" id="qType">HEAR AND IDENTIFY</div><p class="question" id="questionText">Which word contains /iː/?</p>
+        <button class="audio-button" type="button" id="audioButton">🔊 <span>Hear the sound</span></button>
+        <div class="answers" id="answers"></div>
+        <div class="feedback" id="feedback" role="status"></div>
+        <div class="next"><button class="small-cta" type="button" id="nextButton" disabled>Choose an answer</button><button class="small-cta" type="button" id="reviewMoveButton" hidden>Move forward →</button></div>
+      </div>
+      <section class="turn-result" id="turnResult" aria-label="Turn complete result" hidden>
+        <header class="turn-result-header">
+          <div><p class="turn-result-kicker">Turn complete</p><h2 class="turn-result-title" id="turnResultTitle">Great answer!</h2></div>
+          <button class="turn-result-close" id="turnResultClose" type="button" aria-label="Close turn result">×</button>
+        </header>
+        <div class="turn-result-reward">
+          <div class="turn-result-points"><strong id="turnResultPoints">+4 points</strong></div>
+          <div class="turn-result-move">
+            <strong id="turnResultMove">4 squares forward</strong>
+            <div class="turn-result-path" id="turnResultPath" aria-hidden="true"><i></i><i></i><i></i><svg viewBox="0 0 36 16" fill="none"><path d="M2 8h28m-7-6 7 6-7 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+        </div>
+        <footer class="turn-result-footer">
+          <button class="turn-result-review" id="reviewAnswerButton" type="button">Review answer</button>
+          <button class="turn-result-continue" id="moveForwardButton" type="button">Move 4 squares <span aria-hidden="true">→</span></button>
+        </footer>
+      </section>
     </section>
     <section class="quit-confirm" id="quitDialog" role="alertdialog" aria-modal="true" aria-labelledby="quitTitle" aria-describedby="quitDescription" tabindex="-1" hidden>
       <div class="quit-confirm-icon" aria-hidden="true">↗</div>
@@ -254,7 +302,7 @@
       state.asked.add(question.id);state.lastType=type;return question;
     }
     let qIndex=0, correct=0, answered=false;
-    let isMoving=false, turnActive=false, loadingQuestions=false, showSummary=false, turnScore=0, questionPoints=[], questionCorrect=[],saveToastTimer=0;
+    let isMoving=false, turnActive=false, loadingQuestions=false, showSummary=false, isReviewing=false, selectedAnswer='', turnScore=0, questionPoints=[], questionCorrect=[],saveToastTimer=0;
     let currentAudio=null;
     async function playQuestionRecording(src){
       if(!src)return false;
@@ -433,7 +481,8 @@
       if(isMoving||loadingQuestions||currentPosition.value>=100)return;
       getAudioContext();
       if(turnActive){modal.classList.add('open');return;}
-      turnActive=true;loadingQuestions=true;showSummary=false;qIndex=0;correct=0;turnScore=0;questionCorrect=[];
+      turnActive=true;loadingQuestions=true;showSummary=false;isReviewing=false;selectedAnswer='';qIndex=0;correct=0;turnScore=0;questionCorrect=[];
+      document.getElementById('questionState').hidden=false;document.getElementById('turnResult').hidden=true;modal.classList.remove('result-mode','reviewing');questionDialog.classList.remove('result-mode','reviewing');
       document.getElementById('turnStatus').textContent='Preparing your question…';
       practiceData=practiceData||await practiceDataPromise;
       audioManifest=await audioManifestPromise;
@@ -445,27 +494,52 @@
       loadingQuestions=false;renderQuestion();modal.classList.add('open');document.getElementById('accentLabel').textContent=document.getElementById('accent').selectedOptions[0].textContent;
     }
     function renderQuestion(){
-      const q=questions[qIndex];answered=false;showSummary=false;
+      const q=questions[qIndex];answered=false;showSummary=false;isReviewing=false;selectedAnswer='';
+      document.getElementById('questionState').hidden=false;document.getElementById('turnResult').hidden=true;modal.classList.remove('result-mode','reviewing');questionDialog.classList.remove('result-mode','reviewing');
+      questionDialog.setAttribute('aria-labelledby','modalTitle');
       document.getElementById('modalTitle').innerHTML='Question <span id="qNumber">1</span> of 1';
       document.getElementById('qType').hidden=false;document.getElementById('questionText').hidden=false;document.getElementById('audioButton').hidden=false;
-      document.getElementById('answers').hidden=false;document.querySelector('.progress-wrap').hidden=false;document.getElementById('feedback').hidden=false;document.getElementById('scoreBreakdown').hidden=true;
-      document.getElementById('progress').style.width='100%';document.getElementById('qType').textContent=q.type;document.getElementById('questionText').textContent=q.text;document.querySelector('#audioButton span').textContent=q.sound.startsWith('Hear')?q.sound:`Hear ${q.sound}`;document.getElementById('feedback').textContent='';nextButton.disabled=true;nextButton.textContent='Choose an answer';
+      document.getElementById('answers').hidden=false;document.querySelector('.progress-wrap').hidden=false;document.getElementById('feedback').hidden=false;
+      document.getElementById('progress').style.width='100%';document.getElementById('qType').textContent=q.type;document.getElementById('questionText').textContent=q.text;document.querySelector('#audioButton span').textContent=q.sound.startsWith('Hear')?q.sound:`Hear ${q.sound}`;const feedback=document.getElementById('feedback');feedback.textContent='';feedback.classList.remove('review-incorrect');nextButton.disabled=true;nextButton.hidden=false;nextButton.textContent='Choose an answer';document.getElementById('reviewMoveButton').hidden=true;document.getElementById('reviewMoveButton').disabled=false;document.getElementById('moveForwardButton').disabled=false;
       const wrap=document.getElementById('answers');wrap.innerHTML='';for(const choice of q.choices){const button=document.createElement('button');button.type='button';button.className='answer';button.textContent=choice;button.addEventListener('click',()=>selectAnswer(button,choice,q.answer));wrap.appendChild(button);}
     }
     function selectAnswer(button,choice,answer){
-      if(answered)return;answered=true;const ok=choice===answer;button.classList.add(ok?'correct':'wrong');
+      if(answered)return;answered=true;selectedAnswer=choice;const ok=choice===answer;button.classList.add(ok?'correct':'wrong');
       questionCorrect[qIndex]=ok;
       if(ok){correct++;turnScore+=questionPoints[qIndex];document.getElementById('feedback').textContent='Correct.';}
       else{document.getElementById('feedback').textContent=`Not quite. Correct answer: ${answer}`;document.querySelectorAll('.answer').forEach(el=>{if(el.textContent===answer)el.classList.add('correct');});}
       showRoundScore();
     }
     function showRoundScore(){
-      showSummary=true;document.getElementById('modalTitle').textContent='Turn score';
-      for(const id of ['qType','questionText','audioButton','answers','progress-wrap','feedback']){const el=id==='progress-wrap'?document.querySelector('.progress-wrap'):document.getElementById(id);if(el)el.hidden=true;}
-      const breakdown=document.getElementById('scoreBreakdown');breakdown.hidden=false;
-      const lines=questionPoints.map((points,index)=>`<div class="score-line"><span>${questionCorrect[index]?'Correct':'Incorrect'} · hidden value <strong>${points} ${points===1?'point':'points'}</strong></span><span>${questionCorrect[index]?`+${points}`:'0 points'}</span></div>`).join('');
-      breakdown.innerHTML=`${lines}<div class="score-total">Turn score: ${turnScore} points · move ${turnScore} ${turnScore===1?'square':'squares'}</div>`;
-      nextButton.disabled=false;nextButton.textContent=`Move ${turnScore} ${turnScore===1?'square':'squares'}`;
+      showSummary=true;isReviewing=false;document.getElementById('questionState').hidden=true;document.getElementById('turnResult').hidden=false;
+      modal.classList.add('result-mode');questionDialog.classList.add('result-mode');questionDialog.classList.remove('reviewing');
+      questionDialog.setAttribute('aria-labelledby','turnResultTitle');
+      const movingSquares=Math.min(turnScore,100-currentPosition.value),correctAnswer=questionCorrect[qIndex];
+      document.getElementById('turnResultTitle').textContent=correctAnswer?'Great answer!':'Turn complete';
+      document.getElementById('turnResultPoints').textContent=turnScore?`+${turnScore} ${turnScore===1?'point':'points'}`:'0 points';
+      document.getElementById('turnResultMove').textContent=movingSquares?`${movingSquares} ${movingSquares===1?'square':'squares'} forward`:'No move this turn';
+      document.getElementById('turnResultPath').hidden=movingSquares===0;
+      document.getElementById('moveForwardButton').innerHTML=movingSquares?`Move ${movingSquares} ${movingSquares===1?'square':'squares'} <span aria-hidden="true">→</span>`:'Continue <span aria-hidden="true">→</span>';
+      nextButton.disabled=false;document.getElementById('moveForwardButton').disabled=false;document.getElementById('reviewMoveButton').disabled=false;document.getElementById('reviewMoveButton').textContent=movingSquares?`Move ${movingSquares} ${movingSquares===1?'square':'squares'} →`:'Continue →';
+    }
+    function reviewAnswer(){
+      if(!showSummary)return;
+      isReviewing=true;document.getElementById('turnResult').hidden=true;document.getElementById('questionState').hidden=false;
+      modal.classList.remove('result-mode');questionDialog.classList.remove('result-mode');questionDialog.classList.add('reviewing');
+      questionDialog.setAttribute('aria-labelledby','modalTitle');
+      document.getElementById('modalTitle').textContent='Review your answer';
+      const feedback=document.getElementById('feedback');
+      const correctAnswer=questionCorrect[qIndex];
+      feedback.textContent=correctAnswer?`You chose “${selectedAnswer}”. Your answer was correct.`:`You chose “${selectedAnswer}”. Your answer was incorrect; the correct answer is highlighted.`;
+      feedback.classList.toggle('review-incorrect',!correctAnswer);
+      nextButton.disabled=false;nextButton.textContent='Back to turn result';
+      const moveButton=document.getElementById('reviewMoveButton');moveButton.hidden=false;
+    }
+    function returnToTurnResult(){
+      if(!showSummary)return;
+      isReviewing=false;document.getElementById('questionState').hidden=true;document.getElementById('turnResult').hidden=false;
+      modal.classList.add('result-mode');questionDialog.classList.add('result-mode');questionDialog.classList.remove('reviewing');
+      questionDialog.setAttribute('aria-labelledby','turnResultTitle');
     }
     function setPlayerPoint(point,number=currentPosition.value,moving=false){
       playerPin.style.left=`${point.x/10}%`;playerPin.style.top=`${point.y/10}%`;
@@ -488,7 +562,7 @@
     const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     async function travelSnake(head,tail){for(let step=1;step<=22;step++){setPlayerPoint(snakePoint(head,tail,step/22),head,true);await wait(48);}setSquare(tail,true);}
     async function finishTurn(){
-      nextButton.disabled=true;modal.classList.remove('open');isMoving=true;
+      nextButton.disabled=true;document.getElementById('reviewMoveButton').disabled=true;document.getElementById('moveForwardButton').disabled=true;modal.classList.remove('open');isMoving=true;isReviewing=false;
       const prior=currentPosition.value,scored=Math.min(100,prior+turnScore);
       for(let n=prior+1;n<=scored;n++){setSquare(n,true);await wait(260);}
       let landing=scored,special='';
@@ -502,7 +576,10 @@
     }
     playerPin.innerHTML=avatarMarkup();
     setPlayerPoint(square(currentPosition.value),currentPosition.value,false);
-    nextButton.addEventListener('click',()=>{if(showSummary)finishTurn();});
+    nextButton.addEventListener('click',()=>{if(isReviewing)returnToTurnResult();});
+    document.getElementById('reviewAnswerButton').addEventListener('click',reviewAnswer);
+    document.getElementById('moveForwardButton').addEventListener('click',()=>{if(showSummary)finishTurn();});
+    document.getElementById('reviewMoveButton').addEventListener('click',()=>{if(showSummary)finishTurn();});
     playerPin.addEventListener('click',openTurn);
     document.getElementById('playButton').addEventListener('click',openTurn);
     document.getElementById('saveButton').addEventListener('click',()=>{
@@ -522,7 +599,7 @@
       currentPosition.value=1;lastSavedPosition=1;hasSavedCheckpoint=false;setPlayerPoint(square(1),1,false);
       for(const accent of ['uk','us'])questionProgress[accent]={asked:new Set(),cycle:[],lastType:null};
       try { localStorage.removeItem(progressStorageKey); } catch {}
-      modal.classList.remove('open');showSummary=false;turnActive=false;turnScore=0;
+      modal.classList.remove('open','result-mode');questionDialog.classList.remove('result-mode','reviewing');showSummary=false;isReviewing=false;turnActive=false;turnScore=0;
       document.getElementById('playButton').textContent='Play';
       document.getElementById('turnStatus').textContent='New game started.';
       void openTurn();
@@ -535,6 +612,7 @@
     document.getElementById('confirmQuitButton').addEventListener('click',()=>window.location.assign('/games'));
     document.getElementById('soundToggle').addEventListener('click',toggleSound);
     document.getElementById('closeModal').addEventListener('click',()=>modal.classList.remove('open'));
+    document.getElementById('turnResultClose').addEventListener('click',()=>modal.classList.remove('open'));
     document.getElementById('audioButton').addEventListener('click',async()=>{
       const q=questions[qIndex];if(currentAudio){currentAudio.pause();currentAudio=null;}
       for(let index=0;index<q.audioSources.length;index++){
