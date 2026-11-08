@@ -702,16 +702,16 @@ function IpaPracticeEditor({ activity, onSave }: { activity: Activity; onSave: (
 }
 
 type ListenBuildPickerWord = { id: string; word: string; ipa_uk: string; ipa_us: string; audio_url_uk: string; audio_url_us: string };
-type ListenBuildItem = { id: string; word_id: string; word: string; ipa_uk: string; ipa_us: string; audio_url_uk: string; audio_url_us: string; audio_url?: string };
+type ListenBuildItem = { id: string; word_id: string; word: string; ipa_uk: string; ipa_us: string; audio_url_uk: string; audio_url_us: string; audio_url?: string; accent: "uk" | "us" };
 function IpaListenBuildEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const data = asRecord(activity.activity_data);
   const [title, setTitle] = useState(String(data.title ?? "Listen & Build IPA"));
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the word and build its IPA."));
   const initialItems = Array.isArray(data.items) ? data.items.map((item, index) => {
     const row = asRecord(item as Json);
-    return { id: String(row.id ?? `word-${index + 1}`), word_id: String(row.word_id ?? ""), word: String(row.word ?? ""), ipa_uk: String(row.ipa_uk ?? ""), ipa_us: String(row.ipa_us ?? ""), audio_url_uk: String(row.audio_url_uk ?? ""), audio_url_us: String(row.audio_url_us ?? ""), audio_url: String(row.audio_url ?? "") };
+    return { id: String(row.id ?? `word-${index + 1}`), word_id: String(row.word_id ?? ""), word: String(row.word ?? ""), ipa_uk: String(row.ipa_uk ?? ""), ipa_us: String(row.ipa_us ?? ""), audio_url_uk: String(row.audio_url_uk ?? ""), audio_url_us: String(row.audio_url_us ?? ""), audio_url: String(row.audio_url ?? ""), accent: (row.accent === "us" || data.accent === "us" ? "us" : "uk") as "uk" | "us" };
   }) : [];
-  const [items, setItems] = useState<ListenBuildItem[]>(() => initialItems.length ? initialItems : [{ id: crypto.randomUUID(), word_id: "", word: "", ipa_uk: "", ipa_us: "", audio_url_uk: "", audio_url_us: "" }]);
+  const [items, setItems] = useState<ListenBuildItem[]>(() => initialItems.length ? initialItems : [{ id: crypto.randomUUID(), word_id: "", word: "", ipa_uk: "", ipa_us: "", audio_url_uk: "", audio_url_us: "", accent: "uk" }]);
   const [availableWords, setAvailableWords] = useState<ListenBuildPickerWord[]>([]);
   const [loadingWords, setLoadingWords] = useState(true);
   useEffect(() => {
@@ -725,9 +725,9 @@ function IpaListenBuildEditor({ activity, onSave }: { activity: Activity; onSave
   const selectWord = (index: number, wordId: string) => {
     const selected = availableWords.find(word => word.id === wordId);
     if (!selected) return;
-    updateItem(index, { ...selected, word_id: selected.id });
+    updateItem(index, { ...selected, word_id: selected.id, accent: items[index]?.accent ?? "uk" });
   };
-  const addWord = () => setItems(current => [...current, { id: crypto.randomUUID(), word_id: "", word: "", ipa_uk: "", ipa_us: "", audio_url_uk: "", audio_url_us: "" }]);
+  const addWord = () => setItems(current => [...current, { id: crypto.randomUUID(), word_id: "", word: "", ipa_uk: "", ipa_us: "", audio_url_uk: "", audio_url_us: "", accent: "uk" }]);
   const removeWord = (index: number) => setItems(current => current.length > 1 ? current.filter((_, itemIndex) => itemIndex !== index) : current);
   const readyItems = items.filter(item => item.word.trim() && item.ipa_uk.trim() && item.ipa_us.trim() && (item.word_id ? item.audio_url_uk.trim() && item.audio_url_us.trim() : item.audio_url?.trim()));
   const complete = readyItems.length === items.length && items.length > 0;
@@ -738,14 +738,17 @@ function IpaListenBuildEditor({ activity, onSave }: { activity: Activity; onSave
     </div>
     <p className="text-xs leading-5 text-[var(--br-text-muted)]">Choose words from the IPA chart. Only words with approved British and American recordings appear; their IPA and audio are reused from the chart.</p>
     {items.map((item, index) => <div key={item.id} className="grid gap-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2">
         <label className="text-xs font-bold">Word {index + 1}<select value={item.word_id || (item.audio_url && item.word ? `legacy:${item.id}` : "")} disabled={loadingWords || availableWords.length === 0} onChange={event => selectWord(index, event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-sm"> <option value="">{loadingWords ? "Loading chart words…" : availableWords.length ? "Choose a recorded chart word" : "No words have both accent recordings yet"}</option>{item.audio_url && item.word && !item.word_id ? <option value={`legacy:${item.id}`}>{item.word} · existing activity audio</option> : null}{availableWords.map(word => <option key={word.id} value={word.id}>{word.word}</option>)}</select></label>
-        <div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg bg-white p-2"><span className="font-bold text-[var(--br-text-muted)]">British</span><span className="mt-1 block font-data text-base">{item.ipa_uk ? `/${item.ipa_uk}/` : "—"}</span></div><div className="rounded-lg bg-white p-2"><span className="font-bold text-[var(--br-text-muted)]">American</span><span className="mt-1 block font-data text-base">{item.ipa_us ? `/${item.ipa_us}/` : "—"}</span></div></div>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <div className="grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg bg-white p-2"><span className="font-bold text-[var(--br-text-muted)]">British</span><span className="mt-1 block font-data text-base">{item.ipa_uk ? `/${item.ipa_uk}/` : "—"}</span></div><div className="rounded-lg bg-white p-2"><span className="font-bold text-[var(--br-text-muted)]">American</span><span className="mt-1 block font-data text-base">{item.ipa_us ? `/${item.ipa_us}/` : "—"}</span></div></div>
+          <div className="flex items-center gap-1.5 rounded-lg border border-[var(--br-border)] bg-white p-1" role="group" aria-label={`Starting accent for word ${index + 1}`}><span className="px-1 text-[10px] font-bold text-[var(--br-text-muted)]">Starts in</span>{(["uk", "us"] as const).map(accent => <button key={accent} type="button" aria-pressed={item.accent === accent} onClick={() => updateItem(index, { accent })} className={`min-h-8 rounded-md px-2 text-[10px] font-extrabold transition ${item.accent === accent ? accent === "uk" ? "bg-[var(--br-action)] text-white" : "bg-[var(--br-brand)] text-white" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>{accent === "uk" ? "British" : "American"}</button>)}</div>
+        </div>
       </div>
       <button type="button" onClick={() => removeWord(index)} disabled={items.length <= 1} className="min-h-10 rounded-lg border border-[var(--br-border)] px-3 text-xs font-bold text-[var(--br-text-muted)] hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">Remove</button>
     </div>)}
     <div className="flex flex-wrap items-center justify-between gap-2"><button type="button" disabled={loadingWords || availableWords.length === 0} onClick={addWord} className="inline-flex min-h-10 items-center rounded-lg border border-[var(--br-border)] bg-white px-3 text-sm font-bold text-[var(--br-brand)] disabled:cursor-not-allowed disabled:opacity-50">Add another word</button><span className="text-xs text-[var(--br-text-muted)]">{items.length} {items.length === 1 ? "word" : "words"}</span></div>
-    <SaveButton disabled={!complete} onClick={() => onSave({ title: title.trim(), prompt: prompt.trim(), accent: "uk", items: readyItems } as unknown as Json, false)} />
+    <SaveButton disabled={!complete} onClick={() => onSave({ title: title.trim(), prompt: prompt.trim(), accent: readyItems[0]?.accent ?? "uk", items: readyItems } as unknown as Json, false)} />
   </div>;
 }
 

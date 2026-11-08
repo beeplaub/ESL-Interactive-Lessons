@@ -52,20 +52,22 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
     || accentSettings.pace !== savedAccentSettings.pace;
   const visibleVoices = IPA_GEMINI_VOICES.filter(voice => genderFilter === "All" || IPA_GEMINI_VOICE_DETAILS[voice].gender === genderFilter);
   const sounds = charts[accent];
+  const catalogWordIds = useMemo(() => new Map(
+    catalogWords.filter(word => word.isActive).map(word => [word.normalizedSpelling, word.id]),
+  ), [catalogWords]);
   const targets = useMemo<Target[]>(() => {
-    const wordIds = new Map(catalogWords.filter(word => word.isActive).map(word => [word.normalizedSpelling, word.id]));
     const seenWords = new Set<string>();
     return sounds.flatMap(sound => [
       { key: `${accent}:${sound.id}:sound:`, soundId: sound.id, symbol: sound.symbol, type: "sound" as const, word: "", wordId: null, description: "Isolated phoneme" },
       ...sound.examples.flatMap(example => {
         const word = plainWord(example);
-        const wordId = wordIds.get(word.toLocaleLowerCase("en-US")) ?? null;
+        const wordId = catalogWordIds.get(word.toLocaleLowerCase("en-US")) ?? null;
         if (wordId && seenWords.has(wordId)) return [];
         if (wordId) seenWords.add(wordId);
         return [{ key: wordId ? `${accent}:word:${wordId}` : `${accent}:${sound.id}:word:${word}`, soundId: sound.id, symbol: sound.symbol, type: "word" as const, word, wordId, description: `Example word for /${sound.symbol}/` }];
       }),
     ]);
-  }, [accent, sounds, catalogWords]);
+  }, [accent, sounds, catalogWordIds]);
   const assetMap = useMemo(() => {
     const result = new Map<string, LocalAsset>();
     for (const item of assets.filter(asset => asset.accent === accent).sort((left, right) => Date.parse(right.reviewedAt ?? "") - Date.parse(left.reviewedAt ?? ""))) {
@@ -208,8 +210,13 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
       const soundTarget = targets.find(target => target.type === "sound" && target.soundId === sound.id)!;
       const soundAsset = assetMap.get(soundTarget.key);
       const accentExamples = sound.examples.map(example => ({ word: plainWord(example), ipa: example.ipa }));
+      const wordTargets = accentExamples.flatMap(example => {
+        const wordId = catalogWordIds.get(example.word.toLocaleLowerCase("en-US"));
+        const target = targets.find(item => item.type === "word" && (wordId ? item.wordId === wordId : item.soundId === sound.id && item.word === example.word));
+        return target ? [target] : [];
+      });
       return <details key={sound.id} className="group rounded-xl border border-[var(--br-border)]"><summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 px-3 py-3 sm:px-4"><span className="grid size-10 place-items-center rounded-lg bg-[var(--br-surface-muted)] font-mono text-xl font-bold text-[var(--br-brand)]">/{sound.symbol}/</span><span className="min-w-28 flex-1"><span className="block text-sm font-bold text-[var(--br-text)]">{sound.name}</span><span className="text-xs text-[var(--br-text-muted)]">{statusLabel(soundAsset)} · {accentExamples.length} example words</span></span><span className="text-xs font-semibold text-[var(--br-brand)]">Select sound or words <ChevronDown size={14} className="inline" /></span></summary><div className="grid gap-2 border-t border-[var(--br-border)] p-3 sm:grid-cols-2 sm:p-4">
-        {[soundTarget, ...accentExamples.map(example => targets.find(target => target.type === "word" && target.soundId === sound.id && target.word === example.word)!)].map(target => {
+        {[soundTarget, ...wordTargets].map(target => {
           const asset = assetMap.get(target.key);
           const isBusy = busy === target.key || busy === asset?.id;
           const src = asset?.pendingPublicUrl || asset?.livePublicUrl;

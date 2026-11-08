@@ -345,12 +345,12 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   if (activityType === "IPA_LISTEN_BUILD") {
     const items = (Array.isArray(data.items) ? data.items : []).map((value, index) => {
       const row = asRecord(value as Json);
-      return { id: String(row.id ?? `word-${index + 1}`), word_id: String(row.word_id ?? ""), prompt: String(row.word ?? ""), expected: String(row.ipa_uk ?? ""), expected_by_accent: { uk: String(row.ipa_uk ?? ""), us: String(row.ipa_us ?? "") }, audio_url_uk: String(row.audio_url_uk ?? ""), audio_url_us: String(row.audio_url_us ?? ""), audio_url: String(row.audio_url ?? "") };
+      return { id: String(row.id ?? `word-${index + 1}`), word_id: String(row.word_id ?? ""), prompt: String(row.word ?? ""), expected: String(row.ipa_uk ?? ""), expected_by_accent: { uk: String(row.ipa_uk ?? ""), us: String(row.ipa_us ?? "") }, audio_url_uk: String(row.audio_url_uk ?? ""), audio_url_us: String(row.audio_url_us ?? ""), audio_url: String(row.audio_url ?? ""), accent: row.accent === "us" ? "us" : "uk" };
     });
     return [{
       id: "1", question_number: 1, question_type: "IPA_PRACTICE",
       question_text: String(data.prompt ?? "Listen to the word and build its IPA."),
-      options: { mode: "listen-build", accent: "uk", title: String(data.title ?? ""), items, correct_by_accent: Object.fromEntries(items.map(item => [item.id, item.expected_by_accent])) } as unknown as Json,
+      options: { mode: "listen-build", accent: items[0]?.accent ?? "uk", title: String(data.title ?? ""), items, correct_by_accent: Object.fromEntries(items.map(item => [item.id, item.expected_by_accent])) } as unknown as Json,
       correct_answer: Object.fromEntries(items.map(item => [item.id, item.expected])) as Json,
     }];
   }
