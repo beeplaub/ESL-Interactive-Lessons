@@ -27,11 +27,13 @@ export function SoundDiscriminationLearnerCard({
   options,
   value,
   disabled,
+  reviewRoundIndex,
   onChange,
 }: {
   options: Json | null;
   value?: string;
   disabled: boolean;
+  reviewRoundIndex?: number;
   onChange: (value: string) => void;
 }) {
   const opts = asRecord(options);
@@ -76,6 +78,9 @@ export function SoundDiscriminationLearnerCard({
     audioRef.current = null;
     setPlaying(false);
   }, [activeIndex]);
+  useEffect(() => {
+    if (reviewRoundIndex != null) setActiveIndex(Math.max(0, Math.min(rounds.length - 1, reviewRoundIndex)));
+  }, [reviewRoundIndex, rounds.length]);
   useEffect(() => { setActiveIndex(index => Math.min(index, Math.max(0, rounds.length - 1))); }, [rounds.length]);
 
   function playTarget() {

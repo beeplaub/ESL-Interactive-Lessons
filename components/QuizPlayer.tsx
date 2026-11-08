@@ -573,6 +573,7 @@ export function QuizPlayer({
   const [guestAttempt, setGuestAttempt] = useState<PendingAttempt | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
+  const [soundReviewRoundIndex, setSoundReviewRoundIndex] = useState<number | undefined>();
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
   const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
   const [autoGradingActive, setAutoGradingActive] = useState(false);
@@ -680,6 +681,7 @@ export function QuizPlayer({
     setGuestAttempt(null);
     setCurrentIndex(0);
     setReviewMode("overview");
+    setSoundReviewRoundIndex(undefined);
     setEvaluationMode(null);
     setShowEvaluationDialog(false);
     setAutoGradingActive(false);
@@ -703,6 +705,7 @@ export function QuizPlayer({
     setSubmitted(true);
     setCurrentIndex(0);
     setReviewMode("overview");
+    setSoundReviewRoundIndex(undefined);
     setEvaluationMode(null);
     setShowEvaluationDialog(false);
     setAutoGradingActive(false);
@@ -749,7 +752,9 @@ export function QuizPlayer({
   }, [answers, autoGradingActive, hasPendingWritingGrading, hasSubjectiveQuestions, score, submitted, totalPoints]);
 
   function goToQuestion(nextIndex: number) {
-    setCurrentIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)));
+    const safeIndex = Math.max(0, Math.min(questions.length - 1, nextIndex));
+    setCurrentIndex(safeIndex);
+    if (questions[safeIndex]?.question_type !== "SOUND_DISCRIMINATION") setSoundReviewRoundIndex(undefined);
     if (submitted) setReviewMode("detail");
   }
 
@@ -947,7 +952,7 @@ export function QuizPlayer({
           encouragement={encouragement}
           timeTakenSeconds={timerMinutes ? timeTakenSeconds : undefined}
           bestStreak={bestStreak}
-          onSelectQuestion={goToQuestion}
+          onSelectQuestion={(index, roundIndex) => { setSoundReviewRoundIndex(roundIndex); goToQuestion(index); }}
           onRetake={reset}
           headerExtra={
             isGuest ? (
@@ -1009,6 +1014,7 @@ export function QuizPlayer({
               question={currentQuestion}
               value={answers[currentQuestion.id]}
               submitted={submitted}
+              soundDiscriminationReviewRoundIndex={currentQuestion.question_type === "SOUND_DISCRIMINATION" ? soundReviewRoundIndex : undefined}
               onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
               onResult={handleQuestionResult}
               quizId={quizId}
@@ -1106,6 +1112,7 @@ export function QuestionCard({
   question,
   value,
   submitted,
+  soundDiscriminationReviewRoundIndex,
   onChange,
   onResult,
   quizId,
@@ -1114,6 +1121,7 @@ export function QuestionCard({
   question: QuizQuestion;
   value: unknown;
   submitted: boolean;
+  soundDiscriminationReviewRoundIndex?: number;
   onChange: (value: unknown) => void;
   /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
   onResult?: (result: "correct" | "wrong" | "partial", questionId: string) => void;
@@ -1221,7 +1229,7 @@ export function QuestionCard({
         {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} /> : null}
       {question.question_type === "READ_ALOUD" ? <ReadingPracticePlayer config={{ title: String(asRecord(question.options).title ?? "Reading passage"), passage: String(asRecord(question.options).passage ?? ""), level: String(asRecord(question.options).level ?? "A1"), time_limit_seconds: asRecord(question.options).time_limit_seconds ? Number(asRecord(question.options).time_limit_seconds) : null, pace_wpm: readingPaceForLevel(String(asRecord(question.options).level ?? "A1"), Number(asRecord(question.options).pace_wpm ?? Number.NaN)), recording_attempt_limit: asRecord(question.options).recording_attempt_limit ? Number(asRecord(question.options).recording_attempt_limit) : null, chunking_enabled: asRecord(question.options).chunking_enabled === true, usage_key: `quiz:${quizId ?? "preview"}:${question.id}` }} disabled={submitted} onResult={(result) => onChange({ ...result, score: result.match_percent } as unknown as Json)} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} reviewRoundIndex={soundDiscriminationReviewRoundIndex} onChange={onChange} /> : null}
         {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
@@ -1241,11 +1249,11 @@ export function QuestionCard({
         </div>
       ) : null}
       {stats && stats.correctCount < stats.total ? (
-        question.question_type !== "IPA_PRACTICE" ? <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "bg-[var(--br-achievement)]/10 text-amber-900"}`}>
+        question.question_type !== "IPA_PRACTICE" && question.question_type !== "SOUND_DISCRIMINATION" ? <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "bg-[var(--br-achievement)]/10 text-amber-900"}`}>
           {stats.correctCount} of {stats.total} correct. Correct answer: {answerText(question)}
         </p> : null
       ) : null}
-      {submitted && wrong ? (
+      {submitted && wrong && question.question_type !== "SOUND_DISCRIMINATION" ? (
         <p className="mt-4 rounded-[14px] bg-[var(--br-danger)]/10 p-3 text-sm font-semibold text-[var(--br-danger)]">
           Correct answer: {answerText(question)}
         </p>
@@ -3982,14 +3990,16 @@ function SoundDiscriminationPlayer({
   question,
   value,
   disabled,
+  reviewRoundIndex,
   onChange,
 }: {
   question: QuizQuestion;
   value?: string;
   disabled: boolean;
+  reviewRoundIndex?: number;
   onChange: (val: string) => void;
 }) {
-  return <SoundDiscriminationLearnerCard options={question.options} value={value} disabled={disabled} onChange={onChange} />;
+  return <SoundDiscriminationLearnerCard options={question.options} value={value} disabled={disabled} reviewRoundIndex={reviewRoundIndex} onChange={onChange} />;
 }
 
 function ListenGapFillPlayer({

@@ -4,9 +4,11 @@ import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, PenLine, RotateCcw, XCircle } from "lucide-react";
 import { overviewStatus, type OverviewStatus } from "@/lib/gamification/resultsOverview";
-import type { ScoredQuestion } from "@/lib/quizScoring";
+import { asRecord, type ScoredQuestion } from "@/lib/quizScoring";
+import type { Json } from "@/types/database.types";
 
 type OverviewQuestion = ScoredQuestion & { id: string; question_number: number };
+type ReviewItem = { questionIndex: number; roundIndex?: number; status: OverviewStatus; key: string };
 
 const TILE_STYLES: Record<OverviewStatus, string> = {
   correct: "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)] hover:bg-[var(--br-success)]/20",
@@ -18,6 +20,22 @@ function TileIcon({ status }: { status: OverviewStatus }) {
   if (status === "correct") return <CheckCircle2 size={14} />;
   if (status === "incorrect") return <XCircle size={14} />;
   return <PenLine size={14} />;
+}
+
+function readSoundAnswers(value: unknown): Record<string, string> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, answer]) => [key, String(answer)]));
+  }
+  if (typeof value !== "string") return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(Object.entries(parsed as Record<string, unknown>).map(([key, answer]) => [key, String(answer)]));
+    }
+  } catch {
+    // A multi-round answer is expected to be a JSON object keyed by round ID.
+  }
+  return {};
 }
 
 export function ResultsOverview({
@@ -40,12 +58,33 @@ export function ResultsOverview({
   encouragement?: string;
   timeTakenSeconds?: number;
   bestStreak: number;
-  onSelectQuestion: (index: number) => void;
+  onSelectQuestion: (index: number, roundIndex?: number) => void;
   onRetake: () => void;
   retakeLabel?: string;
   headerExtra?: ReactNode;
 }) {
-  const statuses = questions.map((q) => overviewStatus(q, answers[q.id]));
+  const reviewItems: ReviewItem[] = questions.flatMap((question, questionIndex) => {
+    const options = asRecord(question.options);
+    const rounds = question.question_type === "SOUND_DISCRIMINATION" && Array.isArray(options.rounds)
+      ? (options.rounds as Json[]).map(item => asRecord(item))
+      : [];
+    if (rounds.length <= 1) return [{ questionIndex, status: overviewStatus(question, answers[question.id]), key: question.id }];
+
+    const answerMap = readSoundAnswers(answers[question.id]);
+    const correctAnswers = asRecord(question.correct_answer as Json);
+    return rounds.map((round: Record<string, unknown>, roundIndex: number) => {
+      const roundId = String(round.id ?? round.chart_pair_id ?? "");
+      const selected = answerMap[roundId] ?? "";
+      const expected = String(correctAnswers[roundId] ?? round.correct_answer ?? "");
+      return {
+        questionIndex,
+        roundIndex,
+        status: selected ? selected === expected ? "correct" : "incorrect" : "pending",
+        key: `${question.id}:${roundId || roundIndex}`,
+      };
+    });
+  });
+  const statuses = reviewItems.map(item => item.status);
   const correctCount = statuses.filter((s) => s === "correct").length;
   const incorrectCount = statuses.filter((s) => s === "incorrect").length;
   const pendingCount = statuses.filter((s) => s === "pending").length;
@@ -84,23 +123,23 @@ export function ResultsOverview({
 
       <p className="mb-3 mt-5 text-sm font-semibold text-[var(--br-text-muted)]">Tap a question to review it</p>
       <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10">
-        {questions.map((question, index) => {
-          const status = statuses[index];
+        {reviewItems.map((item, index) => {
+          const status = item.status;
           return (
             <motion.button
-              key={question.id}
+              key={item.key}
               type="button"
-              onClick={() => onSelectQuestion(index)}
+              onClick={() => onSelectQuestion(item.questionIndex, item.roundIndex)}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.03 * index, type: "spring", stiffness: 400, damping: 24 }}
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.94 }}
-              aria-label={`Review question ${question.question_number}${status === "pending" ? "" : status === "correct" ? " — correct" : " — incorrect"}`}
+              aria-label={`Review question ${index + 1}${status === "pending" ? "" : status === "correct" ? " — correct" : " — incorrect"}`}
               className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[12px] border-2 text-sm font-extrabold shadow-sm transition-colors ${TILE_STYLES[status]}`}
             >
               <TileIcon status={status} />
-              {question.question_number}
+              {index + 1}
             </motion.button>
           );
         })}

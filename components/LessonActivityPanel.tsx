@@ -1782,6 +1782,7 @@ function GenericLessonActivityPanel({
   // Carousel state
   const [qIndex, setQIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
+  const [soundReviewRoundIndex, setSoundReviewRoundIndex] = useState<number | undefined>();
 
   useEffect(() => {
     if (!preserveDraft || previewOnly || submitted) return;
@@ -2013,6 +2014,7 @@ function GenericLessonActivityPanel({
     setMessage(null);
     setQIndex(0);
     setReviewMode("overview");
+    setSoundReviewRoundIndex(undefined);
     setEvaluationMode(null);
     setShowEvaluationDialog(false);
     setAutoGradingActive(false);
@@ -2034,6 +2036,7 @@ function GenericLessonActivityPanel({
     setMessage(attempt.completed_at ? `Viewing attempt from ${new Date(attempt.completed_at).toLocaleString()}.` : "Viewing saved attempt.");
     setQIndex(0);
     setReviewMode("overview");
+    setSoundReviewRoundIndex(undefined);
     setEvaluationMode(null);
     setShowEvaluationDialog(false);
     setAutoGradingActive(false);
@@ -2081,7 +2084,7 @@ function GenericLessonActivityPanel({
           score={score}
           total={total}
           bestStreak={bestStreak}
-          onSelectQuestion={(index) => { setQIndex(index); setReviewMode("detail"); }}
+          onSelectQuestion={(index, roundIndex) => { setQIndex(index); setSoundReviewRoundIndex(roundIndex); setReviewMode("detail"); }}
           onRetake={retake}
         />
       ) : null}
@@ -2162,6 +2165,7 @@ function GenericLessonActivityPanel({
                 question={currentQuestion}
                 value={answers[currentQuestion.id]}
                 submitted={submitted}
+                soundDiscriminationReviewRoundIndex={currentQuestion.question_type === "SOUND_DISCRIMINATION" ? soundReviewRoundIndex : undefined}
                 onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
                 onResult={handleQuestionResult}
                 lessonId={lessonId}
