@@ -204,7 +204,8 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
   }
 
   if (activityType === "DICTATION") return [common(data, 0, "DICTATION", text(data.correct_answer), { ignore_punctuation: data.ignore_punctuation !== false } as Json)];
-  if (activityType === "LISTEN_AND_SELECT" || activityType === "SOUND_DISCRIMINATION") return [common(data, 0, activityType, text(data.correct_answer ?? "0"), { choices: data.choices ?? data.pairs ?? [] } as unknown as Json)];
+  if (activityType === "SOUND_DISCRIMINATION") return [common(data, 0, activityType, data.correct_answer ?? "", data as unknown as Json)];
+  if (activityType === "LISTEN_AND_SELECT") return [common(data, 0, activityType, text(data.correct_answer ?? "0"), { choices: data.choices ?? [] } as unknown as Json)];
   if (activityType === "IPA_PRACTICE") {
     const items = Array.isArray(data.items) ? data.items : [];
     const answer = data.correct_answer ?? Object.fromEntries(items.map((item, index) => {

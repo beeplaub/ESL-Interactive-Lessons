@@ -312,16 +312,13 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     }];
   }
   if (activityType === "SOUND_DISCRIMINATION") {
-    const audioUrl = String(data.audio_url ?? "");
-    const pairs = Array.isArray(data.pairs) ? data.pairs : [];
-    const correctAnswer = String(data.correct_answer ?? "0");
     return [{
       id: "1",
       question_number: 1,
       question_type: "SOUND_DISCRIMINATION",
       question_text: String(data.prompt ?? "Listen to the sound and identify the correct minimal pair word."),
-      options: { audio_url: audioUrl, pairs } as Json,
-      correct_answer: correctAnswer as Json,
+      options: data as unknown as Json,
+      correct_answer: (data.correct_answer ?? "") as Json,
     }];
   }
   if (activityType === "IPA_PRACTICE") {

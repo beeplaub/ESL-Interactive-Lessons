@@ -2367,8 +2367,12 @@ function defaultActivityData(activityType: string, prompt: string): Json {
       prompt: "Which word did you hear?",
       audio_url: "",
       source: "ipa-chart",
-      pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }],
-      correct_answer: "0"
+      accent: "uk",
+      chart_pair_id: "",
+      target_word_id: "",
+      pairs: [],
+      rounds: [],
+      correct_answer: ""
     };
   }
   if (activityType === "LISTEN_AND_GAP_FILL") {

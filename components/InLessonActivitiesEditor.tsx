@@ -2917,7 +2917,7 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
   return <div className="grid gap-3">
     <label className="text-sm font-medium">Question prompt<input value={prompt} onChange={event => setPrompt(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2" /></label>
     <IpaChartSoundDiscriminationPicker initialData={data} onChange={setChartConfig} />
-    <SaveButton disabled={!chartConfig?.chart_pair_id || !chartConfig.audio_url} onClick={() => chartConfig && onSave({ prompt, ...chartConfig } as unknown as Json, false)} />
+    <SaveButton disabled={!chartConfig?.rounds.length} onClick={() => chartConfig && onSave({ prompt, ...chartConfig } as unknown as Json, false)} />
   </div>;
 }
 

@@ -65,6 +65,10 @@ function tableAcceptedAnswers(question: ScoredQuestion, cellId: string, fallback
 }
 
 function baseQuestionTotal(question: ScoredQuestion): number {
+  if (question.question_type === "SOUND_DISCRIMINATION") {
+    const rounds = asRecord(question.options).rounds;
+    if (Array.isArray(rounds) && rounds.length > 1) return rounds.length;
+  }
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "TABLE_COMPLETION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE" || question.question_type === "IPA_PRACTICE") {
     if (question.question_type === "IPA_PRACTICE") return Object.keys(asRecord(question.correct_answer)).length || 1;
     return Object.keys(asRecord(question.correct_answer)).length || 1;
@@ -93,11 +97,33 @@ function baseQuestionTotal(question: ScoredQuestion): number {
 
 export function questionTotal(question: ScoredQuestion): number {
   if (question.question_type === "PRONUNCIATION") return baseQuestionTotal(question);
+  if (question.question_type === "SOUND_DISCRIMINATION" && Array.isArray(asRecord(question.options).rounds) && (asRecord(question.options).rounds as Json[]).length > 1) return baseQuestionTotal(question);
   const configured = Number(question.max_points);
   return Number.isFinite(configured) && configured > 0 ? configured : baseQuestionTotal(question);
 }
 
 function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
+  if (question.question_type === "SOUND_DISCRIMINATION") {
+    const rounds = Array.isArray(asRecord(question.options).rounds) ? asRecord(question.options).rounds as Json[] : [];
+    if (rounds.length > 1) {
+      const expected = asRecord(question.correct_answer);
+      let given: Record<string, unknown> = {};
+      if (answer && typeof answer === "object" && !Array.isArray(answer)) given = answer as Record<string, unknown>;
+      else if (typeof answer === "string") {
+        try {
+          const parsed: unknown = JSON.parse(answer);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) given = parsed as Record<string, unknown>;
+        } catch {
+          given = {};
+        }
+      }
+      return rounds.filter(item => {
+        const round = asRecord(item);
+        const id = String(round.id ?? round.chart_pair_id ?? "");
+        return id && normalizeAnswer(given[id]) === normalizeAnswer(expected[id]);
+      }).length;
+    }
+  }
   if (question.question_type === "READ_ALOUD") return Math.max(0, Math.min(1, Number(asRecord(answer as Json).match_percent ?? 0) / 100));
   if (isWritingQuestionType(question.question_type)) {
     const outcome = resolveWritingOutcome(answer);
@@ -212,6 +238,9 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
 }
 
 export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
+  if (question.question_type === "SOUND_DISCRIMINATION" && Array.isArray(asRecord(question.options).rounds) && (asRecord(question.options).rounds as Json[]).length > 1) {
+    return questionScore(question, value) === questionTotal(question);
+  }
   if (question.question_type === "READ_ALOUD") {
     const result = asRecord(value as Json);
     return result.completed === true && Number(result.match_percent ?? 0) >= 90 && (result.time_limit_seconds == null || result.target_reached === true);
@@ -375,7 +404,8 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
 }
 
 export function partialCreditStats(question: ScoredQuestion, value: unknown): { correctCount: number; total: number } | null {
-  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "TABLE_COMPLETION", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "IPA_PRACTICE"].includes(question.question_type)) return null;
+  const multiPairSoundDiscrimination = question.question_type === "SOUND_DISCRIMINATION" && Array.isArray(asRecord(question.options).rounds) && (asRecord(question.options).rounds as Json[]).length > 1;
+  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "TABLE_COMPLETION", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "IPA_PRACTICE"].includes(question.question_type) && !multiPairSoundDiscrimination) return null;
   return {
     correctCount: questionScore(question, value),
     total: questionTotal(question),

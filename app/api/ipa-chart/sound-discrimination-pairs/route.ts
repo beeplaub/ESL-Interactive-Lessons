@@ -16,7 +16,12 @@ function chartPair(
   pair: IpaMinimalPair,
   wordIds: Map<string, string>,
   audio: Awaited<ReturnType<typeof getIpaAudioManifest>>,
+  chartsForAccent: Awaited<ReturnType<typeof getIpaChartCatalog>>,
 ) {
+  const soundGroup = new Map(chartsForAccent[accent].map(sound => [sound.symbol, sound.group] as const));
+  const leftKind = soundGroup.get(pair.leftSymbol) === "consonant" ? "consonant" : "vowel";
+  const rightKind = soundGroup.get(pair.rightSymbol) === "consonant" ? "consonant" : "vowel";
+  if (leftKind !== rightKind) return null;
   const leftWordId = wordIds.get(normalizeSpelling(pair.left.word));
   const rightWordId = wordIds.get(normalizeSpelling(pair.right.word));
   const leftAudio = audio[accent]?.[pair.left.soundId]?.words?.[pair.left.word]?.src;
@@ -31,6 +36,7 @@ function chartPair(
   return {
     id: accent + ":" + left.wordId + ":" + right.wordId + ":" + pair.leftSymbol + ":" + pair.rightSymbol,
     accent,
+    contrastType: leftKind,
     left,
     right,
     contrastSymbols: [left.contrastSymbol, right.contrastSymbol],
@@ -50,7 +56,7 @@ export async function GET() {
   const pairs = Object.fromEntries((["uk", "us"] as const).map(accent => [
     accent,
     getIpaMinimalPairs(accent, charts)
-      .map(pair => chartPair(accent, pair, wordIds, audio))
+      .map(pair => chartPair(accent, pair, wordIds, audio, charts))
       .filter(pair => pair !== null),
   ]));
 

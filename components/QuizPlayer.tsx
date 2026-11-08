@@ -185,6 +185,22 @@ function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
 
 export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
+  if (question.question_type === "SOUND_DISCRIMINATION" && Array.isArray(asRecord(question.options).rounds) && (asRecord(question.options).rounds as Json[]).length > 1) {
+    const rounds = asRecord(question.options).rounds as Json[];
+    let given: Record<string, unknown> = {};
+    if (typeof value === "string") {
+      try {
+        const parsed: unknown = JSON.parse(value);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) given = parsed as Record<string, unknown>;
+      } catch {
+        return false;
+      }
+    } else if (value && typeof value === "object" && !Array.isArray(value)) given = value as Record<string, unknown>;
+    return rounds.length > 0 && rounds.every(item => {
+      const round = asRecord(item);
+      return String(given[String(round.id ?? round.chart_pair_id ?? "")] ?? "").trim() !== "";
+    });
+  }
   if (question.question_type === "FILL") return Array.isArray(value) && value.some((v) => String(v).trim() !== "");
   if (question.question_type === "IPA_PRACTICE") {
     const items = Array.isArray(asRecord(question.options).items) ? asRecord(question.options).items as Json[] : [];
@@ -401,6 +417,23 @@ function answerText(question: QuizQuestion): string {
       const ansKey = String(correct[qId]);
       return `Q: ${qText} → ${ansKey}. ${qChoices[ansKey] ?? ""}`;
     }).join(" | ");
+  }
+  if (question.question_type === "SOUND_DISCRIMINATION") {
+    const opts = asRecord(question.options);
+    const rounds = Array.isArray(opts.rounds) ? opts.rounds.map(item => asRecord(item as Json)) : [];
+    if (rounds.length) {
+      const configuredAnswer = question.correct_answer;
+      const answers = configuredAnswer && typeof configuredAnswer === "object" && !Array.isArray(configuredAnswer)
+        ? asRecord(configuredAnswer as Json)
+        : {};
+      return rounds.map((round, index) => {
+        const expected = String(answers[String(round.id ?? round.chart_pair_id ?? "")] ?? round.correct_answer ?? configuredAnswer ?? "");
+        const words = Array.isArray(round.pairs) ? round.pairs.map(item => asRecord(item as Json)) : [];
+        const correct = words.find(word => String(word.word_id ?? word.id ?? "") === expected);
+        const pairLabel = words.map(word => String(word.word ?? "")).join(" / ");
+        return `${index + 1}. ${pairLabel} → ${String(correct?.word ?? expected)}${correct?.phonetic ? ` (${String(correct.phonetic)})` : ""}`;
+      }).join(" · ");
+    }
   }
   return "";
 }
@@ -1101,7 +1134,7 @@ export function QuestionCard({
     question.question_type === "DIALOGUE_WRITING" ||
     question.question_type === "ORAL_RESPONSE" ||
     question.question_type === "READ_ALOUD";
-  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "TABLE_COMPLETION" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL" || question.question_type === "IPA_PRACTICE";
+  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "TABLE_COMPLETION" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL" || question.question_type === "IPA_PRACTICE" || (question.question_type === "SOUND_DISCRIMINATION" && Array.isArray(asRecord(question.options).rounds) && (asRecord(question.options).rounds as Json[]).length > 1);
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
   const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
