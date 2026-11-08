@@ -23,6 +23,7 @@ import { matchShadowingPhrase, type ShadowingMatchResult } from "@/lib/shadowing
 import { shadowingSentenceText, shadowingPhases } from "@/lib/shadowing";
 import { shadowingWordCoverage } from "@/lib/shadowingScoring";
 import { IpaPracticePlayer } from "@/components/ipa/IpaPracticePlayer";
+import { SoundDiscriminationLearnerCard } from "@/components/ipa/SoundDiscriminationLearnerCard";
 import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 import { makeIpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 import { TongueTwisterPracticeCard } from "@/components/LessonBlockPreview";
@@ -3955,6 +3956,9 @@ function SoundDiscriminationPlayer({
   disabled: boolean;
   onChange: (val: string) => void;
 }) {
+  if (asRecord(question.options).source === "ipa-chart") {
+    return <SoundDiscriminationLearnerCard options={question.options} value={value} disabled={disabled} onChange={onChange} />;
+  }
   const opts = asRecord(question.options);
   const audioUrl = String(opts.audio_url ?? "");
   const pairs = Array.isArray(opts.pairs) ? opts.pairs.map((p) => asRecord(p as Json)) : [];

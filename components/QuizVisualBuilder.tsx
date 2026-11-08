@@ -19,6 +19,7 @@ import { ShadowingSentenceEditor } from "@/components/ShadowingSentenceEditor";
 import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 import { ReadingQuestionFields } from "@/components/ReadingPractice";
 import { defaultReadingPace } from "@/lib/readingPractice";
+import { IpaChartSoundDiscriminationPicker, type SoundDiscriminationChartConfig } from "@/components/ipa/IpaChartSoundDiscriminationPicker";
 
 type BuilderQuestion = {
   id: string;
@@ -198,7 +199,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare.", description: "", options: { shadowing_mode: "SENTENCE_AB", max_attempts: 3, audio_url: "", target_text: "" }, correctAnswer: "", assessment };
   if (type === "READ_ALOUD") return { id, questionType: type, questionText: "Read the passage aloud.", description: "", options: { source: "custom", title: "", passage: "", level: "A1", time_limit_seconds: null, pace_wpm: defaultReadingPace("A1"), recording_attempt_limit: 3, chunking_enabled: false }, correctAnswer: true, assessment: { ...assessment, maxPoints: 1 } };
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
-  if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
+  if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Which word did you hear?", description: "", options: { source: "ipa-chart", accent: "uk", audio_url: "", pairs: [] }, correctAnswer: "", assessment };
   if (type === "IPA_PRACTICE") {
     const config = makeIpaPracticeConfig({}, id);
     return { id, questionType: type, questionText: "Use the chart sounds to complete this IPA practice round.", description: "", options: config as unknown as Json, correctAnswer: config.correct_answer as unknown as Json, assessment };
@@ -1870,9 +1871,27 @@ function QuestionFields({ question, onChange, quizId }: { question: BuilderQuest
 
   if (question.questionType === "SOUND_DISCRIMINATION") {
     const pairs = Array.isArray(options.pairs) ? options.pairs.map((p) => asRecord(p as Json)) : [];
+    if (options.source === "ipa-chart") {
+      return (
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-bold">Question source</p>
+            <button type="button" onClick={() => onChange({ options: { ...options, source: "custom" } as Json })} className="min-h-9 rounded-lg border border-[var(--br-border)] px-3 text-xs font-extrabold text-[var(--br-text-muted)]">Switch to custom audio</button>
+          </div>
+          <IpaChartSoundDiscriminationPicker
+            initialData={options}
+            onChange={(config: SoundDiscriminationChartConfig) => onChange({ options: { ...options, ...config } as unknown as Json, correctAnswer: config.correct_answer })}
+          />
+        </div>
+      );
+    }
 
     return (
       <div className="grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-bold">Question source</p>
+          <button type="button" onClick={() => onChange({ options: { ...options, source: "ipa-chart" } as Json })} className="min-h-9 rounded-lg border border-[var(--br-border)] px-3 text-xs font-extrabold text-[var(--br-brand)]">Choose a pair from IPA chart</button>
+        </div>
         <MediaRecorderInput
           label="Main Target Audio (Optional)"
           value={String(options.audio_url ?? "")}

@@ -15,6 +15,7 @@ import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading";
 import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 import { ReadingPracticeEditor } from "@/components/ReadingPractice";
+import { IpaChartSoundDiscriminationPicker, type SoundDiscriminationChartConfig } from "@/components/ipa/IpaChartSoundDiscriminationPicker";
 
 type Activity = {
   id: string;
@@ -2906,7 +2907,37 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
   );
 }
 
-function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+function SoundDiscriminationEditor(props: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(props.activity.activity_data);
+  const rawPairs = Array.isArray(data.pairs) ? data.pairs.map(pair => asRecord(pair as Json)) : [];
+  const hasCustomContent = Boolean(String(data.audio_url ?? "").trim()) || rawPairs.some((pair, index) => {
+    const word = String(pair.word ?? pair.text ?? "").trim().toLowerCase();
+    const isSample = (index === 0 && word === "ship") || (index === 1 && word === "sheep");
+    return Boolean(String(pair.audio_url ?? "").trim()) || Boolean(word && !isSample) || Boolean(String(pair.phonetic ?? "").trim() && !isSample);
+  });
+  const [source, setSource] = useState<"chart" | "custom">(data.source === "ipa-chart" || !hasCustomContent ? "chart" : "custom");
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Which word did you hear?"));
+  const [chartConfig, setChartConfig] = useState<SoundDiscriminationChartConfig | null>(
+    data.source === "ipa-chart" ? data as unknown as SoundDiscriminationChartConfig : null
+  );
+
+  return <div className="grid gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-sm font-bold text-[var(--br-text)]">Question source</p>
+      <div className="flex items-center gap-1 rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-1" role="group" aria-label="Question source">
+        <button type="button" aria-pressed={source === "chart"} onClick={() => setSource("chart")} className={"min-h-9 rounded-lg px-3 text-xs font-extrabold " + (source === "chart" ? "bg-[var(--br-brand)] text-white" : "text-[var(--br-text-muted)]")}>IPA chart</button>
+        <button type="button" aria-pressed={source === "custom"} onClick={() => setSource("custom")} className={"min-h-9 rounded-lg px-3 text-xs font-extrabold " + (source === "custom" ? "bg-[var(--br-brand)] text-white" : "text-[var(--br-text-muted)]")}>Custom audio</button>
+      </div>
+    </div>
+    {source === "custom" ? <CustomSoundDiscriminationEditor {...props} /> : <div className="grid gap-3">
+      <label className="text-sm font-medium">Question prompt<input value={prompt} onChange={event => setPrompt(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2" /></label>
+      <IpaChartSoundDiscriminationPicker initialData={data} onChange={setChartConfig} />
+      <SaveButton disabled={!chartConfig?.chart_pair_id || !chartConfig.audio_url} onClick={() => chartConfig && props.onSave({ prompt, ...chartConfig } as unknown as Json, false)} />
+    </div>}
+  </div>;
+}
+
+function CustomSoundDiscriminationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const data = asRecord(activity.activity_data);
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the sound and identify the correct minimal pair word."));
   const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
