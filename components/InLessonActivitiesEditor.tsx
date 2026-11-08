@@ -2907,167 +2907,18 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
   );
 }
 
-function SoundDiscriminationEditor(props: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
-  const data = asRecord(props.activity.activity_data);
-  const rawPairs = Array.isArray(data.pairs) ? data.pairs.map(pair => asRecord(pair as Json)) : [];
-  const hasCustomContent = Boolean(String(data.audio_url ?? "").trim()) || rawPairs.some((pair, index) => {
-    const word = String(pair.word ?? pair.text ?? "").trim().toLowerCase();
-    const isSample = (index === 0 && word === "ship") || (index === 1 && word === "sheep");
-    return Boolean(String(pair.audio_url ?? "").trim()) || Boolean(word && !isSample) || Boolean(String(pair.phonetic ?? "").trim() && !isSample);
-  });
-  const [source, setSource] = useState<"chart" | "custom">(data.source === "ipa-chart" || !hasCustomContent ? "chart" : "custom");
+function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Which word did you hear?"));
   const [chartConfig, setChartConfig] = useState<SoundDiscriminationChartConfig | null>(
     data.source === "ipa-chart" ? data as unknown as SoundDiscriminationChartConfig : null
   );
 
   return <div className="grid gap-3">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="text-sm font-bold text-[var(--br-text)]">Question source</p>
-      <div className="flex items-center gap-1 rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-1" role="group" aria-label="Question source">
-        <button type="button" aria-pressed={source === "chart"} onClick={() => setSource("chart")} className={"min-h-9 rounded-lg px-3 text-xs font-extrabold " + (source === "chart" ? "bg-[var(--br-brand)] text-white" : "text-[var(--br-text-muted)]")}>IPA chart</button>
-        <button type="button" aria-pressed={source === "custom"} onClick={() => setSource("custom")} className={"min-h-9 rounded-lg px-3 text-xs font-extrabold " + (source === "custom" ? "bg-[var(--br-brand)] text-white" : "text-[var(--br-text-muted)]")}>Custom audio</button>
-      </div>
-    </div>
-    {source === "custom" ? <CustomSoundDiscriminationEditor {...props} /> : <div className="grid gap-3">
-      <label className="text-sm font-medium">Question prompt<input value={prompt} onChange={event => setPrompt(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2" /></label>
-      <IpaChartSoundDiscriminationPicker initialData={data} onChange={setChartConfig} />
-      <SaveButton disabled={!chartConfig?.chart_pair_id || !chartConfig.audio_url} onClick={() => chartConfig && props.onSave({ prompt, ...chartConfig } as unknown as Json, false)} />
-    </div>}
+    <label className="text-sm font-medium">Question prompt<input value={prompt} onChange={event => setPrompt(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2" /></label>
+    <IpaChartSoundDiscriminationPicker initialData={data} onChange={setChartConfig} />
+    <SaveButton disabled={!chartConfig?.chart_pair_id || !chartConfig.audio_url} onClick={() => chartConfig && onSave({ prompt, ...chartConfig } as unknown as Json, false)} />
   </div>;
-}
-
-function CustomSoundDiscriminationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
-  const data = asRecord(activity.activity_data);
-  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the sound and identify the correct minimal pair word."));
-  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
-  const rawPairs = Array.isArray(data.pairs) ? data.pairs : [];
-
-  const [pairs, setPairs] = useState<Array<{ id: string; word: string; phonetic: string; audio_url: string }>>(
-    rawPairs.length
-      ? rawPairs.map((p, idx) => {
-          const row = asRecord(p as Json);
-          return {
-            id: String(row.id ?? idx),
-            word: String(row.word ?? row.text ?? ""),
-            phonetic: String(row.phonetic ?? ""),
-            audio_url: String(row.audio_url ?? ""),
-          };
-        })
-      : [
-          { id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" },
-          { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" },
-        ]
-  );
-  const [correctAnswer, setCorrectAnswer] = useState(String(data.correct_answer ?? "0"));
-
-  const needsReview = pairs.some((p) => !p.word.trim());
-
-  return (
-    <div className="grid gap-4">
-      <label className="text-sm font-medium">
-        Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
-      </label>
-
-      <MediaRecorderInput
-        label="Main Prompt Audio (Optional)"
-        value={audioUrl}
-        onChange={setAudioUrl}
-      />
-
-      <div className="rounded-md border border-[var(--br-border)] p-4 space-y-3">
-        <p className="font-semibold text-sm">Minimal Pair Cards (e.g. ship vs sheep)</p>
-        {pairs.map((pair, i) => (
-          <div key={pair.id} className="rounded-lg border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-moss">Pair Word {i + 1}</span>
-              {pairs.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setPairs((curr) => curr.filter((_, idx) => idx !== i))}
-                  className="text-xs text-coral"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <input
-                value={pair.word}
-                onChange={(e) => {
-                  const next = [...pairs];
-                  next[i] = { ...pair, word: e.target.value };
-                  setPairs(next);
-                }}
-                placeholder="Word (e.g. ship)"
-                className="rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
-              />
-              <input
-                value={pair.phonetic}
-                onChange={(e) => {
-                  const next = [...pairs];
-                  next[i] = { ...pair, phonetic: e.target.value };
-                  setPairs(next);
-                }}
-                placeholder="Phonetic (e.g. /ʃɪp/)"
-                className="rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm font-mono"
-              />
-            </div>
-            <MediaRecorderInput
-              label="Individual word pronunciation audio"
-              value={pair.audio_url}
-              onChange={(url) => {
-                const next = [...pairs];
-                next[i] = { ...pair, audio_url: url };
-                setPairs(next);
-              }}
-            />
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() =>
-            setPairs((curr) => [...curr, { id: String(curr.length), word: "", phonetic: "", audio_url: "" }])
-          }
-          className="rounded-md border border-dashed border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
-        >
-          + Add Minimal Pair Word
-        </button>
-      </div>
-
-      <label className="text-sm font-medium">
-        Correct Target Pair Word
-        <select
-          value={correctAnswer}
-          onChange={(e) => setCorrectAnswer(e.target.value)}
-          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
-        >
-          {pairs.map((pair, i) => (
-            <option key={pair.id} value={pair.id}>
-              {pair.word || `Word ${i + 1}`} ({pair.phonetic})
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="flex flex-wrap gap-3">
-        <SaveButton
-          onClick={() =>
-            onSave(
-              {
-                prompt,
-                audio_url: audioUrl,
-                pairs,
-                correct_answer: correctAnswer,
-              } as Json,
-              needsReview
-            )
-          }
-        />
-      </div>
-    </div>
-  );
 }
 
 function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {

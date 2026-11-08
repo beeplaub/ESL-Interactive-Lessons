@@ -3956,68 +3956,7 @@ function SoundDiscriminationPlayer({
   disabled: boolean;
   onChange: (val: string) => void;
 }) {
-  if (asRecord(question.options).source === "ipa-chart") {
-    return <SoundDiscriminationLearnerCard options={question.options} value={value} disabled={disabled} onChange={onChange} />;
-  }
-  const opts = asRecord(question.options);
-  const audioUrl = String(opts.audio_url ?? "");
-  const pairs = Array.isArray(opts.pairs) ? opts.pairs.map((p) => asRecord(p as Json)) : [];
-
-  return (
-    <div className="space-y-4">
-      {audioUrl && (
-        <div className="flex items-center gap-3 rounded-xl border border-moss/20 bg-moss/5 p-3.5">
-          <button
-            type="button"
-            onClick={() => new Audio(audioUrl).play()}
-            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-on-dark shadow-xs hover:bg-moss/90"
-          >
-            <Volume2 size={16} /> Listen to Minimal Pair Sound
-          </button>
-        </div>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {pairs.map((pair, i) => {
-          const id = String(pair.id ?? pair.word ?? i);
-          const word = String(pair.word ?? pair.text ?? "");
-          const phonetic = String(pair.phonetic ?? "");
-          const pairAudio = String(pair.audio_url ?? "");
-          const isSelected = value === id;
-
-          return (
-            <div
-              key={id}
-              onClick={() => !disabled && onChange(id)}
-              className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 p-4 transition ${
-                isSelected
-                  ? "border-moss bg-moss/10 shadow-xs"
-                  : "border-[var(--br-border)] bg-surface hover:border-moss/40 hover:bg-moss/5"
-              }`}
-            >
-              <div>
-                <p className="text-base font-bold text-ink">{word}</p>
-                {phonetic && <p className="text-xs text-[var(--br-text-muted)] italic">{phonetic}</p>}
-              </div>
-
-              {pairAudio && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    new Audio(pairAudio).play();
-                  }}
-                  className="rounded-full bg-black/5 p-2 text-moss hover:bg-moss hover:text-on-dark transition"
-                >
-                  <Volume2 size={16} />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return <SoundDiscriminationLearnerCard options={question.options} value={value} disabled={disabled} onChange={onChange} />;
 }
 
 function ListenGapFillPlayer({

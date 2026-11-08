@@ -1870,111 +1870,12 @@ function QuestionFields({ question, onChange, quizId }: { question: BuilderQuest
   }
 
   if (question.questionType === "SOUND_DISCRIMINATION") {
-    const pairs = Array.isArray(options.pairs) ? options.pairs.map((p) => asRecord(p as Json)) : [];
-    if (options.source === "ipa-chart") {
-      return (
-        <div className="grid gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-bold">Question source</p>
-            <button type="button" onClick={() => onChange({ options: { ...options, source: "custom" } as Json })} className="min-h-9 rounded-lg border border-[var(--br-border)] px-3 text-xs font-extrabold text-[var(--br-text-muted)]">Switch to custom audio</button>
-          </div>
-          <IpaChartSoundDiscriminationPicker
-            initialData={options}
-            onChange={(config: SoundDiscriminationChartConfig) => onChange({ options: { ...options, ...config } as unknown as Json, correctAnswer: config.correct_answer })}
-          />
-        </div>
-      );
-    }
-
     return (
       <div className="grid gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-bold">Question source</p>
-          <button type="button" onClick={() => onChange({ options: { ...options, source: "ipa-chart" } as Json })} className="min-h-9 rounded-lg border border-[var(--br-border)] px-3 text-xs font-extrabold text-[var(--br-brand)]">Choose a pair from IPA chart</button>
-        </div>
-        <MediaRecorderInput
-          label="Main Target Audio (Optional)"
-          value={String(options.audio_url ?? "")}
-          onChange={(url) => onChange({ options: { ...options, audio_url: url } as Json })}
+        <IpaChartSoundDiscriminationPicker
+          initialData={options}
+          onChange={(config: SoundDiscriminationChartConfig) => onChange({ options: { ...options, ...config } as unknown as Json, correctAnswer: config.correct_answer })}
         />
-        <p className="text-sm font-medium mt-2">Minimal Pair Cards (e.g. ship vs sheep)</p>
-        {pairs.map((pair, idx) => {
-          const pId = String(pair.id ?? pair.word ?? idx);
-          return (
-            <div key={idx} className="rounded-md border border-[var(--br-border)] p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-indigo-600 font-mono">Pair Option {idx + 1}</span>
-                {pairs.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = pairs.filter((_, i) => i !== idx);
-                      onChange({ options: { ...options, pairs: next } as Json });
-                    }}
-                    className="text-xs text-coral"
-                  >
-                    Remove
-                  </button>
-                ) : null}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <input
-                  value={String(pair.word ?? pair.text ?? "")}
-                  onChange={(e) => {
-                    const next = [...pairs];
-                    next[idx] = { ...pair, word: e.target.value };
-                    onChange({ options: { ...options, pairs: next } as Json });
-                  }}
-                  placeholder="Word (e.g. ship)"
-                  className="rounded border border-[var(--br-border)] px-2 py-1 text-xs"
-                />
-                <input
-                  value={String(pair.phonetic ?? "")}
-                  onChange={(e) => {
-                    const next = [...pairs];
-                    next[idx] = { ...pair, phonetic: e.target.value };
-                    onChange({ options: { ...options, pairs: next } as Json });
-                  }}
-                  placeholder="Phonetic IPA (e.g. /ʃɪp/)"
-                  className="rounded border border-[var(--br-border)] px-2 py-1 text-xs font-mono"
-                />
-              </div>
-              <MediaRecorderInput
-                label="Audio pronunciation for this word"
-                value={String(pair.audio_url ?? "")}
-                onChange={(url) => {
-                  const next = [...pairs];
-                  next[idx] = { ...pair, audio_url: url };
-                  onChange({ options: { ...options, pairs: next } as Json });
-                }}
-              />
-            </div>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => {
-            const nextId = String(pairs.length);
-            onChange({ options: { ...options, pairs: [...pairs, { id: nextId, word: "", phonetic: "" }] } as Json });
-          }}
-          className="rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs"
-        >
-          + Add Minimal Pair Word
-        </button>
-        <label className="text-sm font-medium">
-          Correct Target Word
-          <select
-            value={String(question.correctAnswer ?? "0")}
-            onChange={(e) => onChange({ correctAnswer: e.target.value })}
-            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
-          >
-            {pairs.map((pair, idx) => (
-              <option key={idx} value={String(pair.id ?? pair.word ?? idx)}>
-                {String(pair.word ?? `Option ${idx + 1}`)}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
     );
   }
