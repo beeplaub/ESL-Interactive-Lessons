@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Check, LoaderCircle, Plus, RotateCcw } from "lucide-react";
-import { addIpaChartWord, archiveIpaChartWord, restoreIpaChartWord } from "@/app/admin/ipa-chart/actions";
+import { addIpaChartWord, archiveIpaChartWord, importIpaChartExpansionSection, restoreIpaChartWord } from "@/app/admin/ipa-chart/actions";
 import { IPA_ACCENTS, IPA_CHARTS } from "@/lib/ipa/chart";
 import type { IpaChartCatalogWord } from "@/lib/ipa/catalog";
 
@@ -20,8 +20,35 @@ export function IpaChartWordAdmin({ configured, initialWords }: { configured: bo
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importSummary, setImportSummary] = useState<{ added: number; alreadyActive: number; archived: number; failedWords: string[]; failedBatches: number } | null>(null);
   const router = useRouter();
   const activeCount = words.filter(word => word.isActive).length;
+
+  useEffect(() => setWords(initialWords), [initialWords]);
+
+  async function importReviewedExpansion() {
+    setImporting(true);
+    setImportProgress(0);
+    setImportSummary(null);
+    const summary = { added: 0, alreadyActive: 0, archived: 0, failedWords: [] as string[], failedBatches: 0 };
+    for (let batchIndex = 0; batchIndex < 45; batchIndex += 1) {
+      setImportProgress(batchIndex + 1);
+      try {
+        const result = await importIpaChartExpansionSection(batchIndex);
+        summary.added += result.added.length;
+        summary.alreadyActive += result.alreadyActive.length;
+        summary.archived += result.archived.length;
+        summary.failedWords.push(...result.failed);
+      } catch {
+        summary.failedBatches += 1;
+      }
+    }
+    setImportSummary(summary);
+    setImporting(false);
+    router.refresh();
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,6 +95,14 @@ export function IpaChartWordAdmin({ configured, initialWords }: { configured: bo
       <span className="rounded-full bg-[var(--br-brand-soft)] px-3 py-1 text-sm font-bold text-[var(--br-brand)]">{activeCount} active</span>
     </div>
 
+    <section className="mt-5 rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)] p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h3 className="font-bold text-[var(--br-text)]">Reviewed sound-card word expansion</h3><p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--br-text-muted)]">Import the 270 reviewed entries in 45 sound-card batches. Existing words are skipped, and accent-only cards are added only to the accent where that sound exists. Audio is not generated.</p></div>
+        <button type="button" disabled={importing || pending || !configured} onClick={() => void importReviewedExpansion()} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[var(--br-action-strong)] px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{importing ? `Adding batch ${importProgress} of 45…` : "Import reviewed word list"}</button>
+      </div>
+      {importSummary ? <p role="status" className="mt-3 rounded-lg bg-white/80 p-3 text-sm leading-6 text-[var(--br-text)]">Added {importSummary.added}; skipped {importSummary.alreadyActive} already-live words and {importSummary.archived} archived words; {importSummary.failedWords.length} word entries failed; {importSummary.failedBatches} batches failed.{importSummary.failedWords.length ? ` Failed words: ${importSummary.failedWords.join(", ")}.` : ""}</p> : null}
+    </section>
+
     <form onSubmit={submit} className="mt-5 grid gap-4 rounded-xl bg-[var(--br-surface-muted)] p-4 sm:p-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-semibold text-[var(--br-text)]">Word<input value={spelling} onChange={event => setSpelling(event.target.value)} required maxLength={80} placeholder="seashells" className="mt-1 min-h-11 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-3 font-normal" /></label>
@@ -85,7 +120,7 @@ export function IpaChartWordAdmin({ configured, initialWords }: { configured: bo
           <label className="text-sm font-semibold">Target sound<select value={usSoundId} onChange={event => setUsSoundId(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-2 font-normal">{soundOptions("us").map(sound => <option key={sound.id} value={sound.id}>{sound.label}</option>)}</select></label>
         </fieldset>
       </div>
-      <div className="flex flex-wrap items-center gap-3"><button type="submit" disabled={pending} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--br-action-strong)] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">{pending ? <LoaderCircle size={16} className="animate-spin" /> : <Plus size={16} />}Add word</button><span className="text-xs text-[var(--br-text-muted)]">Add recording after saving; it stays in review until approved.</span></div>
+      <div className="flex flex-wrap items-center gap-3"><button type="submit" disabled={pending || importing} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--br-action-strong)] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">{pending ? <LoaderCircle size={16} className="animate-spin" /> : <Plus size={16} />}Add word</button><span className="text-xs text-[var(--br-text-muted)]">Add recording after saving; it stays in review until approved.</span></div>
       {message ? <p role={isError ? "alert" : "status"} className={`text-sm ${isError ? "text-red-700" : "text-emerald-800"}`}>{message}</p> : null}
     </form>
 

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { IPA_GEMINI_VOICES } from "@/lib/ipa/audio";
 import { IPA_CHARTS } from "@/lib/ipa/chart";
 import { VOICEOVER_PACES, VOICEOVER_STYLES } from "@/lib/ai/voiceoverCatalog";
+import { IPA_WORD_EXPANSION_BATCH } from "@/lib/ipa/word-expansion";
 import type { IpaAccent } from "@/lib/ipa/chart";
 
 export async function addIpaChartWord(input: {
@@ -50,6 +51,84 @@ export async function addIpaChartWord(input: {
   revalidatePath("/ipa-chart");
   revalidatePath("/admin/ipa-chart");
   return { id: word.id, spelling };
+}
+
+export async function importIpaChartExpansionSection(batchIndex: number) {
+  const { user } = await requireAdmin();
+  if (!Number.isInteger(batchIndex) || batchIndex < 0 || batchIndex >= 45) throw new Error("Choose a valid sound-card batch.");
+
+  const batch = IPA_WORD_EXPANSION_BATCH.slice(batchIndex * 6, batchIndex * 6 + 6);
+  if (batch.length !== 6 || batch.some(candidate => candidate.section !== batch[0]?.section)) {
+    throw new Error("The reviewed word list does not match the expected sound-card batches.");
+  }
+
+  const normalizedWords = batch.map(candidate => candidate.spelling.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US"));
+  if (new Set(normalizedWords).size !== batch.length) throw new Error("This sound-card batch contains duplicate words.");
+
+  for (const candidate of batch) {
+    const spelling = candidate.spelling.trim().replace(/\s+/g, " ");
+    const markup = candidate.spellingMarkup.trim().replace(/\s+/g, " ");
+    const plainMarkup = markup.replace(/\[([^\]]+)\]/g, "$1");
+    if (!spelling || spelling.length > 80 || /[\[\]]/.test(spelling) || !/\[[^\]]+\]/.test(markup) || plainMarkup.toLocaleLowerCase("en-US") !== spelling.toLocaleLowerCase("en-US")) {
+      throw new Error(`The highlighted spelling for ${candidate.spelling} is invalid.`);
+    }
+    if (candidate.pronunciations.length < 1 || candidate.pronunciations.length > 2) throw new Error(`The accent entries for ${candidate.spelling} are invalid.`);
+    if (new Set(candidate.pronunciations.map(pronunciation => pronunciation.accent)).size !== candidate.pronunciations.length) throw new Error(`The accent entries for ${candidate.spelling} are duplicated.`);
+    for (const pronunciation of candidate.pronunciations) {
+      if (!(pronunciation.accent === "uk" || pronunciation.accent === "us") || !IPA_CHARTS[pronunciation.accent].some(sound => sound.id === pronunciation.soundId)) {
+        throw new Error(`The target sound for ${candidate.spelling} is not available in its accent chart.`);
+      }
+      if (!pronunciation.ipa.trim() || pronunciation.ipa.trim().length > 120) throw new Error(`The IPA for ${candidate.spelling} is invalid.`);
+    }
+  }
+
+  const admin = createAdminClient();
+  const { data: existingRows, error: existingError } = await admin.from("ipa_chart_words")
+    .select("normalized_spelling,is_active").in("normalized_spelling", normalizedWords);
+  if (existingError) throw new Error("The chart catalog could not be checked for duplicates.");
+  const existing = new Map((existingRows ?? []).map(row => [row.normalized_spelling, row.is_active]));
+  const added: string[] = [];
+  const alreadyActive: string[] = [];
+  const archived: string[] = [];
+  const failed: string[] = [];
+
+  for (const candidate of batch) {
+    const spelling = candidate.spelling.trim().replace(/\s+/g, " ");
+    const normalized = spelling.toLocaleLowerCase("en-US");
+    if (existing.has(normalized)) {
+      (existing.get(normalized) ? alreadyActive : archived).push(spelling);
+      continue;
+    }
+
+    const { data: word, error: insertError } = await admin.from("ipa_chart_words")
+      .insert({ spelling, normalized_spelling: normalized, created_by: user.id })
+      .select("id").single();
+    if (insertError || !word) {
+      failed.push(spelling);
+      continue;
+    }
+
+    const { error: pronunciationError } = await admin.from("ipa_chart_word_pronunciations").insert(candidate.pronunciations.map(pronunciation => ({
+      word_id: word.id,
+      accent: pronunciation.accent,
+      sound_id: pronunciation.soundId,
+      ipa: pronunciation.ipa.trim(),
+      spelling_markup: candidate.spellingMarkup.trim(),
+      sort_order: candidate.sortOrder,
+      is_default: true,
+    })));
+    if (pronunciationError) {
+      await admin.from("ipa_chart_words").update({ is_active: false }).eq("id", word.id);
+      failed.push(spelling);
+      continue;
+    }
+    added.push(spelling);
+    existing.set(normalized, true);
+  }
+
+  revalidatePath("/ipa-chart");
+  revalidatePath("/admin/ipa-chart");
+  return { section: batch[0].section, added, alreadyActive, archived, failed };
 }
 
 export async function archiveIpaChartWord(wordId: string) {
