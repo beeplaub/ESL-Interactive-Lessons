@@ -8,7 +8,7 @@ import { LESSON_ACTIVITY_CATALOG } from "@/lib/lessonActivityCatalog";
 type ActivityStep = { id: string; type: string; title: string; data: Record<string, unknown> };
 type ContentBlock = { id: string; type: string; title: string; body: string; content?: Record<string, unknown> };
 const categories = [["GRAMMAR", "Grammar"], ["VOCABULARY", "Vocabulary"], ["READING", "Reading"], ["WRITING", "Writing"], ["LISTENING", "Listening"], ["SPEAKING", "Speaking"]];
-const pickerGroups = [["ALL", "All"], ["CORE", "Grammar & Vocabulary"], ["READING", "Reading"], ["WRITING", "Writing"], ["LISTENING", "Listening"], ["SPEAKING", "Speaking"]];
+const pickerGroups = [["ALL", "All"], ["CORE", "Grammar & Vocabulary"], ["READING", "Reading"], ["WRITING", "Writing"], ["LISTENING", "Listening"], ["SPEAKING", "Speaking"], ["PRONUNCIATION", "Pronunciation & IPA"]];
 const blockTypes = ["HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT", "STICKY_NOTE", "CLUES", "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER", "SPACE", "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE", "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER", "STEPS"];
 const labelForBlock = (type: string) => type.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 

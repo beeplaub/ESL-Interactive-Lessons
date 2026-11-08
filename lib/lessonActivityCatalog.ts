@@ -1,4 +1,4 @@
-export type LessonActivitySkill = "CORE" | "READING" | "WRITING" | "LISTENING" | "SPEAKING";
+export type LessonActivitySkill = "CORE" | "READING" | "WRITING" | "LISTENING" | "SPEAKING" | "PRONUNCIATION";
 
 export type LessonActivityDefinition = {
   type: string;
@@ -15,6 +15,7 @@ export const LESSON_ACTIVITY_SKILLS: Array<{ id: "ALL" | LessonActivitySkill; la
   { id: "WRITING", label: "Writing" },
   { id: "LISTENING", label: "Listening" },
   { id: "SPEAKING", label: "Speaking" },
+  { id: "PRONUNCIATION", label: "Pronunciation & IPA" },
 ];
 
 export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
@@ -45,16 +46,16 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "DIALOGUE_WRITING", label: "Dialogue Writing", description: "Create a purposeful conversation.", skills: ["WRITING", "SPEAKING"] },
   { type: "DICTATION", label: "Dictation", description: "Listen and type exactly what is heard.", skills: ["LISTENING", "WRITING"] },
   { type: "LISTEN_AND_SELECT", label: "Listen and Select", description: "Listen and choose the correct option.", skills: ["LISTENING"] },
-  { type: "SHADOWING", label: "Shadowing", description: "Listen, repeat, and build fluency.", skills: ["LISTENING", "SPEAKING"] },
-  { type: "READ_ALOUD", label: "Read Aloud / Speed Reading", description: "Read a teacher-selected passage with a guided rhythm and optional timed challenge.", skills: ["READING", "SPEAKING"] },
+  { type: "SHADOWING", label: "Shadowing", description: "Listen, repeat, and build fluency.", skills: ["LISTENING", "SPEAKING", "PRONUNCIATION"] },
+  { type: "READ_ALOUD", label: "Read Aloud / Speed Reading", description: "Read a teacher-selected passage aloud; speech transcription is checked against the text.", skills: ["READING", "SPEAKING", "PRONUNCIATION"] },
   { type: "NOTE_TAKING_CHALLENGE", label: "Note-Taking Challenge", description: "Capture useful details while listening.", skills: ["LISTENING", "WRITING"] },
-  { type: "SOUND_DISCRIMINATION", label: "Sound Discrimination", description: "Identify differences between sounds.", skills: ["LISTENING", "SPEAKING"] },
-  { type: "IPA_PRACTICE", label: "IPA Practice Lab", description: "Build transcription, sound comparison, and phoneme sorting rounds from the IPA chart.", skills: ["CORE", "LISTENING", "SPEAKING"] },
-  { type: "IPA_LISTEN_BUILD", label: "Listen & Build IPA", description: "Listen to a word and build its IPA transcription with sounds from the chart.", skills: ["CORE", "LISTENING"] },
+  { type: "SOUND_DISCRIMINATION", label: "Sound Discrimination", description: "Identify differences between sounds.", skills: ["LISTENING", "SPEAKING", "PRONUNCIATION"] },
+  { type: "IPA_PRACTICE", label: "IPA Practice Lab", description: "Build transcription, sound comparison, and phoneme sorting rounds from the IPA chart.", skills: ["CORE", "LISTENING", "PRONUNCIATION"] },
+  { type: "IPA_LISTEN_BUILD", label: "Listen & Build IPA", description: "Listen to a word and build its IPA transcription with sounds from the chart.", skills: ["CORE", "LISTENING", "PRONUNCIATION"] },
   { type: "LISTEN_AND_GAP_FILL", label: "Listening Gap Fill", description: "Complete gaps while listening.", skills: ["LISTENING", "WRITING"] },
-  { type: "PRONUNCIATION", label: "Pronunciation Practice", description: "Record and compare spoken language.", skills: ["SPEAKING", "LISTENING"] },
-  { type: "TONGUE_TWISTER", label: "Tongue Twister Practice", description: "Listen to the model, record yourself, then choose a self-grade out of three.", skills: ["SPEAKING", "LISTENING"] },
-  { type: "ORAL_RESPONSE", label: "Oral Response", description: "Answer a prompt by speaking.", skills: ["SPEAKING"] },
+  { type: "PRONUNCIATION", label: "Pronunciation Practice", description: "Record and compare spoken language.", skills: ["SPEAKING", "LISTENING", "PRONUNCIATION"] },
+  { type: "TONGUE_TWISTER", label: "Tongue Twister Practice", description: "Listen to the model, record yourself, then choose a self-grade out of three.", skills: ["SPEAKING", "LISTENING", "PRONUNCIATION"] },
+  { type: "ORAL_RESPONSE", label: "Oral Response", description: "Answer a prompt by speaking; the response is transcribed for feedback and marking.", skills: ["SPEAKING", "PRONUNCIATION"] },
   { type: "AI_ROLEPLAY", label: "AI Conversation Roleplay", description: "Hold a guided conversation with AI.", skills: ["SPEAKING", "LISTENING"], aiEnhanced: true },
   { type: "AI_INTERVIEW", label: "Interview with AI", description: "Answer spoken questions from a context-aware AI interviewer.", skills: ["SPEAKING", "LISTENING"], aiEnhanced: true },
   { type: "LIVE_SPEAK_TRANSLATE", label: "Live Bangla to English", description: "Speak in Bangla and hear natural English.", skills: ["SPEAKING", "LISTENING"], aiEnhanced: true },
