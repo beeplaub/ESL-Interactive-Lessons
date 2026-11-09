@@ -726,7 +726,7 @@ function ReadingPassageBlock({ content, alwaysOpen }: { content: Record<string, 
         </div>
       </div>
       {isOpen || alwaysOpen ? <div className="border-t border-[var(--br-action)]/15 p-4 sm:p-5">
-        {sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} mode={content.pairing_mode === "line" ? "line" : "sentence"} originalText={asString(content.passage)} translationText={asString(content.translation)} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />}
+        {sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} originalText={asString(content.passage)} translationText={asString(content.translation)} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />}
         {asArray(content.questions).length ? (
           <div className="mt-4 rounded-md bg-surface-muted p-3">
             <p className="text-base font-semibold">Questions</p>
@@ -1478,22 +1478,17 @@ function ReadingPassageGlossaryText({ text, entries }: { text: string; entries: 
 
 type ReadingSentencePair = { id: string; original: string; translation: string };
 
-const READING_ABBREVIATIONS = /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|Mt|vs|e\.g|i\.e|etc|U\.S|No)\./gi;
-
-function splitReadingSourceSentences(value: string) {
-  const protectedText = value.replace(READING_ABBREVIATIONS, (match) => match.replace(/\./g, "\u0001"));
-  const matches = protectedText.match(/[^.!?।]+(?:[.!?।]+["'”’»)]*)|[^.!?।]+$/g) ?? [];
-  return matches.map((sentence) => sentence.replace(/\u0001/g, "."));
-}
-
 function splitReadingSourceParagraphs(value: string) {
   const lines = value.replace(/\r\n/g, "\n").split("\n");
-  const paragraphs: Array<{ text: string; blankLinesAfter: number }> = [];
-  let currentLines: string[] = [];
+  const paragraphs: Array<{ text: string; start: number; end: number; blankLinesAfter: number }> = [];
+  let currentLines: Array<{ text: string; start: number; end: number }> = [];
   let pendingBlankLines = 0;
   let leadingBlankLines = 0;
+  let offset = 0;
 
   for (const line of lines) {
+    const lineStart = offset;
+    offset += line.length + 1;
     if (!line.trim()) {
       if (currentLines.length) pendingBlankLines += 1;
       else if (!paragraphs.length) leadingBlankLines += 1;
@@ -1501,21 +1496,74 @@ function splitReadingSourceParagraphs(value: string) {
     }
 
     if (currentLines.length && pendingBlankLines) {
-      paragraphs.push({ text: currentLines.join("\n"), blankLinesAfter: pendingBlankLines });
+      paragraphs.push({ text: currentLines.map((item) => item.text).join("\n"), start: currentLines[0].start, end: currentLines[currentLines.length - 1].end, blankLinesAfter: pendingBlankLines });
       currentLines = [];
       pendingBlankLines = 0;
     }
-    currentLines.push(line);
+    currentLines.push({ text: line, start: lineStart, end: lineStart + line.length });
   }
 
-  if (currentLines.length) paragraphs.push({ text: currentLines.join("\n"), blankLinesAfter: pendingBlankLines });
+  if (currentLines.length) paragraphs.push({ text: currentLines.map((item) => item.text).join("\n"), start: currentLines[0].start, end: currentLines[currentLines.length - 1].end, blankLinesAfter: pendingBlankLines });
   return { paragraphs, leadingBlankLines, trailingBlankLines: currentLines.length ? 0 : pendingBlankLines };
 }
 
-function ReadingPassageComparison({ pairs, entries, mode, originalText, translationText }: {
+function normalizeReadingPairText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function findReadingPairRanges(source: string, pairs: ReadingSentencePair[], side: "original" | "translation") {
+  const normalizedSource = normalizeReadingPairText(source);
+  const rawOffsets: number[] = [];
+  let normalizedOffset = 0;
+  let lastWasSpace = true;
+  for (let rawOffset = 0; rawOffset < source.length; rawOffset += 1) {
+    const character = source[rawOffset];
+    if (/\s/.test(character)) {
+      if (!lastWasSpace && normalizedOffset < normalizedSource.length) {
+        rawOffsets[normalizedOffset] = rawOffset;
+        normalizedOffset += 1;
+        lastWasSpace = true;
+      }
+      continue;
+    }
+    rawOffsets[normalizedOffset] = rawOffset;
+    normalizedOffset += 1;
+    lastWasSpace = false;
+  }
+
+  const ranges: Array<{ start: number; end: number; index: number }> = [];
+  let rawCursor = 0;
+  let normalizedCursor = 0;
+  pairs.forEach((pair, index) => {
+    const pairText = pair[side];
+    if (!pairText.trim()) return;
+
+    const exactIndex = source.indexOf(pairText, rawCursor);
+    if (exactIndex >= 0) {
+      const end = exactIndex + pairText.length;
+      ranges.push({ start: exactIndex, end, index });
+      rawCursor = end;
+      while (normalizedCursor < rawOffsets.length && rawOffsets[normalizedCursor] < rawCursor) normalizedCursor += 1;
+      return;
+    }
+
+    const normalizedPair = normalizeReadingPairText(pairText);
+    const normalizedIndex = normalizedSource.indexOf(normalizedPair, normalizedCursor);
+    if (normalizedIndex < 0 || !normalizedPair.length) return;
+    const start = rawOffsets[normalizedIndex];
+    const lastCharacterOffset = normalizedIndex + normalizedPair.length - 1;
+    const end = rawOffsets[lastCharacterOffset] + 1;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < rawCursor) return;
+    ranges.push({ start, end, index });
+    rawCursor = end;
+    normalizedCursor = normalizedIndex + normalizedPair.length;
+  });
+  return ranges;
+}
+
+function ReadingPassageComparison({ pairs, entries, originalText, translationText }: {
   pairs: ReadingSentencePair[];
   entries: ReadingGlossaryEntry[];
-  mode: "sentence" | "line";
   originalText: string;
   translationText: string;
 }) {
@@ -1552,32 +1600,46 @@ function ReadingPassageComparison({ pairs, entries, mode, originalText, translat
   const pairClass = (index: number) => `cursor-pointer rounded-md px-0.5 transition focus:outline-none ${selectedIndex === index ? "text-[var(--br-dark-card)]" : "hover:bg-[var(--br-brand)]/5"}`;
   const pairStyle = (index: number) => selectedIndex === index ? { backgroundColor: "color-mix(in srgb, var(--br-action) 18%, transparent)" } : undefined;
   const interactiveUnit = (index: number, children: React.ReactNode, key: string) => <span key={key} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`whitespace-pre-wrap ${pairClass(index)}`} style={pairStyle(index)}>{children}</span>;
-  const renderSource = (source: string, renderUnit: (text: string, index: number, key: string) => React.ReactNode) => {
+  const renderSource = (sourceValue: string, side: "original" | "translation", renderPlain: (text: string) => React.ReactNode, renderUnit: (text: string, index: number, key: string) => React.ReactNode) => {
+    const source = sourceValue.replace(/\r\n/g, "\n");
     if (!source) return null;
-    let pairIndex = 0;
-    if (mode === "line") {
-      return <div className="text-base leading-7 text-[var(--br-text-muted)] whitespace-pre-wrap">{source.replace(/\r\n/g, "\n").split("\n").map((line, lineIndex) => {
-        if (!line.trim()) return <span key={`blank-${lineIndex}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>;
-        const index = pairIndex++;
-        return <span key={`line-${lineIndex}`} className="block">{renderUnit(line, index, `line-${lineIndex}`)}</span>;
-      })}</div>;
-    }
-
     const split = splitReadingSourceParagraphs(source);
+    const ranges = findReadingPairRanges(source, pairs, side);
+    let fragmentIndex = 0;
+    const renderParagraph = (paragraph: typeof split.paragraphs[number], paragraphIndex: number) => {
+      let cursor = paragraph.start;
+      const paragraphRanges = ranges.filter((range) => range.end > paragraph.start && range.start < paragraph.end);
+      const fragments: React.ReactNode[] = [];
+      for (const range of paragraphRanges) {
+        const start = Math.max(range.start, paragraph.start, cursor);
+        const end = Math.min(range.end, paragraph.end);
+        if (start > cursor) {
+          const text = source.slice(cursor, start);
+          fragments.push(<span key={`plain-${paragraphIndex}-${fragmentIndex++}`} className="whitespace-pre-wrap">{renderPlain(text)}</span>);
+        }
+        if (end > start) {
+          const text = source.slice(start, end);
+          fragments.push(renderUnit(text, range.index, `pair-${range.index}-${paragraphIndex}-${fragmentIndex++}`));
+          cursor = end;
+        }
+      }
+      if (cursor < paragraph.end) {
+        const text = source.slice(cursor, paragraph.end);
+        fragments.push(<span key={`plain-${paragraphIndex}-${fragmentIndex++}`} className="whitespace-pre-wrap">{renderPlain(text)}</span>);
+      }
+      return <Fragment key={`paragraph-${paragraphIndex}`}><p className="whitespace-pre-wrap">{fragments}</p>{Array.from({ length: paragraph.blankLinesAfter }, (_, index) => <span key={`blank-${paragraphIndex}-${index}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>)}</Fragment>;
+    };
+
     return <div className="text-base leading-7 text-[var(--br-text-muted)] whitespace-pre-wrap">
       {Array.from({ length: split.leadingBlankLines }, (_, index) => <span key={`leading-blank-${index}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>)}
-      {split.paragraphs.map((paragraph, paragraphIndex) => {
-        const units = splitReadingSourceSentences(paragraph.text);
-        const rendered = units.map((unit, unitIndex) => renderUnit(unit, pairIndex++, `paragraph-${paragraphIndex}-unit-${unitIndex}`));
-        return <Fragment key={`paragraph-${paragraphIndex}`}><p className="whitespace-pre-wrap">{rendered}</p>{Array.from({ length: paragraph.blankLinesAfter }, (_, index) => <span key={`blank-${paragraphIndex}-${index}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>)}</Fragment>;
-      })}
+      {split.paragraphs.map(renderParagraph)}
       {Array.from({ length: split.trailingBlankLines }, (_, index) => <span key={`trailing-blank-${index}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>)}
     </div>;
   };
-  const originalContent = originalText || pairs.map((pair) => pair.original).join(mode === "line" ? "\n" : " ");
-  const translationContent = translationText || pairs.map((pair) => pair.translation).join(mode === "line" ? "\n" : " ");
-  const originalSource = renderSource(originalContent, (text, index, key) => interactiveUnit(index, renderOriginal(text, index), key));
-  const translationSource = renderSource(translationContent, (text, index, key) => interactiveUnit(index, text ? <InlineText text={text} /> : "Translation not added yet.", key));
+  const originalContent = originalText || pairs.map((pair) => pair.original).join(" ");
+  const translationContent = translationText || pairs.map((pair) => pair.translation).join(" ");
+  const originalSource = renderSource(originalContent, "original", (text) => renderOriginal(text, -1), (text, index, key) => interactiveUnit(index, renderOriginal(text, index), key));
+  const translationSource = renderSource(translationContent, "translation", (text) => <InlineText text={text} />, (text, index, key) => interactiveUnit(index, <InlineText text={text} />, key));
   return <>
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen size={16} className="text-[var(--br-brand)]" /><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">Original</h4></div>{originalSource}</section>
