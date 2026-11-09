@@ -31,6 +31,7 @@ export type ScoredQuestion = {
     | "READ_ALOUD"
     | "NOTE_TAKING_CHALLENGE"
     | "SOUND_DISCRIMINATION"
+    | "STRESS_PICKER"
     | "IPA_PRACTICE"
     | "LISTEN_AND_GAP_FILL"
     | "SENTENCE_COMPLETION"
@@ -259,6 +260,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
   }
 
+  if (question.question_type === "STRESS_PICKER") return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
   if (question.question_type === "IPA_PRACTICE") return questionScore(question, value) === questionTotal(question);
 
   if (question.question_type === "DICTATION") {

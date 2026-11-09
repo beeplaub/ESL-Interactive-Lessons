@@ -35,7 +35,7 @@ export type QuizQuestion = {
   /** Parent lesson activity UUID. Quiz questions leave this unset and use their own id. */
   source_activity_id?: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "READ_ALOUD" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "IPA_PRACTICE" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "READ_ALOUD" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "STRESS_PICKER" | "IPA_PRACTICE" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -329,6 +329,13 @@ function answerText(question: QuizQuestion): string {
     const options = asRecord(question.options);
     const items = Array.isArray(options.items) ? options.items.map(item => asRecord(item as Json)) : [];
     return items.map((item, index) => `${index + 1}. ${String(item.expected ?? correct[String(item.id)] ?? "")}`).join(" · ");
+  }
+  if (question.question_type === "STRESS_PICKER") {
+    const opts = asRecord(question.options);
+    const syllables = Array.isArray(opts.syllables) ? opts.syllables.map(item => asRecord(item as Json)) : [];
+    const index = Number(question.correct_answer);
+    const syllable = syllables[index];
+    return `${String(opts.word ?? "Word")} · syllable ${index + 1}${syllable?.ipa ? ` (/${String(syllable.ipa)}/)` : ""}`;
   }
   if (question.question_type === "MCQ") {
     const opts = asRecord(question.options);
@@ -1014,6 +1021,9 @@ export function QuizPlayer({
               question={currentQuestion}
               value={answers[currentQuestion.id]}
               submitted={submitted}
+              questionPosition={currentIndex}
+              questionCount={questions.length}
+              onNavigateQuestion={goToQuestion}
               soundDiscriminationReviewRoundIndex={currentQuestion.question_type === "SOUND_DISCRIMINATION" ? soundReviewRoundIndex : undefined}
               onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
               onResult={handleQuestionResult}
@@ -1023,7 +1033,7 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      {!autoGradingActive ? <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
+      {!autoGradingActive && currentQuestion?.question_type !== "STRESS_PICKER" ? <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
@@ -1112,6 +1122,9 @@ export function QuestionCard({
   question,
   value,
   submitted,
+  questionPosition,
+  questionCount,
+  onNavigateQuestion,
   soundDiscriminationReviewRoundIndex,
   onChange,
   onResult,
@@ -1121,6 +1134,9 @@ export function QuestionCard({
   question: QuizQuestion;
   value: unknown;
   submitted: boolean;
+  questionPosition?: number;
+  questionCount?: number;
+  onNavigateQuestion?: (index: number) => void;
   soundDiscriminationReviewRoundIndex?: number;
   onChange: (value: unknown) => void;
   /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
@@ -1230,6 +1246,7 @@ export function QuestionCard({
       {question.question_type === "READ_ALOUD" ? <ReadingPracticePlayer config={{ title: String(asRecord(question.options).title ?? "Reading passage"), passage: String(asRecord(question.options).passage ?? ""), level: String(asRecord(question.options).level ?? "A1"), time_limit_seconds: asRecord(question.options).time_limit_seconds ? Number(asRecord(question.options).time_limit_seconds) : null, pace_wpm: readingPaceForLevel(String(asRecord(question.options).level ?? "A1"), Number(asRecord(question.options).pace_wpm ?? Number.NaN)), recording_attempt_limit: asRecord(question.options).recording_attempt_limit ? Number(asRecord(question.options).recording_attempt_limit) : null, chunking_enabled: asRecord(question.options).chunking_enabled === true, usage_key: `quiz:${quizId ?? "preview"}:${question.id}` }} disabled={submitted} onResult={(result) => onChange({ ...result, score: result.match_percent } as unknown as Json)} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} reviewRoundIndex={soundDiscriminationReviewRoundIndex} onChange={onChange} /> : null}
+        {question.question_type === "STRESS_PICKER" ? <StressPickerPlayer question={question} value={value as number | undefined} disabled={submitted} questionPosition={questionPosition} questionCount={questionCount} onNavigateQuestion={onNavigateQuestion} onChange={onChange} /> : null}
         {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
@@ -4000,6 +4017,44 @@ function SoundDiscriminationPlayer({
   onChange: (val: string) => void;
 }) {
   return <SoundDiscriminationLearnerCard options={question.options} value={value} disabled={disabled} reviewRoundIndex={reviewRoundIndex} onChange={onChange} />;
+}
+
+function StressPickerPlayer({ question, value, disabled, questionPosition, questionCount, onNavigateQuestion, onChange }: { question: QuizQuestion; value?: number; disabled: boolean; questionPosition?: number; questionCount?: number; onNavigateQuestion?: (index: number) => void; onChange: (value: number) => void }) {
+  const options = asRecord(question.options);
+  const syllables = Array.isArray(options.syllables) ? options.syllables.map(item => asRecord(item as Json)) : [];
+  const audioUrl = String(options.audio_url ?? "");
+  const accent = options.accent === "us" ? "us" : "uk";
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => { setPlaying(false); }, [question.id]);
+  return <div style={{ borderColor: "#d3d0ed", background: "linear-gradient(135deg, #f7f6ff 0%, #ffffff 58%, #f4f2ff 100%)" }} className="mx-auto grid w-full min-w-0 max-w-2xl grid-cols-[minmax(0,1fr)] gap-5 rounded-[24px] border p-4 sm:p-6">
+    <div className="flex min-w-0 justify-center">
+      <span style={{ backgroundColor: accent === "uk" ? "var(--br-chart-primary)" : "#f16a77" }} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/70 px-3.5 py-1.5 text-[10px] font-extrabold tracking-wide text-white shadow-md ring-1 ring-[var(--br-brand)]/10 sm:min-h-10 sm:px-4 sm:text-xs">
+        <span className="grid size-5 place-items-center rounded-full bg-white/20 text-[8px] font-black tracking-tight sm:size-[22px] sm:text-[9px]">{accent === "uk" ? "UK" : "US"}</span>
+        {accent === "uk" ? "British English" : "American English"}
+      </span>
+    </div>
+    <audio ref={audioRef} src={audioUrl} preload="none" onEnded={() => setPlaying(false)} onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} />
+    <button type="button" disabled={disabled || !audioUrl} onClick={() => { const audio = audioRef.current; if (!audio) return; if (audio.paused) { audio.currentTime = 0; void audio.play(); } else audio.pause(); }} className="mx-auto grid size-[76px] place-items-center rounded-full bg-[var(--br-action)] text-white shadow-lg shadow-orange-200/70 ring-4 ring-white transition hover:scale-[1.03] hover:bg-[var(--br-action-strong)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--br-action)]/25 disabled:opacity-50" aria-label="Play word audio"><span className={`grid size-14 place-items-center rounded-full ${playing ? "animate-pulse bg-white/25" : "bg-white/15"}`}>{playing ? <Pause size={25} fill="currentColor"/> : <Play size={25} fill="currentColor" className="translate-x-0.5"/>}</span></button>
+    <p className="-mt-3 px-2 text-center text-xs font-semibold leading-5 text-[var(--br-text-muted)]">Tap play to listen, then select the strongest syllable below.</p>
+    <div className={`mx-auto flex h-7 w-full max-w-xs items-center justify-center gap-1.5 rounded-full bg-white/80 px-5 ${playing ? "" : "opacity-60"}`} aria-hidden="true">{Array.from({ length: 27 }, (_, index) => <span key={index} className={`w-1 rounded-full transition-all ${playing ? "animate-pulse bg-[var(--br-brand)]" : "bg-[var(--br-brand)]/30"}`} style={{ height: `${7 + ((index * 17) % 17)}px`, animationDelay: `${index * 25}ms` }}/>)}</div>
+    {disabled ? <div className="rounded-xl border border-[var(--br-brand)]/15 bg-white/90 px-4 py-3 text-center"><p className="text-base font-black text-[var(--br-dark-card)]">{String(options.word ?? "")}</p><p className="mt-1 font-mono text-sm text-[var(--br-text-muted)]">/{String(options.ipa ?? "")}/</p></div> : null}
+    <div className={`grid min-w-0 gap-2 ${syllables.length <= 2 ? "grid-cols-2" : syllables.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+      {syllables.map((syllable, index) => {
+        const selected = value === index;
+        const expected = Number(question.correct_answer) === index;
+        const statusClass = disabled && expected ? "border-emerald-500 bg-emerald-50 text-emerald-800" : disabled && selected ? "border-rose-500 bg-rose-50 text-rose-800" : selected ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/5 text-[var(--br-brand)] ring-2 ring-[var(--br-chart-primary)]/15" : "border-[var(--br-brand)]/35 bg-white text-[var(--br-dark-card)] hover:border-[var(--br-chart-primary)] hover:bg-[var(--br-chart-primary)]/[0.03]";
+        return <button key={`${index}-${String(syllable.ipa)}`} type="button" disabled={disabled} aria-pressed={selected} onClick={() => onChange(index)} style={{ borderColor: disabled && expected ? "var(--br-success)" : disabled && selected ? "var(--br-danger)" : selected ? "var(--br-chart-primary)" : "#b7b4dc" }} className={`min-h-[86px] min-w-0 rounded-2xl border-2 px-2 py-3 text-center transition ${statusClass}`}><span className="block text-[10px] font-extrabold uppercase tracking-wider text-[var(--br-brand)]">Syllable {index + 1}</span><span className="mt-1 block font-mono text-2xl font-black">{String(syllable.ipa ?? "")}</span></button>;
+      })}
+    </div>
+    {typeof questionPosition === "number" && typeof questionCount === "number" && questionCount > 1 && onNavigateQuestion ? (
+      <nav aria-label="Stress Picker word navigation" className="flex items-center justify-between border-t border-[var(--br-brand)]/10 pt-3">
+        <button type="button" onClick={() => onNavigateQuestion(questionPosition - 1)} disabled={questionPosition === 0} aria-label="Previous word" className="grid size-9 place-items-center rounded-full border border-[var(--br-brand)]/15 bg-white text-[var(--br-brand)] shadow-sm transition hover:border-[var(--br-brand)]/35 hover:bg-[var(--br-brand-soft)] disabled:opacity-35"><ChevronLeft size={17} /></button>
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[var(--br-text-muted)]">Word <span className="text-[var(--br-brand)]">{questionPosition + 1}</span> of {questionCount}</span>
+        <button type="button" onClick={() => onNavigateQuestion(questionPosition + 1)} disabled={questionPosition >= questionCount - 1} aria-label="Next word" className="grid size-9 place-items-center rounded-full bg-[var(--br-brand)] text-white shadow-sm transition hover:bg-[var(--br-brand-strong)] disabled:opacity-35"><ChevronRight size={17} /></button>
+      </nav>
+    ) : null}
+  </div>;
 }
 
 function ListenGapFillPlayer({

@@ -321,6 +321,24 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: (data.correct_answer ?? "") as Json,
     }];
   }
+  if (activityType === "STRESS_PICKER") {
+    const words = Array.isArray(data.words) ? data.words : [];
+    const prompt = String(data.prompt ?? "Listen to the word, then tap its strongest syllable.");
+    return words.map((value, index) => {
+      const word = asRecord(value as Json);
+      const syllables = Array.isArray(word.syllables) ? word.syllables : [];
+      const primaryIndex = Number(word.correct_answer ?? syllables.findIndex(item => asRecord(item as Json).stress === "primary"));
+      const accent = word.accent === "us" ? "us" : "uk";
+      return {
+        id: `stress-${String(word.id ?? word.word_id ?? index + 1)}`,
+        question_number: index + 1,
+        question_type: "STRESS_PICKER",
+        question_text: prompt,
+        options: { word: String(word.word ?? ""), accent, ipa: String(word.ipa ?? ""), audio_url: String(word.audio_url ?? ""), syllables } as Json,
+        correct_answer: primaryIndex as unknown as Json,
+      };
+    });
+  }
   if (activityType === "IPA_PRACTICE") {
     const ipaConfig = data.refresh_each_attempt === true
       ? makeIpaPracticeConfig(data, ipaSeed ?? String(data.seed ?? seed))
@@ -2112,7 +2130,7 @@ function GenericLessonActivityPanel({
       {currentQuestion && (!submitted || reviewMode === "detail") && (
         <div className={autoGradingActive ? "hidden" : undefined}>
           {/* Question counter + arrows */}
-          <div className="mb-3 flex items-center justify-between gap-2">
+          {currentQuestion.question_type !== "STRESS_PICKER" ? <div className="mb-3 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setQIndex((i) => Math.max(0, i - 1))}
@@ -2155,7 +2173,7 @@ function GenericLessonActivityPanel({
             >
               <ChevronRight size={16} />
             </button>
-          </div>
+          </div> : null}
 
           {/* Current question */}
           <div className="min-h-[120px]">
@@ -2165,6 +2183,9 @@ function GenericLessonActivityPanel({
                 question={currentQuestion}
                 value={answers[currentQuestion.id]}
                 submitted={submitted}
+                questionPosition={qIndex}
+                questionCount={questions.length}
+                onNavigateQuestion={setQIndex}
                 soundDiscriminationReviewRoundIndex={currentQuestion.question_type === "SOUND_DISCRIMINATION" ? soundReviewRoundIndex : undefined}
                 onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
                 onResult={handleQuestionResult}
@@ -2174,7 +2195,7 @@ function GenericLessonActivityPanel({
           </div>
 
           {/* Auto-advance to next question on answer (if not submitted) */}
-          {!submitted && hasAnswer(currentQuestion, answers[currentQuestion.id]) && qIndex < questions.length - 1 && (
+          {currentQuestion.question_type !== "STRESS_PICKER" && !submitted && hasAnswer(currentQuestion, answers[currentQuestion.id]) && qIndex < questions.length - 1 && (
             <button
               type="button"
               onClick={() => setQIndex((i) => i + 1)}

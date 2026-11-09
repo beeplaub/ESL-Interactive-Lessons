@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, Volume2 } from "lucide-react";
 import { deleteSlideActivity, reorderLessonSlideActivities, updateSlideActivity } from "@/app/admin/lessons/actions";
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
@@ -990,6 +990,7 @@ function ActivityPanel({
               {activity.activity_type === "READ_ALOUD" ? <ReadingPracticeEditor value={activity.activity_data} onSave={save} /> : null}
               {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "STRESS_PICKER" ? <StressPickerEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "IPA_PRACTICE" ? <IpaPracticeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "IPA_LISTEN_BUILD" ? <IpaListenBuildEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillEditor activity={activity} onSave={save} /> : null}
@@ -1005,7 +1006,7 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "READ_ALOUD", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "IPA_LISTEN_BUILD", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "READ_ALOUD", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "STRESS_PICKER", "IPA_PRACTICE", "IPA_LISTEN_BUILD", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -2918,6 +2919,55 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
     <label className="text-sm font-medium">Question prompt<input value={prompt} onChange={event => setPrompt(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2" /></label>
     <IpaChartSoundDiscriminationPicker initialData={data} onChange={setChartConfig} />
     <SaveButton disabled={!chartConfig?.rounds.length} onClick={() => chartConfig && onSave({ prompt, ...chartConfig } as unknown as Json, false)} />
+  </div>;
+}
+
+type StressAccent = "uk" | "us";
+type StressPickerChartWord = { word_id: string; word: string; accent: StressAccent; ipa: string; sound_id: string; audio_url: string; syllables: Array<{ ipa: string; stress: string }> };
+type StressPickerWordDraft = StressPickerChartWord & { id: string };
+function StressPickerEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the word, then tap its strongest syllable."));
+  const [items, setItems] = useState<StressPickerWordDraft[]>(() => {
+    const saved = Array.isArray(data.words) ? data.words.map((value, index) => {
+      const row = asRecord(value as Json);
+      return { id: String(row.id ?? `word-${index + 1}`), word_id: String(row.word_id ?? ""), word: String(row.word ?? ""), accent: (row.accent === "us" ? "us" : "uk") as StressAccent, ipa: String(row.ipa ?? ""), sound_id: String(row.sound_id ?? ""), audio_url: String(row.audio_url ?? ""), syllables: Array.isArray(row.syllables) ? row.syllables as StressPickerChartWord["syllables"] : [] };
+    }) : [];
+    return saved.length ? saved : [{ id: "word-1", word_id: "", word: "", accent: "uk" as const, ipa: "", sound_id: "", audio_url: "", syllables: [] }];
+  });
+  const [available, setAvailable] = useState<StressPickerChartWord[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/ipa-chart/stress-picker-words").then(response => response.ok ? response.json() : null).then(result => {
+      if (!cancelled && Array.isArray(result?.words)) setAvailable(result.words as StressPickerChartWord[]);
+    }).catch(() => undefined).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+  const update = (index: number, patch: Partial<StressPickerWordDraft>) => setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  const selectAccent = (index: number, accent: StressAccent) => {
+    const row = items[index];
+    const match = available.find(item => item.word_id === row.word_id && item.accent === accent);
+    update(index, match ? { ...match, id: row.id } : { accent, word_id: "", word: "", ipa: "", sound_id: "", audio_url: "", syllables: [] });
+  };
+  const complete = items.length > 0 && items.every(item => Boolean(item.word_id && item.audio_url && item.syllables.length >= 2 && item.syllables.filter(syllable => syllable.stress === "primary").length === 1));
+  return <div className="grid gap-4 rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] p-3 sm:p-4">
+    <label className="text-sm font-bold">Learner instruction<input value={prompt} onChange={event => setPrompt(event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 py-2" /></label>
+    <div className="grid gap-3">
+      {items.map((item, index) => {
+        const choices = available.filter(word => word.accent === item.accent);
+        return <section key={item.id} className="grid gap-3 rounded-2xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-3 sm:p-4">
+          <header className="flex items-center justify-between gap-3"><h4 className="font-bold text-[var(--br-dark-card)]">Word {index + 1}</h4><button type="button" disabled={items.length <= 1} onClick={() => setItems(current => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove word ${index + 1}`} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-xs font-bold text-[var(--br-text-muted)] disabled:opacity-40"><Trash2 size={14}/>Remove</button></header>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <label className="text-xs font-bold">IPA chart word<select value={item.word_id} disabled={loading || choices.length === 0} onChange={event => { const selected = choices.find(word => word.word_id === event.target.value); if (selected) update(index, { ...selected, id: item.id }); }} className="mt-1 min-h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm"> <option value="">{loading ? "Loading chart words…" : choices.length ? "Choose a chart word" : "No eligible words for this accent"}</option>{choices.map(word => <option key={word.word_id} value={word.word_id}>{word.word} · {word.syllables.length} syllables</option>)}</select></label>
+            <div className="flex items-center gap-1 rounded-xl border border-[var(--br-border)] bg-white p-1" role="group" aria-label={`Accent for word ${index + 1}`}>{(["uk", "us"] as const).map(accent => <button key={accent} type="button" aria-pressed={item.accent === accent} onClick={() => selectAccent(index, accent)} style={item.accent === accent ? { backgroundColor: accent === "uk" ? "var(--br-chart-primary)" : "#f16a77", color: "white" } : undefined} className={`min-h-9 rounded-lg px-3 text-xs font-extrabold ${item.accent === accent ? "" : "text-[var(--br-text-muted)]"}`}>{accent === "uk" ? "British" : "American"}</button>)}</div>
+          </div>
+          {item.word ? <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3"><span className="text-lg font-black text-[var(--br-dark-card)]">{item.word}</span><span className="font-mono text-sm text-[var(--br-text-muted)]">/{item.ipa}/</span><span style={{ backgroundColor: item.accent === "uk" ? "var(--br-chart-primary)" : "#f16a77" }} className="rounded-full px-2.5 py-1 text-[10px] font-extrabold text-white">{item.accent === "uk" ? "British English" : "American English"}</span>{item.audio_url ? <audio controls preload="none" src={item.audio_url} aria-label={`Preview ${item.word} audio`} className="ml-auto h-9 max-w-full" /> : <span className="inline-flex items-center gap-1 text-xs text-rose-700"><Volume2 size={14}/>Audio unavailable</span>}</div> : null}
+        </section>;
+      })}
+    </div>
+    <button type="button" onClick={() => setItems(current => [...current, { id: crypto.randomUUID(), word_id: "", word: "", accent: "uk", ipa: "", sound_id: "", audio_url: "", syllables: [] }])} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--br-brand)] bg-[var(--br-brand)]/5 px-4 text-sm font-extrabold text-[var(--br-brand)]"><Plus size={16}/>Add another word</button>
+    <SaveButton disabled={!complete} onClick={() => onSave({ title: "Stress Picker", prompt, words: items.map(item => ({ ...item, correct_answer: item.syllables.findIndex(syllable => syllable.stress === "primary") })) } as unknown as Json, false)} />
   </div>;
 }
 

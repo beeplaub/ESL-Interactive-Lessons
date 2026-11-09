@@ -73,7 +73,7 @@ export function BuilderDevicePreviewFrame({ children, device, title, minHeight =
         onLoad={prepareFrame}
         allowFullScreen
         className="mx-auto block max-w-none border-0 bg-transparent transition-[width,height] duration-300"
-        style={{ width: deviceWidths[device], height }}
+        style={{ width: device === "MOBILE" ? "min(390px, 100%)" : deviceWidths[device], height }}
         data-preview-device={device.toLowerCase()}
       />
       {frameBody ? createPortal(children, frameBody) : null}

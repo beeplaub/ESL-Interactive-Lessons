@@ -2280,6 +2280,9 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   if (activityType === "IPA_LISTEN_BUILD") {
     return { title: "Listen & Build IPA", prompt: "Listen to the word and build its IPA.", accent: "uk", items: [{ id: crypto.randomUUID(), word_id: "", word: "", ipa_uk: "", ipa_us: "", audio_url_uk: "", audio_url_us: "" }] } as unknown as Json;
   }
+  if (activityType === "STRESS_PICKER") {
+    return { title: "Stress Picker", prompt: "Listen to the word, then tap its strongest syllable.", words: [] } as unknown as Json;
+  }
   if (activityType === "MULTIPLE_SELECT") {
     return {
       prompt,
