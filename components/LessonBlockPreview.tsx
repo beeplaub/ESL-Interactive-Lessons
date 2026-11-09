@@ -1,8 +1,7 @@
 "use client";
 
 import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Loader2, Maximize, Minimize, MessageSquareQuote, Mic, MicOff, Pause, Play, PlayCircle, Quote, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
-import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { Json } from "@/types/database.types";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
@@ -718,7 +717,7 @@ function ReadingPassageBlock({ content, alwaysOpen }: { content: Record<string, 
       <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <BookOpen aria-hidden="true" size={19} className="shrink-0 text-[var(--br-action)]" />
-          <h3 className="min-w-0 font-extrabold tracking-tight text-[var(--br-dark-card)]">{title}</h3>
+          <h3 className="min-w-0 font-extrabold tracking-tight text-[var(--br-dark-card)]"><InlineText text={title} /></h3>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {audioPath ? <ReadingPassageAudioButton src={audioPath} /> : null}
@@ -1373,7 +1372,9 @@ function FlashcardDetails({ word, phonetic, audioSrc, bengaliTranslation, meanin
   );
 }
 
-function parseInlineSegments(source: string, keyPrefix = "inline"): React.ReactNode[] {
+type InlineTextRenderer = (value: string, key: string) => React.ReactNode[];
+
+function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainText?: InlineTextRenderer): React.ReactNode[] {
   const output: React.ReactNode[] = [];
   const openers = ["**", "__", "~~", "[[color:", "[[size:", "_"];
   let cursor = 0;
@@ -1390,7 +1391,7 @@ function parseInlineSegments(source: string, keyPrefix = "inline"): React.ReactN
       let bodyStart = cursor + opener.length;
       const attrs: { color?: string; size?: number } = {};
       if (opener === "[[color:") {
-        const match = source.slice(cursor).match(/^\[\[color:(#[0-9a-fA-F]{6})\|/);
+        const match = source.slice(cursor).match(/^\[\[color:(#[0-9a-fA-F]{6}|var\(--br-[\w-]+\))\|/);
         if (match) { attrs.color = match[1]; bodyStart = cursor + match[0].length; close = "]]"; } else { output.push(opener); cursor += opener.length; continue; }
       } else if (opener === "[[size:") {
         const match = source.slice(cursor).match(/^\[\[size:(\d{2})\|/);
@@ -1398,7 +1399,7 @@ function parseInlineSegments(source: string, keyPrefix = "inline"): React.ReactN
       }
       const closeAt = source.indexOf(close, bodyStart);
       if (closeAt >= 0) {
-        const children = parseInlineSegments(source.slice(bodyStart, closeAt), `${keyPrefix}-${cursor}`);
+        const children = parseInlineSegments(source.slice(bodyStart, closeAt), `${keyPrefix}-${cursor}`, renderPlainText);
         if (opener === "**") output.push(<strong key={`${keyPrefix}-${cursor}`}>{children}</strong>);
         else if (opener === "__") output.push(<span key={`${keyPrefix}-${cursor}`} className="underline underline-offset-2">{children}</span>);
         else if (opener === "~~") output.push(<span key={`${keyPrefix}-${cursor}`} className="line-through">{children}</span>);
@@ -1412,13 +1413,15 @@ function parseInlineSegments(source: string, keyPrefix = "inline"): React.ReactN
     const nextLink = source.indexOf("[", cursor + 1);
     if (nextLink >= 0) next.push(nextLink);
     const end = next.length ? Math.min(...next) : source.length;
-    output.push(source.slice(cursor, end).replace(/\\([\\*_~\[\]])/g, "$1"));
+    const value = source.slice(cursor, end).replace(/\\([\\*_~\[\]])/g, "$1");
+    const rendered = renderPlainText?.(value, `${keyPrefix}-${cursor}`);
+    output.push(...(rendered ?? [value]));
     cursor = end;
   }
   return output;
 }
 
-function InlineText({ text }: { text: string }) { return <>{parseInlineSegments(text)}</>; }
+function InlineText({ text, renderPlainText }: { text: string; renderPlainText?: InlineTextRenderer }) { return <>{parseInlineSegments(text, "inline", renderPlainText)}</>; }
 
 function FormattedText({ text, align = "text-left", color }: { text: string; align?: string; color?: string }) {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
@@ -1447,28 +1450,28 @@ function ReadingPassageGlossaryText({ text, entries }: { text: string; entries: 
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const findEntry = (part: string) => usableEntries.find((entry) => entry.word.trim().toLocaleLowerCase() === part.toLocaleLowerCase());
   const seenGlossaryTerms = new Set<string>();
+  const renderGlossaryText = (value: string, keyPrefix: string) => (pattern ? value.split(pattern) : [value]).map((part, partIndex) => {
+    const entry = findEntry(part);
+    if (!entry) return <Fragment key={`${keyPrefix}-${partIndex}`}>{part}</Fragment>;
+    const termKey = entry.word.trim().toLocaleLowerCase();
+    if (seenGlossaryTerms.has(termKey)) return <Fragment key={`${keyPrefix}-${partIndex}`}>{part}</Fragment>;
+    seenGlossaryTerms.add(termKey);
+    return <button key={`${keyPrefix}-${partIndex}`} type="button" onClick={() => setActiveEntry(entry)} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button>;
+  });
   const dictionaryCard = activeEntry && mounted ? createPortal(
     <div className="fixed inset-0 z-[120] grid place-items-center bg-[var(--br-brand)]/20 p-4 backdrop-blur-[2px]" role="presentation" onClick={() => setActiveEntry(null)}>
       <div role="dialog" aria-modal="true" aria-label={`${activeEntry.word} glossary definition`} className="w-[min(23rem,100%)] rounded-2xl border border-[var(--br-border)] bg-surface p-4 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h4 className="break-words text-xl font-extrabold text-[var(--br-brand)]">{activeEntry.word}</h4><div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--br-text-muted)]">{activeEntry.ipa ? <span className="font-mono">{activeEntry.ipa}</span> : null}{activeEntry.wordClass ? <span className="rounded-full bg-[var(--br-action)]/10 px-2 py-0.5 text-xs font-bold text-[var(--br-action)]">{activeEntry.wordClass}</span> : null}</div></div><button type="button" onClick={() => setActiveEntry(null)} className="rounded-full border border-[var(--br-border)] px-2.5 py-1 text-lg leading-none text-[var(--br-text-muted)]" aria-label="Close glossary definition">×</button></div>
-        {activeEntry.meaning ? <div className="mt-4 rounded-xl bg-[var(--br-brand-soft)]/35 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Simple meaning</p><p className="mt-1 text-sm leading-6 text-[var(--br-dark-card)]">{activeEntry.meaning}</p></div> : null}
-        {activeEntry.bengaliMeaning ? <div className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">বাংলা অর্থ</p><p className="mt-1 text-sm leading-6 text-[var(--br-dark-card)]">{activeEntry.bengaliMeaning}</p></div> : null}
-        {activeEntry.example ? <div className="mt-3 border-l-2 border-[var(--br-action)] pl-3 text-sm italic leading-6 text-[var(--br-text-muted)]">“{activeEntry.example}”</div> : null}
-        {activeEntry.note ? <p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">{activeEntry.note}</p> : null}
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h4 className="break-words text-xl font-extrabold text-[var(--br-brand)]"><InlineText text={activeEntry.word} /></h4><div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--br-text-muted)]">{activeEntry.ipa ? <span className="font-mono"><InlineText text={activeEntry.ipa} /></span> : null}{activeEntry.wordClass ? <span className="rounded-full bg-[var(--br-action)]/10 px-2 py-0.5 text-xs font-bold text-[var(--br-action)]"><InlineText text={activeEntry.wordClass} /></span> : null}</div></div><button type="button" onClick={() => setActiveEntry(null)} className="rounded-full border border-[var(--br-border)] px-2.5 py-1 text-lg leading-none text-[var(--br-text-muted)]" aria-label="Close glossary definition">×</button></div>
+        {activeEntry.meaning ? <div className="mt-4 rounded-xl bg-[var(--br-brand-soft)]/35 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Simple meaning</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[var(--br-dark-card)]"><InlineText text={activeEntry.meaning} /></p></div> : null}
+        {activeEntry.bengaliMeaning ? <div className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">বাংলা অর্থ</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[var(--br-dark-card)]"><InlineText text={activeEntry.bengaliMeaning} /></p></div> : null}
+        {activeEntry.example ? <div className="mt-3 whitespace-pre-wrap border-l-2 border-[var(--br-action)] pl-3 text-sm italic leading-6 text-[var(--br-text-muted)]">“<InlineText text={activeEntry.example} />”</div> : null}
+        {activeEntry.note ? <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-[var(--br-text-muted)]"><InlineText text={activeEntry.note} /></p> : null}
       </div>
     </div>, document.body
   ) : null;
-  return <><div className="space-y-2 text-base leading-7 text-[var(--br-text-muted)]">{lines.map((line, lineIndex) => {
-    if (!line.trim()) return <div key={lineIndex} className="h-2" aria-hidden />;
-    const parts = pattern ? line.split(pattern) : [line];
-    return <p key={lineIndex}>{parts.map((part, partIndex) => {
-      const entry = findEntry(part);
-      if (!entry) return <InlineText key={partIndex} text={part} />;
-      const termKey = entry.word.trim().toLocaleLowerCase();
-      if (seenGlossaryTerms.has(termKey)) return <InlineText key={partIndex} text={part} />;
-      seenGlossaryTerms.add(termKey);
-      return <button key={partIndex} type="button" onClick={() => setActiveEntry(entry)} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button>;
-    })}</p>;
+  return <><div className="text-base leading-7 text-[var(--br-text-muted)]">{lines.map((line, lineIndex) => {
+    if (!line.trim()) return <span key={lineIndex} className="block min-h-7 whitespace-pre-wrap" aria-hidden="true">{"\u00a0"}</span>;
+    return <span key={lineIndex} className="block whitespace-pre-wrap"><InlineText text={line} renderPlainText={renderGlossaryText} /></span>;
   })}</div>{dictionaryCard}</>;
 }
 
@@ -1484,35 +1487,35 @@ function ReadingPassageComparison({ pairs, entries, mode }: { pairs: ReadingSent
   const findEntry = (part: string) => usableEntries.find((entry) => entry.word.trim().toLocaleLowerCase() === part.toLocaleLowerCase());
   const seenGlossaryTerms = new Set<string>();
   const renderOriginal = (text: string, index: number) => {
-    const parts = pattern ? text.split(pattern) : [text];
-    return parts.map((part, partIndex) => {
+    const renderGlossaryPart: InlineTextRenderer = (value, keyPrefix) => (pattern ? value.split(pattern) : [value]).map((part, partIndex) => {
       const entry = findEntry(part);
-      if (!entry) return <InlineText key={partIndex} text={part} />;
+      if (!entry) return <Fragment key={`${keyPrefix}-${partIndex}`}>{part}</Fragment>;
       const termKey = entry.word.trim().toLocaleLowerCase();
-      if (seenGlossaryTerms.has(termKey)) return <InlineText key={partIndex} text={part} />;
+      if (seenGlossaryTerms.has(termKey)) return <Fragment key={`${keyPrefix}-${partIndex}`}>{part}</Fragment>;
       seenGlossaryTerms.add(termKey);
-      return <button key={partIndex} type="button" onClick={(event) => { event.stopPropagation(); setActiveEntry(entry); }} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button>;
+      return <button key={`${keyPrefix}-${partIndex}`} type="button" onClick={(event) => { event.stopPropagation(); setActiveEntry(entry); }} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button>;
     });
+    return <InlineText text={text} renderPlainText={renderGlossaryPart} />;
   };
   const dictionaryCard = activeEntry && mounted ? createPortal(
     <div className="fixed inset-0 z-[120] grid place-items-center bg-[var(--br-brand)]/20 p-4 backdrop-blur-[2px]" role="presentation" onClick={() => setActiveEntry(null)}>
       <div role="dialog" aria-modal="true" aria-label={`${activeEntry.word} glossary definition`} className="w-[min(23rem,100%)] rounded-2xl border border-[var(--br-border)] bg-surface p-4 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h4 className="break-words text-xl font-extrabold text-[var(--br-brand)]">{activeEntry.word}</h4><div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--br-text-muted)]">{activeEntry.ipa ? <span className="font-mono">{activeEntry.ipa}</span> : null}{activeEntry.wordClass ? <span className="rounded-full bg-[var(--br-action)]/10 px-2 py-0.5 text-xs font-bold text-[var(--br-action)]">{activeEntry.wordClass}</span> : null}</div></div><button type="button" onClick={() => setActiveEntry(null)} className="rounded-full border border-[var(--br-border)] px-2.5 py-1 text-lg leading-none text-[var(--br-text-muted)]" aria-label="Close glossary definition">×</button></div>
-        {activeEntry.meaning ? <div className="mt-4 rounded-xl bg-[var(--br-brand-soft)]/35 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Simple meaning</p><p className="mt-1 text-sm leading-6 text-[var(--br-dark-card)]">{activeEntry.meaning}</p></div> : null}
-        {activeEntry.bengaliMeaning ? <div className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">বাংলা অর্থ</p><p className="mt-1 text-sm leading-6 text-[var(--br-dark-card)]">{activeEntry.bengaliMeaning}</p></div> : null}
-        {activeEntry.example ? <div className="mt-3 border-l-2 border-[var(--br-action)] pl-3 text-sm italic leading-6 text-[var(--br-text-muted)]">“{activeEntry.example}”</div> : null}
-        {activeEntry.note ? <p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">{activeEntry.note}</p> : null}
+        {activeEntry.meaning ? <div className="mt-4 rounded-xl bg-[var(--br-brand-soft)]/35 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Simple meaning</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[var(--br-dark-card)]"><InlineText text={activeEntry.meaning} /></p></div> : null}
+        {activeEntry.bengaliMeaning ? <div className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">বাংলা অর্থ</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[var(--br-dark-card)]"><InlineText text={activeEntry.bengaliMeaning} /></p></div> : null}
+        {activeEntry.example ? <div className="mt-3 whitespace-pre-wrap border-l-2 border-[var(--br-action)] pl-3 text-sm italic leading-6 text-[var(--br-text-muted)]">“<InlineText text={activeEntry.example} />”</div> : null}
+        {activeEntry.note ? <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-[var(--br-text-muted)]"><InlineText text={activeEntry.note} /></p> : null}
       </div>
     </div>, document.body
   ) : null;
   const pairClass = (index: number) => `cursor-pointer rounded-md px-0.5 text-base leading-7 transition focus:outline-none ${selectedIndex === index ? "text-[var(--br-dark-card)]" : "hover:bg-[var(--br-brand)]/5"}`;
   const pairStyle = (index: number) => selectedIndex === index ? { backgroundColor: "color-mix(in srgb, var(--br-action) 18%, transparent)" } : undefined;
   const originalPair = (pair: ReadingSentencePair, index: number) => mode === "line"
-    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)} style={pairStyle(index)}>{renderOriginal(pair.original, index)}</p>
-    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`} style={pairStyle(index)}>{renderOriginal(pair.original, index)} </span>;
+    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`${pairClass(index)} whitespace-pre-wrap`} style={pairStyle(index)}>{renderOriginal(pair.original, index)}</p>
+    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline whitespace-pre-wrap ${pairClass(index)}`} style={pairStyle(index)}>{renderOriginal(pair.original, index)} </span>;
   const translationPair = (pair: ReadingSentencePair, index: number) => mode === "line"
-    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)} style={pairStyle(index)}>{pair.translation || "Translation not added yet."}</p>
-    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`} style={pairStyle(index)}>{pair.translation || "Translation not added yet."} </span>;
+    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`${pairClass(index)} whitespace-pre-wrap`} style={pairStyle(index)}>{pair.translation ? <InlineText text={pair.translation} /> : "Translation not added yet."}</p>
+    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline whitespace-pre-wrap ${pairClass(index)}`} style={pairStyle(index)}>{pair.translation ? <InlineText text={pair.translation} /> : "Translation not added yet."} </span>;
   return <>
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen size={16} className="text-[var(--br-brand)]" /><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">Original</h4></div><div className={`${mode === "line" ? "space-y-1" : "leading-7"}`}>{pairs.map(originalPair)}</div></section>

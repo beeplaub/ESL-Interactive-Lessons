@@ -47,6 +47,7 @@ import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { DeleteButton } from "@/components/DeleteButton";
 import { LESSON_ACTIVITY_CATALOG, LESSON_ACTIVITY_SKILLS, type LessonActivitySkill, lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
+import { BuilderTextToolbar } from "@/components/BuilderTextToolbar";
 import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/components/BuilderDevicePreviewFrame";
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
@@ -1425,6 +1426,7 @@ function BlockEditModal({
           </div>
         </div>
       </div>
+      {block.block_type === "READING" ? <BuilderTextToolbar /> : null}
     </BuilderModalLayer>
   );
 }

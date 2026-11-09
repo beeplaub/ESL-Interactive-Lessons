@@ -2,6 +2,7 @@
 
 import { Bold, Italic, Link2, RemoveFormatting, Strikethrough, Underline } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Target = HTMLInputElement | HTMLTextAreaElement;
 
@@ -27,7 +28,7 @@ export function BuilderTextToolbar() {
     const start = target.selectionStart ?? 0; const end = target.selectionEnd ?? start;
     const text = target.value.slice(start, end);
     const cleaned = text
-      .replace(/\[\[color:#[0-9a-fA-F]{6}\|([\s\S]*?)\]\]/g, "$1")
+      .replace(/\[\[color:(?:#[0-9a-fA-F]{6}|var\(--br-[\w-]+\))\|([\s\S]*?)\]\]/g, "$1")
       .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
       .replace(/\*\*([\s\S]*?)\*\*/g, "$1")
       .replace(/__([\s\S]*?)__/g, "$1")
@@ -35,5 +36,5 @@ export function BuilderTextToolbar() {
       .replace(/_([^_]+)_/g, "$1");
     target.setRangeText(cleaned, start, end, "end"); target.dispatchEvent(new Event("input", { bubbles: true })); target.focus(); setTarget(null);
   };
-  return <div data-builder-toolbar className="fixed z-[100] flex items-center gap-1 rounded-xl border border-[var(--br-border)] bg-surface p-1.5 shadow-[var(--br-shadow)]" style={{ left: Math.min(point.x, window.innerWidth - 296), top: Math.max(8, point.y - 52) }}><button type="button" title="Text colour" onClick={() => apply("[[color:var(--br-action)|", "]]" )} className="grid size-8 place-items-center rounded-lg text-[var(--br-action)] hover:bg-[var(--br-surface-muted)]">A</button><button type="button" title="Bold" onClick={() => apply("**")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Bold size={15}/></button><button type="button" title="Italic" onClick={() => apply("_")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Italic size={15}/></button><button type="button" title="Underline" onClick={() => apply("__")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Underline size={15}/></button><button type="button" title="Link" onClick={link} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Link2 size={15}/></button><button type="button" title="Strikethrough" onClick={() => apply("~~")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Strikethrough size={15}/></button><button type="button" title="Clear formatting" onClick={clear} className="grid size-8 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"><RemoveFormatting size={15}/></button></div>;
+  return createPortal(<div data-builder-toolbar className="fixed z-[120] flex items-center gap-1 rounded-xl border border-[var(--br-border)] bg-surface p-1.5 shadow-[var(--br-shadow)]" style={{ left: Math.max(8, Math.min(point.x, window.innerWidth - 296)), top: Math.max(8, point.y - 52) }}><button type="button" title="Text colour" onClick={() => apply("[[color:var(--br-action)|", "]]" )} className="grid size-8 place-items-center rounded-lg text-[var(--br-action)] hover:bg-[var(--br-surface-muted)]">A</button><button type="button" title="Bold" onClick={() => apply("**")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Bold size={15}/></button><button type="button" title="Italic" onClick={() => apply("_")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Italic size={15}/></button><button type="button" title="Underline" onClick={() => apply("__")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Underline size={15}/></button><button type="button" title="Link" onClick={link} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Link2 size={15}/></button><button type="button" title="Strikethrough" onClick={() => apply("~~")} className="grid size-8 place-items-center rounded-lg hover:bg-[var(--br-surface-muted)]"><Strikethrough size={15}/></button><button type="button" title="Clear formatting" onClick={clear} className="grid size-8 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"><RemoveFormatting size={15}/></button></div>, document.body);
 }
