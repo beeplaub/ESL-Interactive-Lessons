@@ -187,3 +187,41 @@ export async function approveIpaChartAudioAsset(assetId: string) {
   revalidatePath("/ipa-chart");
   revalidatePath("/admin/ipa-chart");
 }
+
+export async function approveSelectedIpaChartAudioAssets(input: { accent: IpaAccent; assetIds: string[] }) {
+  const { user } = await requireAdmin();
+  if (!(input.accent === "uk" || input.accent === "us") || !Array.isArray(input.assetIds) || input.assetIds.length < 1 || input.assetIds.length > 500) {
+    throw new Error("Choose generated audio items from one accent to publish.");
+  }
+  const assetIds = [...new Set(input.assetIds)];
+  if (assetIds.some(id => !/^[0-9a-f-]{36}$/i.test(id))) throw new Error("Choose valid audio items.");
+
+  const admin = createAdminClient();
+  const { data: assets, error: readError } = await admin.from("ipa_chart_audio_assets")
+    .select("id,pending_public_url,pending_storage_provider,pending_storage_bucket,pending_storage_path")
+    .in("id", assetIds).eq("accent", input.accent).eq("status", "READY_FOR_REVIEW")
+    .not("pending_public_url", "is", null);
+  if (readError) throw new Error("Selected review audio could not be loaded.");
+
+  const outcomes = await Promise.all((assets ?? []).map(async asset => {
+    const now = new Date().toISOString();
+    const { data, error } = await admin.from("ipa_chart_audio_assets").update({
+      status: "APPROVED", live_public_url: asset.pending_public_url,
+      live_storage_provider: asset.pending_storage_provider, live_storage_bucket: asset.pending_storage_bucket,
+      live_storage_path: asset.pending_storage_path,
+      pending_public_url: null, pending_storage_provider: null, pending_storage_bucket: null, pending_storage_path: null,
+      reviewed_by: user.id, reviewed_at: now, error_message: null, updated_at: now,
+    }).eq("id", asset.id).eq("accent", input.accent).eq("status", "READY_FOR_REVIEW")
+      .eq("pending_public_url", asset.pending_public_url).select("id").maybeSingle();
+    return { id: asset.id, published: Boolean(data?.id), failed: Boolean(error) };
+  }));
+
+  const publishedIds = outcomes.filter(outcome => outcome.published).map(outcome => outcome.id);
+  const failedCount = outcomes.filter(outcome => outcome.failed).length;
+  const skippedCount = assetIds.length - publishedIds.length - failedCount;
+  if (publishedIds.length) {
+    revalidatePath("/ipa-chart");
+    revalidatePath("/admin/ipa-chart");
+  }
+  return { publishedIds, skippedCount, failedCount };
+}
