@@ -91,3 +91,11 @@
   .workspace .accentToggle button{padding:5px 4px;font-size:10px}
   .workspace .groupTitle span{font-size:10px}
 }
+
+.syllableFilter{display:grid;gap:6px;margin:10px 0 4px}
+.syllableFilterLabel{font-size:10px;font-weight:750;color:var(--br-text-muted)}
+.syllableFilterOptions{display:flex;flex-wrap:nowrap;gap:4px;width:100%}
+.syllableFilterOptions button{flex:1 1 0;min-width:0;min-height:28px;padding:4px 5px;border:1px solid var(--br-border);border-radius:8px;background:var(--br-surface);color:var(--br-text-muted);font-size:10px;font-weight:750;white-space:nowrap}
+.syllableFilterOptions .activeSyllableFilter{border-color:var(--br-action-strong);background:var(--br-action);color:var(--br-text-on-dark)}
+.filterEmpty{margin:12px 0!important;padding:12px;border:1px dashed var(--br-border);border-radius:10px;text-align:center;font-size:10px!important;line-height:1.5!important}
+.mobileDialog .syllableFilterOptions button{min-height:34px;font-size:12px}

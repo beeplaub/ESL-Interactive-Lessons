@@ -1,6 +1,8 @@
+import type { IpaSyllableAnalysis } from "@/lib/ipa/syllable-analysis";
+
 export type IpaAccent = "uk" | "us";
 export type IpaGroup = "monophthong" | "diphthong" | "rhotic" | "consonant";
-export type IpaExample = { spelling: string; ipa: string };
+export type IpaExample = { spelling: string; ipa: string; syllableData?: IpaSyllableAnalysis | null };
 export type IpaSound = {
   id: string;
   symbol: string;

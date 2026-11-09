@@ -9,15 +9,28 @@ import styles from "./ipa-chart.module.css";
 
 type Category = "all" | "vowels" | "consonants";
 type Voicing = "all" | "voiced" | "voiceless";
+type SyllableFilter = "all" | "1" | "2" | "3" | "4+";
 type Playback = ReturnType<typeof useIpaPlayback>;
 const groupLabels: Record<IpaGroup, string> = { monophthong: "Monophthongs", diphthong: "Diphthongs", rhotic: "R-colored vowels", consonant: "Consonants" };
+const syllableFilters: SyllableFilter[] = ["all", "1", "2", "3", "4+"];
 
 function Spelling({ example }: { example: IpaExample }) {
   return <>{spellingParts(example.spelling).map((part, index) => part.highlighted ? <span className={styles.highlight} key={index}>{part.text}</span> : <span key={index}>{part.text}</span>)}</>;
 }
 
-function SoundDetails({ sound, accent, assets, playback, charts }: { sound: IpaSound; accent: IpaAccent; assets: IpaAudioManifest; playback: Playback; charts: Record<IpaAccent, IpaSound[]> }) {
+function SoundDetails({ sound, accent, assets, playback, charts, syllableFilter, onSyllableFilterChange }: { sound: IpaSound; accent: IpaAccent; assets: IpaAudioManifest; playback: Playback; charts: Record<IpaAccent, IpaSound[]>; syllableFilter: SyllableFilter; onSyllableFilterChange: (filter: SyllableFilter) => void }) {
   const audio = assets[accent]?.[sound.id];
+  const syllableCount = (example: IpaExample) => {
+    const variants = example.syllableData?.variants;
+    if (!variants?.length) return null;
+    const match = variants.find(variant => variant.ipa === example.ipa) ?? variants[0];
+    return match.status === "parsed" ? match.syllableCount : null;
+  };
+  const visibleExamples = sound.examples.filter(example => {
+    if (syllableFilter === "all") return true;
+    const count = syllableCount(example);
+    return count !== null && (syllableFilter === "4+" ? count >= 4 : count === Number(syllableFilter));
+  });
   return <div className={styles.detailsContent}>
     <div className={styles.eyebrow}>Meet the sound</div>
     <div className={styles.soundHero}><span className={styles.bigSymbol}>/{sound.symbol}/</span><span className={styles.soundIcon}><AudioLines size={27} aria-hidden="true" /></span></div>
@@ -27,11 +40,11 @@ function SoundDetails({ sound, accent, assets, playback, charts }: { sound: IpaS
       {playback.playing === `sound:${sound.id}` ? <Square size={17} /> : <Volume2 size={17} />}{audio?.sound ? (playback.playing === `sound:${sound.id}` ? "Stop sound" : "Hear the sound") : "Sound recording coming soon"}
     </button>
     <div className={styles.detailSection}><h3>How to make it</h3><p>{sound.cue}</p><p className={styles.articulation}>{sound.articulation}</p></div>
-    <div className={styles.detailSection}><h3>Hear it in a word</h3><p className={styles.caption}>Underlined letters represent /{sound.symbol}/.</p><div className={styles.examples}>
-      {sound.examples.map(example => { const word = plainWord(example); const recording = audio?.words?.[word]; const key = `word:${sound.id}:${word}`; return <button key={word} className={styles.example} onClick={() => void playback.play(key, recording?.src, word)} aria-label={`${playback.playing === key ? "Stop" : "Hear"} ${word} in ${IPA_ACCENTS[accent].label}`}>
+    <div className={styles.detailSection}><h3>Hear it in a word</h3><p className={styles.caption}>Underlined letters represent /{sound.symbol}/.</p><div className={styles.syllableFilter} role="group" aria-label="Filter words by syllable count"><span className={styles.syllableFilterLabel}>Syllable count</span><div className={styles.syllableFilterOptions}>{syllableFilters.map(filter => <button key={filter} type="button" aria-pressed={syllableFilter === filter} className={syllableFilter === filter ? styles.activeSyllableFilter : ""} onClick={() => onSyllableFilterChange(filter)}>{filter === "all" ? "All" : filter}</button>)}</div></div><div className={styles.examples}>
+      {visibleExamples.map(example => { const word = plainWord(example); const recording = audio?.words?.[word]; const key = `word:${sound.id}:${word}`; return <button key={word} className={styles.example} onClick={() => void playback.play(key, recording?.src, word)} aria-label={`${playback.playing === key ? "Stop" : "Hear"} ${word} in ${IPA_ACCENTS[accent].label}`}>
         <span><span className={styles.exampleWord}><Spelling example={example} /></span><span className={styles.transcription}>/{example.ipa}/</span></span><span className={styles.examplePlay}>{playback.playing === key ? <Square size={15} /> : <Volume2 size={18} />}</span>
       </button>; })}
-    </div><p className={styles.caption}>Words without a studio recording use your device’s {IPA_ACCENTS[accent].short} English voice, when available.</p></div>
+    </div>{visibleExamples.length === 0 ? <p className={styles.filterEmpty}>No words in this syllable group for this sound.</p> : null}<p className={styles.caption}>Words without a studio recording use your device’s {IPA_ACCENTS[accent].short} English voice, when available.</p></div>
     {sound.note ? <div className={styles.note}><Info size={16} aria-hidden="true" /><p>{sound.note}</p></div> : null}
     {sound.pair ? <p className={styles.pairNote}>Try its partner: <strong>/{charts[accent].find(item => item.id === sound.pair)?.symbol}/</strong>. Compare the same mouth position with voice on and off.</p> : null}
   </div>;
@@ -42,6 +55,7 @@ export function IpaChart({ audio, charts = IPA_CHARTS }: { audio: IpaAudioManife
   const [selectedId, setSelectedId] = useState("fleece");
   const [category, setCategory] = useState<Category>("all");
   const [voicing, setVoicing] = useState<Voicing>("all");
+  const [syllableFilter, setSyllableFilter] = useState<SyllableFilter>("all");
   const [query, setQuery] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const playback = useIpaPlayback(accent);
@@ -114,7 +128,7 @@ export function IpaChart({ audio, charts = IPA_CHARTS }: { audio: IpaAudioManife
         {!visible.length ? <div className={styles.empty}><Search size={30} /><h3>No sounds found</h3><p>Try an IPA symbol, a word such as “sheep”, or a different filter.</p><button onClick={() => { setQuery(""); setCategory("all"); setVoicing("all"); }}>Show all sounds <ArrowRight size={15} /></button></div> : null}
         <div className={styles.chartFooter}><span><span className={styles.voiceKey}>V</span> Voiced · vocal folds vibrate</span><span><span className={styles.voiceKey}>VL</span> Voiceless · air without voice</span></div>
       </section>
-      <aside className={styles.desktopDetails}><SoundDetails sound={selected} accent={accent} assets={audio} playback={playback} charts={charts} /></aside>
+      <aside className={styles.desktopDetails}><SoundDetails sound={selected} accent={accent} assets={audio} playback={playback} charts={charts} syllableFilter={syllableFilter} onSyllableFilterChange={setSyllableFilter} /></aside>
     </div>
     <div role="status" aria-live="polite" className={playback.message ? styles.playbackMessage : styles.srOnly}>{playback.message || (playback.playing ? "Playing audio" : "")}{playback.message ? <button aria-label="Dismiss playback message" onClick={playback.stop}><X size={16} /></button> : null}</div>
     <div className={styles.learningNotes}>
@@ -122,6 +136,6 @@ export function IpaChart({ audio, charts = IPA_CHARTS }: { audio: IpaAudioManife
       <div><Ear size={21} aria-hidden="true" /><div><h3>Different accents belong here</h3><p>{IPA_ACCENTS[accent].note}</p></div></div>
     </div>
     <details className={styles.about}><summary>About this chart and audio <ChevronRight size={15} /></summary><p>This English teaching chart uses International Phonetic Alphabet symbols; it does not show the full IPA for every language. British and American charts follow their own teaching conventions. All vowels shown are voiced.</p><p>Dedicated recordings are available for every phoneme and example word. Choose British or American to hear the corresponding pronunciation. Select a symbol for articulation guidance, or select an example word to hear it.</p><p>Reference: <a href="https://dictionary.cambridge.org/help/phonetics.html" target="_blank" rel="noreferrer">Cambridge pronunciation symbols</a>. Descriptions and examples are written for BrenUp.</p></details>
-    <dialog ref={dialog} className={styles.mobileDialog} onClose={playback.stop} onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }} aria-label={`Sound details for /${selected.symbol}/`}><div className={styles.dialogInner}><button autoFocus className={styles.closeDialog} aria-label="Close sound details" onClick={() => dialog.current?.close()}><X size={21} /></button><SoundDetails sound={selected} accent={accent} assets={audio} playback={playback} charts={charts} /></div></dialog>
+    <dialog ref={dialog} className={styles.mobileDialog} onClose={playback.stop} onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }} aria-label={`Sound details for /${selected.symbol}/`}><div className={styles.dialogInner}><button autoFocus className={styles.closeDialog} aria-label="Close sound details" onClick={() => dialog.current?.close()}><X size={21} /></button><SoundDetails sound={selected} accent={accent} assets={audio} playback={playback} charts={charts} syllableFilter={syllableFilter} onSyllableFilterChange={setSyllableFilter} /></div></dialog>
   </div>;
 }

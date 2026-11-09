@@ -7,14 +7,14 @@ export type IpaChartCatalogWord = {
   spelling: string;
   normalizedSpelling: string;
   isActive: boolean;
-  pronunciations: Partial<Record<IpaAccent, { soundId: string; ipa: string; spellingMarkup: string; isDefault: boolean }[]>>;
+  pronunciations: Partial<Record<IpaAccent, { soundId: string; ipa: string; spellingMarkup: string; isDefault: boolean; syllableData?: unknown }[]>>;
 };
 
 export async function getIpaChartCatalog(): Promise<Record<IpaAccent, IpaSound[]>> {
   const admin = createAdminClient();
   const [wordsResult, pronunciationsResult] = await Promise.all([
     admin.from("ipa_chart_words").select("id,spelling,normalized_spelling,is_active").eq("is_active", true),
-    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default").order("sort_order"),
+    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default,syllable_data").order("sort_order"),
   ]);
   if (wordsResult.error || pronunciationsResult.error) {
     console.error("IPA chart catalog lookup failed", wordsResult.error?.code ?? pronunciationsResult.error?.code ?? "unknown");
@@ -27,7 +27,7 @@ export async function getIpaChartCatalog(): Promise<Record<IpaAccent, IpaSound[]
     if (!activeWordIds.has(row.word_id) || (row.accent !== "uk" && row.accent !== "us")) continue;
     const accent = row.accent as IpaAccent;
     const examples = examplesBySound[accent].get(row.sound_id) ?? [];
-    examples.push({ spelling: row.spelling_markup, ipa: row.ipa });
+    examples.push({ spelling: row.spelling_markup, ipa: row.ipa, syllableData: row.syllable_data as IpaExample["syllableData"] });
     examplesBySound[accent].set(row.sound_id, examples);
   }
 
@@ -51,7 +51,7 @@ export async function getIpaChartWordAdminState(): Promise<{ configured: boolean
   const admin = createAdminClient();
   const [wordsResult, pronunciationsResult] = await Promise.all([
     admin.from("ipa_chart_words").select("id,spelling,normalized_spelling,is_active").order("normalized_spelling"),
-    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default").order("sort_order"),
+    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default,syllable_data").order("sort_order"),
   ]);
   if (wordsResult.error || pronunciationsResult.error) {
     console.error("IPA chart word admin lookup failed", wordsResult.error?.code ?? pronunciationsResult.error?.code ?? "unknown");
@@ -64,7 +64,7 @@ export async function getIpaChartWordAdminState(): Promise<{ configured: boolean
     const accent = row.accent as IpaAccent;
     const value = pronunciations.get(row.word_id) ?? {};
     value[accent] ??= [];
-    value[accent]!.push({ soundId: row.sound_id, ipa: row.ipa, spellingMarkup: row.spelling_markup, isDefault: row.is_default });
+    value[accent]!.push({ soundId: row.sound_id, ipa: row.ipa, spellingMarkup: row.spelling_markup, isDefault: row.is_default, syllableData: row.syllable_data });
     pronunciations.set(row.word_id, value);
   }
   return {
