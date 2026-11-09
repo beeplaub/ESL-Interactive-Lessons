@@ -7,7 +7,15 @@ import { IPA_GEMINI_VOICES } from "@/lib/ipa/audio";
 import { IPA_CHARTS } from "@/lib/ipa/chart";
 import { VOICEOVER_PACES, VOICEOVER_STYLES } from "@/lib/ai/voiceoverCatalog";
 import { IPA_WORD_EXPANSION_BATCH } from "@/lib/ipa/word-expansion";
+import { parseIpaSyllableAnalysis } from "@/lib/ipa/syllable-analysis";
 import type { IpaAccent } from "@/lib/ipa/chart";
+
+function requireParseableIpa(ipa: string, spelling: string) {
+  const analysis = parseIpaSyllableAnalysis(ipa);
+  if (analysis.status !== "parsed") {
+    throw new Error(`Add Cambridge syllable dots (.) to the IPA for ${spelling} so its syllables and stress can be saved automatically.`);
+  }
+}
 
 export async function addIpaChartWord(input: {
   spelling: string;
@@ -27,6 +35,8 @@ export async function addIpaChartWord(input: {
     throw new Error("Use square brackets around the letters that show the target sound, and keep the full word unchanged.");
   }
   if (!input.ukIpa.trim() || input.ukIpa.trim().length > 120 || !input.usIpa.trim() || input.usIpa.trim().length > 120) throw new Error("Add both British and American IPA transcriptions.");
+  requireParseableIpa(input.ukIpa.trim(), spelling);
+  requireParseableIpa(input.usIpa.trim(), spelling);
   if (!IPA_CHARTS.uk.some(sound => sound.id === input.ukSoundId) || !IPA_CHARTS.us.some(sound => sound.id === input.usSoundId)) throw new Error("Choose a sound from each accent chart.");
 
   const admin = createAdminClient();
@@ -79,6 +89,7 @@ export async function importIpaChartExpansionSection(batchIndex: number) {
         throw new Error(`The target sound for ${candidate.spelling} is not available in its accent chart.`);
       }
       if (!pronunciation.ipa.trim() || pronunciation.ipa.trim().length > 120) throw new Error(`The IPA for ${candidate.spelling} is invalid.`);
+      requireParseableIpa(pronunciation.ipa.trim(), candidate.spelling);
     }
   }
 
