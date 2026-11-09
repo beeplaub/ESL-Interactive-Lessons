@@ -103,6 +103,14 @@ function writingQuestionsFromData(
   });
 }
 
+function ipaPracticeInstruction(mode: unknown, direction: unknown) {
+  if (mode === "compare") return "Listen to the options, then choose the word with the target sound.";
+  if (mode === "sort") return "Select the group that matches each IPA sound.";
+  if (direction === "ipa-to-word") return "Read the IPA and type the matching word.";
+  if (direction === "word-to-ipa") return "Read the word and type its IPA transcription.";
+  return "Read the prompt and type the matching answer.";
+}
+
 function questionsFromData(value: Json | null, activityType: string, seed: string, ipaSeed?: string): QuizQuestion[] {
   const data = asRecord(value);
   if (activityType === "MCQ") {
@@ -366,14 +374,28 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       const row = asRecord(item as Json);
       return [String(row.id ?? `item-${index + 1}`), String(row.expected ?? "")];
     }));
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "IPA_PRACTICE",
-      question_text: String(data.prompt ?? "Complete this IPA practice round."),
-      options: { mode: data.mode ?? "conversion", accent: data.accent ?? "uk", direction: data.direction ?? "both", sortMode: data.sortMode ?? "kind", items } as unknown as Json,
-      correct_answer: correctAnswer as Json,
-    }];
+    return items.map((item, index) => {
+      const row = asRecord(item as Json);
+      const itemId = String(row.id ?? `item-${index + 1}`);
+      const mode = data.mode ?? "conversion";
+      const direction = row.direction ?? data.direction ?? "both";
+      return {
+        id: `ipa-${itemId}`,
+        question_number: index + 1,
+        question_type: "IPA_PRACTICE",
+        question_text: ipaPracticeInstruction(mode, direction),
+        options: {
+          mode,
+          accent: data.accent ?? "uk",
+          direction,
+          sortMode: data.sortMode ?? "kind",
+          count: items.length,
+          seed: ipaConfig?.seed ?? data.seed ?? "ipa-practice",
+          items: [item],
+        } as unknown as Json,
+        correct_answer: { [itemId]: (asRecord(correctAnswer as Json)[itemId] ?? row.expected ?? "") as Json } as Json,
+      };
+    });
   }
   if (activityType === "IPA_LISTEN_BUILD") {
     const items = (Array.isArray(data.items) ? data.items : []).map((value, index) => {
@@ -745,9 +767,34 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   });
 }
 
+function normalizeIpaPracticeAttemptAnswers(
+  value: Record<string, unknown>,
+  activityType: string,
+  questions: QuizQuestion[],
+) {
+  if (activityType !== "IPA_PRACTICE") return value;
+  const normalized = { ...value };
+  const legacyAnswer = asRecord(value["1"] as Json);
+  if (!Object.keys(legacyAnswer).length) return normalized;
+
+  for (const question of questions) {
+    if (normalized[question.id] !== undefined) continue;
+    const options = asRecord(question.options);
+    const item = Array.isArray(options.items) ? asRecord(options.items[0] as Json) : {};
+    const itemId = String(item.id ?? "");
+    if (!itemId || legacyAnswer[itemId] === undefined) continue;
+    const answer: Record<string, unknown> = { [itemId]: legacyAnswer[itemId] };
+    const accentKey = `__accent:${itemId}`;
+    if (legacyAnswer[accentKey] !== undefined) answer[accentKey] = legacyAnswer[accentKey];
+    normalized[question.id] = answer;
+  }
+  return normalized;
+}
+
 export function lessonActivityScore(activity: { id: string; activity_type: string; activity_data: Json | null }, answers: Json) {
-  const values = asRecord(answers);
-  return questionsFromData(activity.activity_data, activity.activity_type, activity.id).reduce((sum, question) => sum + questionScore(question, values[question.id]), 0);
+  const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
+  const values = normalizeIpaPracticeAttemptAnswers(asRecord(answers), activity.activity_type, questions);
+  return questions.reduce((sum, question) => sum + questionScore(question, values[question.id]), 0);
 }
 
 export function lessonActivityTotalPoints(activity: LessonSlideActivity): number {
@@ -1776,7 +1823,11 @@ function GenericLessonActivityPanel({
   });
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id, ipaAttemptSeed)
     .map((question) => ({ ...question, source_activity_id: activity.id }));
-  const initialAnswers = asRecord(initialAttempt?.answers ?? practiceAnswers);
+  const initialAnswers = normalizeIpaPracticeAttemptAnswers(
+    asRecord(initialAttempt?.answers ?? practiceAnswers),
+    activity.activity_type,
+    questions,
+  );
   const draftKey = `brenup:lesson-activity-draft:${activity.id}`;
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => {
     if (!preserveDraft || previewOnly || initialAttempt || typeof window === "undefined") return initialAnswers;
@@ -2067,7 +2118,7 @@ function GenericLessonActivityPanel({
   }
 
   function reviewSavedAttempt(attempt: SavedAttempt) {
-    setAnswers(asRecord(attempt.answers));
+    setAnswers(normalizeIpaPracticeAttemptAnswers(asRecord(attempt.answers), activity.activity_type, questions));
     setSubmitted(true);
     setMessage(attempt.completed_at ? `Viewing attempt from ${new Date(attempt.completed_at).toLocaleString()}.` : "Viewing saved attempt.");
     setQIndex(0);

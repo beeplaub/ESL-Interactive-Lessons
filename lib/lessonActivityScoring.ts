@@ -212,21 +212,22 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
       const row = asRecord(item as Json);
       return [text(row.id || `item-${index + 1}`), text(row.expected)];
     }));
-    return [common(data, 0, "IPA_PRACTICE", answer, {
-      mode: data.mode ?? "conversion",
-      accent: data.accent ?? "uk",
-      direction: data.direction ?? "both",
-      sortMode: data.sortMode ?? "kind",
-      count: data.count ?? items.length,
-      seed: data.seed ?? "ipa-practice",
-      selectedWords: data.selectedWords ?? [],
-      selectedPairs: data.selectedPairs ?? [],
-      selectedSounds: data.selectedSounds ?? [],
-      targetSoundIds: data.targetSoundIds ?? (data.targetSoundId ? [data.targetSoundId] : []),
-      customExamples: data.customExamples ?? [],
-      refresh_each_attempt: data.refresh_each_attempt === true,
-      items,
-    } as unknown as Json)];
+    const answers = asRecord(answer as Json);
+    return items.map((item, index) => {
+      const row = asRecord(item as Json);
+      const itemId = text(row.id || `item-${index + 1}`);
+      return common({ ...row, id: `ipa-${itemId}`, question_number: index + 1 }, index, "IPA_PRACTICE", {
+        [itemId]: answers[itemId] ?? row.expected ?? "",
+      }, {
+        mode: data.mode ?? "conversion",
+        accent: data.accent ?? "uk",
+        direction: data.direction ?? "both",
+        sortMode: data.sortMode ?? "kind",
+        count: items.length,
+        seed: data.seed ?? "ipa-practice",
+        items: [row],
+      } as unknown as Json);
+    });
   }
   if (activityType === "IPA_LISTEN_BUILD") {
     const items = Array.isArray(data.items) ? data.items : [];
