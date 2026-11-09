@@ -2018,6 +2018,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="grid gap-3">
         <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Passage<textarea name="passage" rows={6} value={readingPassage} onChange={(event) => setReadingPassage(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="allow_collapse" defaultChecked={data.allow_collapse === true} className="mt-0.5 accent-[var(--br-brand-strong)]" /><span><span className="font-semibold">Let learners collapse this passage</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Passages stay open by default. Turn this on to show learners an Open/Close control.</span></span></label>
         <input type="hidden" name="audio_path" value={audioPath} />
         <input type="hidden" name="questions" value={Array.isArray(data.questions) ? data.questions.map(String).join("\n") : ""} />
         <input type="hidden" name="glossary_json" value={JSON.stringify(readingGlossary.map((entry) => ({ word: entry.word.trim(), meaning: entry.meaning.trim(), bengali_meaning: entry.bengaliMeaning.trim(), ipa: entry.ipa.trim(), word_class: entry.wordClass.trim(), example: entry.example.trim(), note: entry.note.trim() })).filter((entry) => entry.word))} />

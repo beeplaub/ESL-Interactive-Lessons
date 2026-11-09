@@ -415,6 +415,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     return {
       title: String(formData.get("title") || "").trim(),
       passage: String(formData.get("passage") || "").trim(),
+      allow_collapse: formData.get("allow_collapse") === "on",
       audio_path: nullableText(formData.get("audio_path")),
       questions: splitLines(formData.get("questions")),
       glossary,
@@ -563,7 +564,7 @@ function defaultBlockContent(blockType: string): Json {
     return { entries: [{ word: "word", pronunciation: "", meaning: "meaning", example: "", notes: "" }] };
   }
   if (blockType === "GRAMMAR") return { title: "", explanation: "", examples: [], notes: null, reveal_hidden: false };
-  if (blockType === "READING") return { title: "", passage: "", questions: [], glossary: [], translation: null, translation_language: "bn", sentence_pairs: [] };
+  if (blockType === "READING") return { title: "", passage: "", allow_collapse: false, questions: [], glossary: [], translation: null, translation_language: "bn", sentence_pairs: [] };
   if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {
     card_type: "IMAGE",

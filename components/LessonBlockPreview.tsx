@@ -171,7 +171,7 @@ function ReadingPassageAudioButton({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   if (!src) return null;
-  return <><audio ref={audioRef} src={mediaUrl(src, "audio")} preload="none" onEnded={() => setPlaying(false)} /><button type="button" onClick={() => { const audio = audioRef.current; if (!audio) return; if (audio.paused) { void audio.play(); setPlaying(true); } else { audio.pause(); setPlaying(false); } }} className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--br-border)] bg-surface text-[var(--br-brand)] shadow-sm transition hover:bg-[var(--br-surface-muted)]" aria-label={playing ? "Pause reading passage audio" : "Play reading passage audio"} title={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause size={15} /> : <Play size={15} />}</button></>;
+  return <><audio ref={audioRef} src={mediaUrl(src, "audio")} preload="none" onEnded={() => setPlaying(false)} /><button type="button" onClick={() => { const audio = audioRef.current; if (!audio) return; if (audio.paused) { void audio.play(); setPlaying(true); } else { audio.pause(); setPlaying(false); } }} className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--br-brand-strong)] bg-[var(--br-brand-strong)] text-on-dark shadow-sm transition hover:brightness-110" aria-label={playing ? "Pause reading passage audio" : "Play reading passage audio"} title={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause size={15} /> : <Play size={15} />}</button></>;
 }
 
 function ZoomableImage({ src, alt, className }: { src: string; alt: string; className: string }) {
@@ -708,6 +708,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
 function ReadingPassageBlock({ content, alwaysOpen }: { content: Record<string, unknown>; alwaysOpen: boolean }) {
   const [isOpen, setIsOpen] = useState(true);
   const audioPath = asString(content.audio_path);
+  const allowCollapse = content.allow_collapse === true;
   const title = asString(content.title) || "Reading passage";
   const glossary = asArray(content.glossary).map((item) => asRecord(item as Json)).map((entry) => ({ word: asString(entry.word), meaning: asString(entry.meaning), bengaliMeaning: asString(entry.bengali_meaning ?? entry.bengaliMeaning), ipa: asString(entry.ipa), wordClass: asString(entry.word_class ?? entry.wordClass), example: asString(entry.example), note: asString(entry.note) })).filter((entry) => entry.word.trim());
   const sentencePairs = asArray(content.sentence_pairs).map((item, index) => { const pair = asRecord(item as Json); return { id: asString(pair.id) || `sentence-${index + 1}`, original: asString(pair.original), translation: asString(pair.translation) }; }).filter((pair) => pair.original || pair.translation);
@@ -719,9 +720,9 @@ function ReadingPassageBlock({ content, alwaysOpen }: { content: Record<string, 
           <BookOpen aria-hidden="true" size={19} className="shrink-0 text-[var(--br-action)]" />
           <h3 className="min-w-0 font-extrabold tracking-tight text-[var(--br-dark-card)]"><InlineText text={title} /></h3>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
           {audioPath ? <ReadingPassageAudioButton src={audioPath} /> : null}
-          {!alwaysOpen ? <button type="button" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className="inline-flex h-7 min-w-[4.75rem] items-center justify-center rounded-md bg-[var(--br-action-strong)] px-2.5 text-xs font-bold text-on-dark transition hover:brightness-95">{isOpen ? "Close" : "Open"}</button> : null}
+          {!alwaysOpen && allowCollapse ? <button type="button" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className="inline-flex h-7 min-w-[4.75rem] items-center justify-center rounded-md bg-[var(--br-action-strong)] px-2.5 text-xs font-bold text-on-dark transition hover:brightness-95">{isOpen ? "Close" : "Open"}</button> : null}
         </div>
       </div>
       {isOpen || alwaysOpen ? <div className="border-t border-[var(--br-action)]/15 p-4 sm:p-5">
