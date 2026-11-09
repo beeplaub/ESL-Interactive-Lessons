@@ -725,7 +725,7 @@ function ReadingPassageBlock({ content, alwaysOpen }: { content: Record<string, 
         </div>
       </div>
       {isOpen || alwaysOpen ? <div className="border-t border-[var(--br-action)]/15 p-4 sm:p-5">
-        {sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} mode={content.pairing_mode === "line" ? "line" : "sentence"} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />}
+        {sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} mode={content.pairing_mode === "line" ? "line" : "sentence"} originalText={asString(content.passage)} translationText={asString(content.translation)} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />}
         {asArray(content.questions).length ? (
           <div className="mt-4 rounded-md bg-surface-muted p-3">
             <p className="text-base font-semibold">Questions</p>
@@ -1477,7 +1477,47 @@ function ReadingPassageGlossaryText({ text, entries }: { text: string; entries: 
 
 type ReadingSentencePair = { id: string; original: string; translation: string };
 
-function ReadingPassageComparison({ pairs, entries, mode }: { pairs: ReadingSentencePair[]; entries: ReadingGlossaryEntry[]; mode: "sentence" | "line" }) {
+const READING_ABBREVIATIONS = /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|Mt|vs|e\.g|i\.e|etc|U\.S|No)\./gi;
+
+function splitReadingSourceSentences(value: string) {
+  const protectedText = value.replace(READING_ABBREVIATIONS, (match) => match.replace(/\./g, "\u0001"));
+  const matches = protectedText.match(/[^.!?।]+(?:[.!?।]+["'”’»)]*)|[^.!?।]+$/g) ?? [];
+  return matches.map((sentence) => sentence.replace(/\u0001/g, "."));
+}
+
+function splitReadingSourceParagraphs(value: string) {
+  const lines = value.replace(/\r\n/g, "\n").split("\n");
+  const paragraphs: Array<{ text: string; blankLinesAfter: number }> = [];
+  let currentLines: string[] = [];
+  let pendingBlankLines = 0;
+  let leadingBlankLines = 0;
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      if (currentLines.length) pendingBlankLines += 1;
+      else if (!paragraphs.length) leadingBlankLines += 1;
+      continue;
+    }
+
+    if (currentLines.length && pendingBlankLines) {
+      paragraphs.push({ text: currentLines.join("\n"), blankLinesAfter: pendingBlankLines });
+      currentLines = [];
+      pendingBlankLines = 0;
+    }
+    currentLines.push(line);
+  }
+
+  if (currentLines.length) paragraphs.push({ text: currentLines.join("\n"), blankLinesAfter: pendingBlankLines });
+  return { paragraphs, leadingBlankLines, trailingBlankLines: currentLines.length ? 0 : pendingBlankLines };
+}
+
+function ReadingPassageComparison({ pairs, entries, mode, originalText, translationText }: {
+  pairs: ReadingSentencePair[];
+  entries: ReadingGlossaryEntry[];
+  mode: "sentence" | "line";
+  originalText: string;
+  translationText: string;
+}) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [activeEntry, setActiveEntry] = useState<ReadingGlossaryEntry | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -1508,18 +1548,39 @@ function ReadingPassageComparison({ pairs, entries, mode }: { pairs: ReadingSent
       </div>
     </div>, document.body
   ) : null;
-  const pairClass = (index: number) => `cursor-pointer rounded-md px-0.5 text-base leading-7 transition focus:outline-none ${selectedIndex === index ? "text-[var(--br-dark-card)]" : "hover:bg-[var(--br-brand)]/5"}`;
+  const pairClass = (index: number) => `cursor-pointer rounded-md px-0.5 transition focus:outline-none ${selectedIndex === index ? "text-[var(--br-dark-card)]" : "hover:bg-[var(--br-brand)]/5"}`;
   const pairStyle = (index: number) => selectedIndex === index ? { backgroundColor: "color-mix(in srgb, var(--br-action) 18%, transparent)" } : undefined;
-  const originalPair = (pair: ReadingSentencePair, index: number) => mode === "line"
-    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`${pairClass(index)} whitespace-pre-wrap`} style={pairStyle(index)}>{renderOriginal(pair.original, index)}</p>
-    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline whitespace-pre-wrap ${pairClass(index)}`} style={pairStyle(index)}>{renderOriginal(pair.original, index)} </span>;
-  const translationPair = (pair: ReadingSentencePair, index: number) => mode === "line"
-    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`${pairClass(index)} whitespace-pre-wrap`} style={pairStyle(index)}>{pair.translation ? <InlineText text={pair.translation} /> : "Translation not added yet."}</p>
-    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline whitespace-pre-wrap ${pairClass(index)}`} style={pairStyle(index)}>{pair.translation ? <InlineText text={pair.translation} /> : "Translation not added yet."} </span>;
+  const interactiveUnit = (index: number, children: React.ReactNode, key: string) => <span key={key} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`whitespace-pre-wrap ${pairClass(index)}`} style={pairStyle(index)}>{children}</span>;
+  const renderSource = (source: string, renderUnit: (text: string, index: number, key: string) => React.ReactNode) => {
+    if (!source) return null;
+    let pairIndex = 0;
+    if (mode === "line") {
+      return <div className="text-base leading-7 text-[var(--br-text-muted)] whitespace-pre-wrap">{source.replace(/\r\n/g, "\n").split("\n").map((line, lineIndex) => {
+        if (!line.trim()) return <span key={`blank-${lineIndex}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>;
+        const index = pairIndex++;
+        return <span key={`line-${lineIndex}`} className="block">{renderUnit(line, index, `line-${lineIndex}`)}</span>;
+      })}</div>;
+    }
+
+    const split = splitReadingSourceParagraphs(source);
+    return <div className="text-base leading-7 text-[var(--br-text-muted)] whitespace-pre-wrap">
+      {Array.from({ length: split.leadingBlankLines }, (_, index) => <span key={`leading-blank-${index}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>)}
+      {split.paragraphs.map((paragraph, paragraphIndex) => {
+        const units = splitReadingSourceSentences(paragraph.text);
+        const rendered = units.map((unit, unitIndex) => renderUnit(unit, pairIndex++, `paragraph-${paragraphIndex}-unit-${unitIndex}`));
+        return <Fragment key={`paragraph-${paragraphIndex}`}><p className="whitespace-pre-wrap">{rendered}</p>{Array.from({ length: paragraph.blankLinesAfter }, (_, index) => <span key={`blank-${paragraphIndex}-${index}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>)}</Fragment>;
+      })}
+      {Array.from({ length: split.trailingBlankLines }, (_, index) => <span key={`trailing-blank-${index}`} className="block min-h-7" aria-hidden="true">{"\u00a0"}</span>)}
+    </div>;
+  };
+  const originalContent = originalText || pairs.map((pair) => pair.original).join(mode === "line" ? "\n" : " ");
+  const translationContent = translationText || pairs.map((pair) => pair.translation).join(mode === "line" ? "\n" : " ");
+  const originalSource = renderSource(originalContent, (text, index, key) => interactiveUnit(index, renderOriginal(text, index), key));
+  const translationSource = renderSource(translationContent, (text, index, key) => interactiveUnit(index, text ? <InlineText text={text} /> : "Translation not added yet.", key));
   return <>
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen size={16} className="text-[var(--br-brand)]" /><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">Original</h4></div><div className={`${mode === "line" ? "space-y-1" : "leading-7"}`}>{pairs.map(originalPair)}</div></section>
-      <section className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-brand-soft)]/20 p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><span className="grid size-4 place-items-center rounded-full bg-[var(--br-action)] text-[9px] font-black text-on-dark">বাংলা</span><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">বাংলা অনুবাদ</h4></div><div className={`${mode === "line" ? "space-y-1" : "leading-7"}`}>{pairs.map(translationPair)}</div></section>
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen size={16} className="text-[var(--br-brand)]" /><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">Original</h4></div>{originalSource}</section>
+      <section className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-brand-soft)]/20 p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><span className="grid size-4 place-items-center rounded-full bg-[var(--br-action)] text-[9px] font-black text-on-dark">বাংলা</span><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">বাংলা অনুবাদ</h4></div>{translationSource}</section>
     </div>
     <p className="mt-3 text-xs text-[var(--br-text-muted)]">Click a sentence to compare it with its translation.</p>
     {dictionaryCard}
