@@ -1,7 +1,7 @@
 "use client";
 
-import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Loader2, Maximize, Minimize, MessageSquareQuote, Mic, MicOff, Pause, Play, PlayCircle, Quote, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from "react";
+import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Loader2, Maximize, Minimize, MessageSquareQuote, Mic, MicOff, Minus, Pause, Play, PlayCircle, Plus, Quote, ScanLine, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { Json } from "@/types/database.types";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
@@ -174,12 +174,228 @@ function ReadingPassageAudioButton({ src }: { src: string }) {
   return <><audio ref={audioRef} src={mediaUrl(src, "audio")} preload="none" onEnded={() => setPlaying(false)} /><button type="button" onClick={() => { const audio = audioRef.current; if (!audio) return; if (audio.paused) { void audio.play(); setPlaying(true); } else { audio.pause(); setPlaying(false); } }} className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--br-brand-strong)] bg-[var(--br-brand-strong)] text-on-dark shadow-sm transition hover:brightness-110" aria-label={playing ? "Pause reading passage audio" : "Play reading passage audio"} title={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause size={15} /> : <Play size={15} />}</button></>;
 }
 
+type ImagePan = { x: number; y: number };
+type ImagePointerPoint = { x: number; y: number };
+type ControlsDrag = { pointerId: number; startX: number; startOffsetX: number } | null;
+type ImageGesture =
+  | { kind: "pan"; pointerId: number; x: number; y: number; panX: number; panY: number }
+  | { kind: "pinch"; distance: number; zoom: number; pan: ImagePan; centerX: number; centerY: number }
+  | null;
+
+function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, onZoomChange, onPanChange, onFullscreen, onCloseFullscreen }: {
+  src: string;
+  alt: string;
+  imageClassName: string;
+  zoom: number;
+  pan: ImagePan;
+  fullscreen?: boolean;
+  onZoomChange: (zoom: number) => void;
+  onPanChange: (pan: ImagePan) => void;
+  onFullscreen: () => void;
+  onCloseFullscreen?: () => void;
+}) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const pointersRef = useRef(new Map<number, ImagePointerPoint>());
+  const gestureRef = useRef<ImageGesture>(null);
+  const suppressClickRef = useRef(false);
+  const controlsDragRef = useRef<ControlsDrag>(null);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const [controlsOffsetX, setControlsOffsetX] = useState(0);
+  const controlsRef = useRef<HTMLDivElement>(null);
+
+  const boundedPan = useCallback((value: ImagePan, scale: number): ImagePan => {
+    const frame = frameRef.current;
+    const image = imageRef.current;
+    if (!frame || !image) return { x: 0, y: 0 };
+    const maxX = Math.max(0, (image.clientWidth * scale - frame.clientWidth) / 2);
+    const maxY = Math.max(0, (image.clientHeight * scale - frame.clientHeight) / 2);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, value.x)),
+      y: Math.max(-maxY, Math.min(maxY, value.y)),
+    };
+  }, []);
+
+  const boundedControlsOffset = useCallback((offset: number) => {
+    const frame = frameRef.current;
+    const controls = controlsRef.current;
+    if (!frame || !controls) return 0;
+    const maxOffset = Math.max(0, (frame.clientWidth - controls.offsetWidth) / 2);
+    return Math.max(-maxOffset, Math.min(maxOffset, offset));
+  }, []);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    const image = imageRef.current;
+    const controls = controlsRef.current;
+    if (!frame || !image || !controls || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      const nextPan = boundedPan(pan, zoom);
+      if (nextPan.x !== pan.x || nextPan.y !== pan.y) onPanChange(nextPan);
+      const nextOffset = boundedControlsOffset(controlsOffsetX);
+      if (nextOffset !== controlsOffsetX) setControlsOffsetX(nextOffset);
+    });
+    observer.observe(frame);
+    observer.observe(image);
+    observer.observe(controls);
+    return () => observer.disconnect();
+  }, [boundedControlsOffset, boundedPan, controlsOffsetX, onPanChange, pan, zoom]);
+
+  const setScaleAt = useCallback((targetZoom: number, focus?: { x: number; y: number }) => {
+    const nextZoom = Math.min(4, Math.max(1, targetZoom));
+    const frame = frameRef.current;
+    let nextPan = pan;
+    if (focus && frame && zoom > 0) {
+      const focusX = focus.x - frame.clientWidth / 2;
+      const focusY = focus.y - frame.clientHeight / 2;
+      const factor = nextZoom / zoom;
+      nextPan = {
+        x: focusX - (focusX - pan.x) * factor,
+        y: focusY - (focusY - pan.y) * factor,
+      };
+    } else {
+      const factor = nextZoom / Math.max(zoom, 1);
+      nextPan = { x: pan.x * factor, y: pan.y * factor };
+    }
+    onZoomChange(nextZoom);
+    onPanChange(boundedPan(nextPan, nextZoom));
+  }, [boundedPan, onPanChange, onZoomChange, pan, zoom]);
+
+  const pointInFrame = (point: { clientX: number; clientY: number }) => {
+    const rect = frameRef.current?.getBoundingClientRect();
+    return rect ? { x: point.clientX - rect.left, y: point.clientY - rect.top } : { x: 0, y: 0 };
+  };
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    // Toolbar interactions must never start an image pan/pinch gesture.
+    if ((event.target as Element | null)?.closest("[data-image-zoom-controls]")) return;
+    const point = { x: event.clientX, y: event.clientY };
+    pointersRef.current.set(event.pointerId, point);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    if (pointersRef.current.size >= 2) {
+      const values = [...pointersRef.current.values()];
+      const center = pointInFrame({ clientX: (values[0].x + values[1].x) / 2, clientY: (values[0].y + values[1].y) / 2 });
+      gestureRef.current = {
+        kind: "pinch",
+        distance: Math.max(1, Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y)),
+        zoom,
+        pan,
+        centerX: center.x - (frameRef.current?.clientWidth ?? 0) / 2,
+        centerY: center.y - (frameRef.current?.clientHeight ?? 0) / 2,
+      };
+    } else if (zoom > 1) {
+      gestureRef.current = { kind: "pan", pointerId: event.pointerId, x: point.x, y: point.y, panX: pan.x, panY: pan.y };
+    } else {
+      gestureRef.current = null;
+    }
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const values = [...pointersRef.current.values()];
+    const gesture = gestureRef.current;
+    if (values.length >= 2 && gesture?.kind === "pinch") {
+      const distance = Math.max(1, Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y));
+      const centerClientX = (values[0].x + values[1].x) / 2;
+      const centerClientY = (values[0].y + values[1].y) / 2;
+      const center = pointInFrame({ clientX: centerClientX, clientY: centerClientY });
+      const nextZoom = Math.min(4, Math.max(1, gesture.zoom * (distance / gesture.distance)));
+      const centerX = center.x - (frameRef.current?.clientWidth ?? 0) / 2;
+      const centerY = center.y - (frameRef.current?.clientHeight ?? 0) / 2;
+      const factor = nextZoom / gesture.zoom;
+      onZoomChange(nextZoom);
+      onPanChange(boundedPan({
+        x: centerX - (gesture.centerX - gesture.pan.x) * factor,
+        y: centerY - (gesture.centerY - gesture.pan.y) * factor,
+      }, nextZoom));
+      suppressClickRef.current = true;
+      return;
+    }
+    if (gesture?.kind === "pan" && gesture.pointerId === event.pointerId && zoom > 1) {
+      const nextPan = boundedPan({ x: gesture.panX + event.clientX - gesture.x, y: gesture.panY + event.clientY - gesture.y }, zoom);
+      onPanChange(nextPan);
+      if (Math.abs(event.clientX - gesture.x) + Math.abs(event.clientY - gesture.y) > 4) suppressClickRef.current = true;
+    }
+  }
+
+  function finishPointer(event: ReactPointerEvent<HTMLDivElement>) {
+    pointersRef.current.delete(event.pointerId);
+    const remaining = [...pointersRef.current.entries()];
+    if (remaining.length === 1 && zoom > 1) {
+      const [pointerId, point] = remaining[0];
+      gestureRef.current = { kind: "pan", pointerId, x: point.x, y: point.y, panX: pan.x, panY: pan.y };
+    } else {
+      gestureRef.current = null;
+    }
+  }
+
+  function handleControlsPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    // Avoid instanceof checks here: elements can come from another document realm
+    // in the embedded lesson preview, causing button presses to be treated as drags.
+    if ((event.target as Element | null)?.closest("button")) return;
+    controlsDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startOffsetX: controlsOffsetX };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setControlsVisible(true);
+  }
+
+  function handleControlsPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = controlsDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    setControlsOffsetX(boundedControlsOffset(drag.startOffsetX + event.clientX - drag.startX));
+  }
+
+  function finishControlsDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (controlsDragRef.current?.pointerId === event.pointerId) controlsDragRef.current = null;
+  }
+
+  const controlButtonClass = "grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/25 disabled:cursor-default disabled:opacity-40 sm:size-8";
+  const controls = <div ref={controlsRef} data-image-zoom-controls className={`pointer-events-auto absolute bottom-1 left-1/2 z-20 flex max-w-[calc(100%-1rem)] items-center gap-0 rounded-full border border-white/35 bg-[#ff7a59e6] px-1 py-0 text-white shadow-lg shadow-black/20 backdrop-blur-xl transition-opacity sm:gap-1 sm:px-2 sm:py-1 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"}`} style={{ transform: `translateX(calc(-50% + ${controlsOffsetX}px))`, touchAction: "none" }} role="group" aria-label="Image zoom controls" onClick={(event) => event.stopPropagation()} onPointerDown={handleControlsPointerDown} onPointerMove={handleControlsPointerMove} onPointerUp={finishControlsDrag} onPointerCancel={finishControlsDrag}>
+    <button type="button" className={controlButtonClass} aria-label="Zoom out" title="Zoom out" disabled={zoom <= 1} onClick={() => setScaleAt(zoom - 0.1)}><Minus size={11} className="sm:size-3.5" /></button>
+    <span className="min-w-7 px-0.5 text-center text-[9px] font-bold tabular-nums sm:min-w-11 sm:px-0 sm:text-[11px]">{Math.round(zoom * 100)}%</span>
+    <button type="button" className={controlButtonClass} aria-label="Zoom in" title="Zoom in" disabled={zoom >= 4} onClick={() => setScaleAt(zoom + 0.1)}><Plus size={11} className="sm:size-3.5" /></button>
+    <button type="button" className={controlButtonClass} aria-label="Fit image" title="Fit image" disabled={zoom === 1 && pan.x === 0 && pan.y === 0} onClick={() => { onZoomChange(1); onPanChange({ x: 0, y: 0 }); }}><ScanLine size={14} className="sm:size-4" /></button>
+    <button type="button" className={controlButtonClass} aria-label={fullscreen ? "Exit full screen" : "Open full screen"} title={fullscreen ? "Exit full screen" : "Open full screen"} onClick={fullscreen ? onCloseFullscreen : onFullscreen}>{fullscreen ? <Minimize size={14} className="sm:size-4" /> : <Maximize size={14} className="sm:size-4" />}</button>
+  </div>;
+
+  return <div
+    ref={frameRef}
+    className={`group relative grid w-full max-w-full place-items-center overflow-hidden ${fullscreen ? "h-full" : "min-h-0"} ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : ""}`}
+    style={{ touchAction: zoom > 1 ? "none" : "pan-y" }}
+    onPointerEnter={(event) => { if (event.pointerType === "mouse") setControlsVisible(true); }}
+    onPointerLeave={(event) => { if (event.pointerType === "mouse") setControlsVisible(false); }}
+    onPointerDown={handlePointerDown}
+    onPointerMove={handlePointerMove}
+    onPointerUp={finishPointer}
+    onPointerCancel={finishPointer}
+    onClick={() => {
+      if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+      setControlsVisible(true);
+    }}
+  >
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img ref={imageRef} src={src} alt={alt} draggable={false} className={`${fullscreen ? "max-h-full max-w-full object-contain" : imageClassName} select-none`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "center center", pointerEvents: "none" }} />
+    {controls}
+  </div>;
+}
+
 function ZoomableImage({ src, alt, className }: { src: string; alt: string; className: string }) {
   const [open, setOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState<ImagePan>({ x: 0, y: 0 });
+
+  const closeFullscreen = useCallback(() => {
+    setOpen(false);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closeFullscreen(); };
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKeyDown);
@@ -187,18 +403,19 @@ function ZoomableImage({ src, alt, className }: { src: string; alt: string; clas
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [closeFullscreen, open]);
+
+  const inlineStage = <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={() => setOpen(true)} onCloseFullscreen={closeFullscreen} />;
 
   return <>
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={src} alt={alt} className={`${className} cursor-zoom-in`} onClick={() => setOpen(true)} />
-    <button type="button" onClick={() => setOpen(true)} className="absolute right-3 top-3 grid size-9 place-items-center rounded-full border border-white/20 bg-black/55 text-white shadow-lg backdrop-blur transition hover:bg-black/75" aria-label="Expand image" title="Expand image"><Maximize size={17} /></button>
+    <div className="relative max-w-full overflow-hidden">{inlineStage}</div>
     {open && typeof document !== "undefined" ? createPortal(
-      <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" onClick={() => setOpen(false)}>
+      <div className="fixed inset-0 z-[150] bg-black/90 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" onClick={closeFullscreen}>
+        <div className="absolute inset-3 sm:inset-6" onClick={(event) => event.stopPropagation()}>
+          <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} fullscreen onZoomChange={setZoom} onPanChange={setPan} onFullscreen={() => setOpen(true)} onCloseFullscreen={closeFullscreen} />
+        </div>
         <div className="absolute left-4 top-4 text-xs font-semibold text-white/70">Tap outside or press Esc to close</div>
-        <button type="button" onClick={() => setOpen(false)} className="absolute right-4 top-4 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20" aria-label="Close expanded image"><Minimize size={18} /></button>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="max-h-full max-w-full touch-auto select-none object-contain" onClick={(event) => event.stopPropagation()} />
+        <button type="button" onClick={closeFullscreen} className="absolute right-4 top-4 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20" aria-label="Close expanded image"><Minimize size={18} /></button>
       </div>,
       document.body,
     ) : null}
