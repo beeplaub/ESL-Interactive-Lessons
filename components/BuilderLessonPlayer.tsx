@@ -352,7 +352,7 @@ export function BuilderLessonPlayer({
   const [notesSaved, setNotesSaved] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; horizontalScroller: HTMLElement | null; tableScrollLeft: number } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [liveActivityStates, setLiveActivityStates] = useState<Record<string, { state: string; closesAt: string | null }>>({});
@@ -674,6 +674,13 @@ export function BuilderLessonPlayer({
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
     if (Math.abs(deltaX) < 8 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (start.horizontalScroller) {
+      const maxScrollLeft = start.horizontalScroller.scrollWidth - start.horizontalScroller.clientWidth;
+      const tableCanScroll = deltaX < 0
+        ? start.tableScrollLeft < maxScrollLeft - 2
+        : start.tableScrollLeft > 2;
+      if (tableCanScroll) return;
+    }
     event.preventDefault();
     setIsDragging(true);
     setDragX(Math.max(-120, Math.min(120, deltaX)));
@@ -694,6 +701,16 @@ export function BuilderLessonPlayer({
     const deltaY = touch.clientY - start.y;
     setDragX(0);
     if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+    if (start.horizontalScroller) {
+      const maxScrollLeft = start.horizontalScroller.scrollWidth - start.horizontalScroller.clientWidth;
+      const tableCanScroll = deltaX < 0
+        ? start.tableScrollLeft < maxScrollLeft - 2
+        : start.tableScrollLeft > 2;
+      if (tableCanScroll) return;
+      if (deltaX < 0 && index > 0) move(-1);
+      if (deltaX > 0 && index < slides.length - 1) move(1);
+      return;
+    }
     if (deltaX < 0 && index < slides.length - 1) move(1);
     if (deltaX > 0 && index > 0) move(-1);
   }
@@ -835,7 +852,9 @@ export function BuilderLessonPlayer({
         style={{ touchAction: "pan-x pan-y" }}
         onTouchStart={(event) => {
           const touch = event.touches[0];
-          if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+          const target = event.target as Element | null;
+          const horizontalScroller = target?.closest<HTMLElement>("[data-lesson-horizontal-scroll]") ?? null;
+          if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY, horizontalScroller, tableScrollLeft: horizontalScroller?.scrollLeft ?? 0 };
         }}
         onTouchMove={handleLessonTouchMove}
         onTouchCancel={() => {

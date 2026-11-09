@@ -1701,6 +1701,9 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       ? rows.map((row) => headers.map((_, index) => asString(Array.isArray(row) ? row[index] : "")))
       : [headers.map(() => ""), headers.map(() => "")];
   });
+  const [tableMobileLayout, setTableMobileLayout] = useState<"stacked" | "horizontal">(() =>
+    asString(data.mobile_layout) === "horizontal" ? "horizontal" : "stacked"
+  );
   const tableHeaderFill = asString(data.header_fill) || "var(--br-info)";
   const [contrastPairs, setContrastPairs] = useState(() => {
     const pairs = Array.isArray(data.pairs) ? data.pairs as Record<string, unknown>[] : [];
@@ -2053,6 +2056,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="grid gap-3">
         <label className="text-sm">Caption <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="caption" defaultValue={asString(data.caption)} placeholder="e.g., Table 1: Irregular verbs" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Hide table until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see the title and a Reveal table button first.</span></span></label>
+        <label className="text-sm">Mobile layout<select value={tableMobileLayout} onChange={(event) => setTableMobileLayout(event.target.value === "horizontal" ? "horizontal" : "stacked")} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><option value="stacked">Stacked cards</option><option value="horizontal">Horizontal table (scroll)</option></select><span className="mt-1 block text-xs text-[var(--br-text-muted)]">Choose how learners see this table on small screens. Desktop layout stays the same.</span></label>
         <p className="rounded-xl border border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/50 px-3 py-2.5 text-xs leading-5 text-[var(--br-text-muted)]">Column colors are applied automatically in the learner view: purple, green, CTA orange, then blue.</p>
         <div className="text-sm">
           Table content
@@ -2107,6 +2111,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
           </div>
         </div>
         <input type="hidden" name="table_data" value={JSON.stringify({ headers: tableHeaders, rows: tableRows })} />
+        <input type="hidden" name="mobile_layout" value={tableMobileLayout} />
         <input type="hidden" name="header_fill" value={tableHeaderFill} />
       </div>
     );

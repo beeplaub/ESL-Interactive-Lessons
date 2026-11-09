@@ -511,6 +511,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       headers,
       rows,
       reveal_hidden: formData.get("reveal_hidden") === "on",
+      mobile_layout: formData.get("mobile_layout") === "horizontal" ? "horizontal" : "stacked",
       header_fill: hexColorValue(formData.get("header_fill"), "var(--br-info)")
     };
   }
@@ -591,6 +592,7 @@ function defaultBlockContent(blockType: string): Json {
     headers: ["Column 1", "Column 2"],
     rows: [["", ""], ["", ""]],
     reveal_hidden: false,
+    mobile_layout: "stacked",
     header_fill: "var(--br-info)"
   };
   if (blockType === "COMMON_MISTAKE") return {
