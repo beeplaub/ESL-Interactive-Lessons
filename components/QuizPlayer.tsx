@@ -35,7 +35,7 @@ export type QuizQuestion = {
   /** Parent lesson activity UUID. Quiz questions leave this unset and use their own id. */
   source_activity_id?: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "READ_ALOUD" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "STRESS_PICKER" | "IPA_PRACTICE" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "READ_ALOUD" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "STRESS_PICKER" | "ACCENT_IDENTIFY" | "IPA_PRACTICE" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -337,6 +337,7 @@ function answerText(question: QuizQuestion): string {
     const syllable = syllables[index];
     return `${String(opts.word ?? "Word")} · syllable ${index + 1}${syllable?.ipa ? ` (/${String(syllable.ipa)}/)` : ""}`;
   }
+  if (question.question_type === "ACCENT_IDENTIFY") return question.correct_answer === "us" ? "American English" : "British English";
   if (question.question_type === "MCQ") {
     const opts = asRecord(question.options);
     const key = String(question.correct_answer);
@@ -1247,6 +1248,7 @@ export function QuestionCard({
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} reviewRoundIndex={soundDiscriminationReviewRoundIndex} onChange={onChange} /> : null}
         {question.question_type === "STRESS_PICKER" ? <StressPickerPlayer question={question} value={value as number | undefined} disabled={submitted} questionPosition={questionPosition} questionCount={questionCount} onNavigateQuestion={onNavigateQuestion} onChange={onChange} /> : null}
+        {question.question_type === "ACCENT_IDENTIFY" ? <AccentIdentifierPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
@@ -4054,6 +4056,28 @@ function StressPickerPlayer({ question, value, disabled, questionPosition, quest
         <button type="button" onClick={() => onNavigateQuestion(questionPosition + 1)} disabled={questionPosition >= questionCount - 1} aria-label="Next word" className="grid size-9 place-items-center rounded-full bg-[var(--br-brand)] text-white shadow-sm transition hover:bg-[var(--br-brand-strong)] disabled:opacity-35"><ChevronRight size={17} /></button>
       </nav>
     ) : null}
+  </div>;
+}
+
+function AccentIdentifierPlayer({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string; disabled: boolean; onChange: (value: string) => void }) {
+  const options = asRecord(question.options);
+  const audioUrl = String(options.audio_url ?? "");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => { setPlaying(false); }, [question.id]);
+  return <div className="mx-auto grid w-full min-w-0 max-w-2xl justify-items-center gap-4 rounded-[24px] border border-[#e6e5f1] bg-white p-3 sm:gap-5 sm:p-7">
+    <audio ref={audioRef} src={audioUrl} preload="none" onEnded={() => setPlaying(false)} onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} />
+    <button type="button" disabled={disabled || !audioUrl} onClick={() => { const audio = audioRef.current; if (!audio) return; if (audio.paused) { audio.currentTime = 0; void audio.play(); } else audio.pause(); }} className="grid size-[76px] place-items-center rounded-full bg-[var(--br-action)] text-white shadow-md ring-4 ring-[#fff1ed] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--br-action)]/25 disabled:opacity-50" aria-label="Play pronunciation"><span className={`grid size-14 place-items-center rounded-full ${playing ? "animate-pulse bg-white/25" : "bg-white/15"}`}>{playing ? <Pause size={25} fill="currentColor"/> : <Play size={25} fill="currentColor" className="translate-x-0.5"/>}</span></button>
+    <div className={`flex h-7 w-full max-w-xs items-center justify-center gap-1.5 rounded-full bg-[#f8f8fc] px-5 ${playing ? "" : "opacity-70"}`} aria-hidden="true">{Array.from({ length: 27 }, (_, index) => <span key={index} className={`w-1 rounded-full transition-all ${playing ? "animate-pulse bg-[var(--br-brand)]" : "bg-[var(--br-brand)]/30"}`} style={{ height: `${7 + ((index * 17) % 17)}px`, animationDelay: `${index * 25}ms` }}/>)}</div>
+    <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3">
+      {(["uk", "us"] as const).map(accent => {
+        const selected = value === accent;
+        const correct = question.correct_answer === accent;
+        const status = disabled && correct ? "border-emerald-500 bg-emerald-50 text-emerald-800" : disabled && selected ? "border-rose-500 bg-rose-50 text-rose-800" : selected ? "text-white shadow-sm" : "border-[#e4e2ef] bg-white text-[var(--br-dark-card)] hover:border-[var(--br-chart-primary)]";
+        const color = accent === "uk" ? "var(--br-chart-primary)" : "#f16a77";
+        return <button key={accent} type="button" disabled={disabled} aria-pressed={selected} onClick={() => onChange(accent)} style={selected && !disabled ? { backgroundColor: color, borderColor: color } : undefined} className={`min-h-12 min-w-0 rounded-xl border-2 px-1.5 py-2 text-xs font-extrabold leading-tight transition [overflow-wrap:anywhere] sm:min-h-14 sm:rounded-2xl sm:px-3 sm:text-sm ${status}`}>{accent === "uk" ? "British English" : "American English"}</button>;
+      })}
+    </div>
   </div>;
 }
 

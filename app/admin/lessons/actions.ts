@@ -2283,6 +2283,9 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   if (activityType === "STRESS_PICKER") {
     return { title: "Stress Picker", prompt: "Listen to the word, then tap its strongest syllable.", words: [] } as unknown as Json;
   }
+  if (activityType === "ACCENT_IDENTIFY") {
+    return { title: "Accent Identifier", prompt: "Which accent did you hear?", items: [] } as unknown as Json;
+  }
   if (activityType === "MULTIPLE_SELECT") {
     return {
       prompt,

@@ -50,6 +50,7 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "READ_ALOUD", label: "Read Aloud / Speed Reading", description: "Read a teacher-selected passage aloud; speech transcription is checked against the text.", skills: ["READING", "SPEAKING", "PRONUNCIATION"] },
   { type: "NOTE_TAKING_CHALLENGE", label: "Note-Taking Challenge", description: "Capture useful details while listening.", skills: ["LISTENING", "WRITING"] },
   { type: "STRESS_PICKER", label: "Stress Picker", description: "Listen to a word and identify its primary stressed syllable.", skills: ["LISTENING", "PRONUNCIATION"] },
+  { type: "ACCENT_IDENTIFY", label: "Accent Identifier", description: "Listen to a pronunciation and identify British or American English.", skills: ["LISTENING", "PRONUNCIATION"] },
   { type: "SOUND_DISCRIMINATION", label: "Sound Discrimination", description: "Identify differences between sounds.", skills: ["LISTENING", "SPEAKING", "PRONUNCIATION"] },
   { type: "IPA_PRACTICE", label: "IPA Practice Lab", description: "Build transcription, sound comparison, and phoneme sorting rounds from the IPA chart.", skills: ["CORE", "LISTENING", "PRONUNCIATION"] },
   { type: "IPA_LISTEN_BUILD", label: "Listen & Build IPA", description: "Listen to a word and build its IPA transcription with sounds from the chart.", skills: ["CORE", "LISTENING", "PRONUNCIATION"] },

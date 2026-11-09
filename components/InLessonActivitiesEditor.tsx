@@ -991,6 +991,7 @@ function ActivityPanel({
               {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "STRESS_PICKER" ? <StressPickerEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "ACCENT_IDENTIFY" ? <AccentIdentifierEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "IPA_PRACTICE" ? <IpaPracticeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "IPA_LISTEN_BUILD" ? <IpaListenBuildEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillEditor activity={activity} onSave={save} /> : null}
@@ -1006,7 +1007,7 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "READ_ALOUD", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "STRESS_PICKER", "IPA_PRACTICE", "IPA_LISTEN_BUILD", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "TONGUE_TWISTER", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "READ_ALOUD", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "STRESS_PICKER", "ACCENT_IDENTIFY", "IPA_PRACTICE", "IPA_LISTEN_BUILD", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -2968,6 +2969,79 @@ function StressPickerEditor({ activity, onSave }: { activity: Activity; onSave: 
     </div>
     <button type="button" onClick={() => setItems(current => [...current, { id: crypto.randomUUID(), word_id: "", word: "", accent: "uk", ipa: "", sound_id: "", audio_url: "", syllables: [] }])} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--br-brand)] bg-[var(--br-brand)]/5 px-4 text-sm font-extrabold text-[var(--br-brand)]"><Plus size={16}/>Add another word</button>
     <SaveButton disabled={!complete} onClick={() => onSave({ title: "Stress Picker", prompt, words: items.map(item => ({ ...item, correct_answer: item.syllables.findIndex(syllable => syllable.stress === "primary") })) } as unknown as Json, false)} />
+  </div>;
+}
+
+type AccentIdentifySourceWord = {
+  word_id: string;
+  word: string;
+  uk: { ipa: string; sound_id: string; audio_url: string };
+  us: { ipa: string; sound_id: string; audio_url: string };
+};
+type AccentIdentifyDraft = AccentIdentifySourceWord & { id: string; target_accent: "uk" | "us" };
+function AccentIdentifierEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Which accent did you hear?"));
+  const [items, setItems] = useState<AccentIdentifyDraft[]>(() => {
+    const saved = Array.isArray(data.items) ? data.items.map((value, index) => {
+      const row = asRecord(value as Json);
+      const uk = asRecord(row.uk as Json);
+      const us = asRecord(row.us as Json);
+      return {
+        id: String(row.id ?? `clip-${index + 1}`),
+        word_id: String(row.word_id ?? ""),
+        word: String(row.word ?? ""),
+        target_accent: row.target_accent === "us" ? "us" as const : "uk" as const,
+        uk: { ipa: String(uk.ipa ?? ""), sound_id: String(uk.sound_id ?? ""), audio_url: String(uk.audio_url ?? "") },
+        us: { ipa: String(us.ipa ?? ""), sound_id: String(us.sound_id ?? ""), audio_url: String(us.audio_url ?? "") },
+      };
+    }) : [];
+    return saved.length ? saved : [{ id: "clip-1", word_id: "", word: "", target_accent: "uk", uk: { ipa: "", sound_id: "", audio_url: "" }, us: { ipa: "", sound_id: "", audio_url: "" } }];
+  });
+  const [available, setAvailable] = useState<AccentIdentifySourceWord[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/ipa-chart/accent-identify-words").then(response => response.ok ? response.json() : null).then(result => {
+      if (!cancelled && Array.isArray(result?.words)) setAvailable(result.words as AccentIdentifySourceWord[]);
+    }).catch(() => undefined).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+  const complete = items.length > 0 && items.every(item => Boolean(item.word_id && item.uk.audio_url && item.us.audio_url));
+  const update = (index: number, patch: Partial<AccentIdentifyDraft>) => setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  return <div className="grid gap-4 rounded-2xl border border-[var(--br-border)] bg-white p-3 sm:p-4">
+    <label className="text-sm font-bold text-[var(--br-dark-card)]">Learner question<input value={prompt} onChange={event => setPrompt(event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 py-2 font-medium" /></label>
+    <div className="grid gap-3">
+      {items.map((item, index) => {
+        const choices = available.filter(word => word.word_id === item.word_id || !items.some((selected, selectedIndex) => selectedIndex !== index && selected.word_id === word.word_id));
+        const chosenWord = available.find(word => word.word_id === item.word_id);
+        return <section key={item.id} className="grid gap-3 rounded-2xl border border-[var(--br-border)] bg-[#fbfbfe] p-3 sm:p-4">
+          <header className="flex items-center justify-between gap-3">
+            <h4 className="font-bold text-[var(--br-dark-card)]">Audio {index + 1}</h4>
+            <button type="button" disabled={items.length <= 1} onClick={() => setItems(current => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove audio ${index + 1}`} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-xs font-bold text-[var(--br-text-muted)] disabled:opacity-40"><Trash2 size={14}/>Remove</button>
+          </header>
+          <label className="text-xs font-bold text-[var(--br-text-muted)]">IPA chart word<select value={item.word_id} disabled={loading || choices.length === 0} onChange={event => { const selected = available.find(word => word.word_id === event.target.value); if (selected) update(index, { ...selected, id: item.id }); }} className="mt-1 min-h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm font-semibold text-[var(--br-dark-card)]">
+            <option value="">{loading ? "Loading chart words…" : choices.length ? "Choose a word with an IPA difference and both recordings" : "No IPA-contrast words with approved recordings"}</option>
+            {choices.map(word => <option key={word.word_id} value={word.word_id}>{word.word}</option>)}
+          </select></label>
+          {chosenWord ? <>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(["uk", "us"] as const).map(accent => <div key={accent} className="rounded-xl border border-[var(--br-border)] bg-white p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-extrabold" style={{ color: accent === "uk" ? "var(--br-chart-primary)" : "#f16a77" }}>{accent === "uk" ? "British English" : "American English"}</span>
+                  <button type="button" aria-pressed={item.target_accent === accent} onClick={() => update(index, { target_accent: accent })} style={item.target_accent === accent ? { backgroundColor: accent === "uk" ? "var(--br-chart-primary)" : "#f16a77", color: "white" } : undefined} className={`min-h-8 rounded-lg px-3 text-xs font-extrabold ${item.target_accent === accent ? "" : "border border-[var(--br-border)] text-[var(--br-text-muted)]"}`}>{item.target_accent === accent ? "Use this clip" : "Select clip"}</button>
+                </div>
+                <p className="mt-2 font-mono text-sm text-[var(--br-text-muted)]">/{chosenWord[accent].ipa}/</p>
+                <audio controls preload="none" src={chosenWord[accent].audio_url} aria-label={`Preview ${chosenWord.word} in ${accent === "uk" ? "British" : "American"} English`} className="mt-2 h-9 w-full" />
+              </div>)}
+            </div>
+            <p className="text-xs leading-5 text-[var(--br-text-muted)]">Learners hear one recording and choose its accent. The word and IPA stay hidden from them.</p>
+          </> : null}
+        </section>;
+      })}
+    </div>
+    <button type="button" onClick={() => setItems(current => [...current, { id: crypto.randomUUID(), word_id: "", word: "", target_accent: "uk", uk: { ipa: "", sound_id: "", audio_url: "" }, us: { ipa: "", sound_id: "", audio_url: "" } }])} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--br-brand)] bg-white px-4 text-sm font-extrabold text-[var(--br-brand)]"><Plus size={16}/>Add another word</button>
+    <SaveButton disabled={!complete} onClick={() => onSave({ title: "Accent Identifier", prompt, items: items.map(item => ({ ...item, correct_answer: item.target_accent })) } as unknown as Json, false)} />
   </div>;
 }
 

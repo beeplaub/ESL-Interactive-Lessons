@@ -32,6 +32,7 @@ export type ScoredQuestion = {
     | "NOTE_TAKING_CHALLENGE"
     | "SOUND_DISCRIMINATION"
     | "STRESS_PICKER"
+    | "ACCENT_IDENTIFY"
     | "IPA_PRACTICE"
     | "LISTEN_AND_GAP_FILL"
     | "SENTENCE_COMPLETION"
@@ -255,7 +256,8 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     question.question_type === "INFERENCE_DETECTION" ||
     question.question_type === "PARAPHRASE_ID" ||
     question.question_type === "LISTEN_AND_SELECT" ||
-    question.question_type === "SOUND_DISCRIMINATION"
+    question.question_type === "SOUND_DISCRIMINATION" ||
+    question.question_type === "ACCENT_IDENTIFY"
   ) {
     return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
   }

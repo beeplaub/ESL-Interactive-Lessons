@@ -339,6 +339,24 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       };
     });
   }
+  if (activityType === "ACCENT_IDENTIFY") {
+    const items = Array.isArray(data.items) ? data.items : [];
+    const prompt = String(data.prompt ?? "Which accent did you hear?");
+    return items.map((value, index) => {
+      const item = asRecord(value as Json);
+      const accent = item.target_accent === "us" ? "us" : "uk";
+      const word = asRecord(item as Json);
+      const accentData = asRecord(word[accent] as Json);
+      return {
+        id: `accent-${String(item.id ?? item.word_id ?? index + 1)}`,
+        question_number: index + 1,
+        question_type: "ACCENT_IDENTIFY",
+        question_text: prompt,
+        options: { audio_url: String(accentData.audio_url ?? "") } as Json,
+        correct_answer: accent,
+      };
+    });
+  }
   if (activityType === "IPA_PRACTICE") {
     const ipaConfig = data.refresh_each_attempt === true
       ? makeIpaPracticeConfig(data, ipaSeed ?? String(data.seed ?? seed))
