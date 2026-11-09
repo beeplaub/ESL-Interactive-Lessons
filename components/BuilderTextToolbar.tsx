@@ -15,8 +15,20 @@ export function BuilderTextToolbar() {
   const [target, setTarget] = useState<Target | null>(null);
   const [point, setPoint] = useState({ x: 0, y: 0 });
   useEffect(() => {
-    const open = (event: Event) => { const input = selectedTarget(event); if (!input || input.selectionStart === input.selectionEnd) return; setTarget(input); const mouse = event as MouseEvent; setPoint({ x: mouse.clientX || window.innerWidth / 2, y: mouse.clientY || 80 }); };
-    const close = (event: MouseEvent) => { if (!(event.target as Element).closest("[data-builder-toolbar]")) setTimeout(() => setTarget(null), 0); };
+    const open = (event: Event) => {
+      const input = selectedTarget(event);
+      if (!input) return;
+      if (input.selectionStart === input.selectionEnd) { setTarget(null); return; }
+      setTarget(input);
+      const mouse = event as MouseEvent;
+      setPoint({ x: mouse.clientX || window.innerWidth / 2, y: mouse.clientY || 80 });
+    };
+    const close = (event: MouseEvent) => {
+      const element = event.target;
+      if (!(element instanceof Element) || element.closest("[data-builder-toolbar]")) return;
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) return;
+      setTarget(null);
+    };
     const context = (event: MouseEvent) => { const input = selectedTarget(event); if (input && input.selectionStart !== input.selectionEnd) { event.preventDefault(); open(event); } };
     document.addEventListener("mouseup", open); document.addEventListener("contextmenu", context); document.addEventListener("mousedown", close);
     return () => { document.removeEventListener("mouseup", open); document.removeEventListener("contextmenu", context); document.removeEventListener("mousedown", close); };
