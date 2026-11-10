@@ -1686,6 +1686,8 @@ function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainTe
       }
     }
     const next = openers.map((candidate) => source.indexOf(candidate, cursor + 1)).filter((position) => position >= 0);
+    const nextVisualBlank = source.indexOf("⟦visual-blank⟧", cursor + 1);
+    if (nextVisualBlank >= 0) next.push(nextVisualBlank);
     const nextLink = source.indexOf("[", cursor + 1);
     if (nextLink >= 0) next.push(nextLink);
     const end = next.length ? Math.min(...next) : source.length;
