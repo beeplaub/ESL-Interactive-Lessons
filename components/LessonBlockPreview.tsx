@@ -1643,6 +1643,17 @@ function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainTe
   const openers = ["**", "__", "~~", "[[color:", "[[size:", "_"];
   let cursor = 0;
   while (cursor < source.length) {
+    if (source.startsWith("⟦visual-blank⟧", cursor)) {
+      output.push(<span key={`${keyPrefix}-${cursor}`} className="whitespace-nowrap" role="img" aria-label="non-interactive blank">_____</span>);
+      cursor += "⟦visual-blank⟧".length;
+      continue;
+    }
+    const visualBlank = source.slice(cursor).match(/^(?:_{5}|(?:\\_){5})(?!_|\\_)/);
+    if (visualBlank) {
+      output.push(<span key={`${keyPrefix}-${cursor}`} className="whitespace-nowrap" role="img" aria-label="non-interactive blank">_____</span>);
+      cursor += visualBlank[0].length;
+      continue;
+    }
     const escapedCharacter = source.slice(cursor).match(/^\\([\\*_~\[\]])/);
     if (escapedCharacter) {
       const rendered = renderPlainText?.(escapedCharacter[1], `${keyPrefix}-${cursor}`);
