@@ -46,10 +46,17 @@ function serializeDocument(doc: JSONContent) { return (doc.content || []).map((n
 
 function markdownToHtml(value: string) {
   const escapedCharacters: string[] = [];
-  const protectedValue = value.replace(/\\([\\*_~\[\]])/g, (_match, character: string) => {
+  const protectCharacter = (character: string) => {
     const index = escapedCharacters.push(character) - 1;
     return `\uE000${index}\uE001`;
+  };
+  const protectedUnderscoreRuns = value.replace(/(?:\\+_){3,}|_{3,}/g, (run, offset: number, source: string) => {
+    const before = source[offset - 1] || "";
+    const after = source[offset + run.length] || "";
+    if (/[\p{L}\p{N}]/u.test(before) || /[\p{L}\p{N}]/u.test(after)) return run;
+    return protectCharacter("_".repeat((run.match(/_/g) || []).length));
   });
+  const protectedValue = protectedUnderscoreRuns.replace(/\\([\\*_~\[\]])/g, (_match, character: string) => protectCharacter(character));
   const escaped = protectedValue.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/\[\[color:(#[\da-f]{6})\|([\s\S]*?)\]\]/gi, '<span style="color: $1">$2</span>')
     .replace(/\[\[size:(\d{2})\|([\s\S]*?)\]\]/g, (_match, size: string, content: string) => `<span style="font-size: ${Math.min(48, Math.max(10, Number(size)))}px">${content}</span>`);
