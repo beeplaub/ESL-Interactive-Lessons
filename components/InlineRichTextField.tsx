@@ -28,7 +28,7 @@ const VisualBlank = TiptapNode.create({
   atom: true,
   selectable: false,
   parseHTML() { return [{ tag: "span[data-visual-blank]" }]; },
-  renderHTML({ HTMLAttributes }) { return ["span", mergeAttributes(HTMLAttributes, { "data-visual-blank": "true", class: "whitespace-nowrap" }), "_____"]; },
+  renderHTML({ HTMLAttributes }) { return ["span", mergeAttributes(HTMLAttributes, { "data-visual-blank": "true", class: "whitespace-nowrap" }), "⟦visual-blank⟧"]; },
 });
 
 const extensions = [StarterKit.configure({ heading: false, blockquote: false, code: false, codeBlock: false, horizontalRule: false, bulletList: false, orderedList: false, listItem: false }), Link.configure({ openOnClick: false, protocols: ["http", "https", "mailto"] }), InlineStyle, VisualBlank];
@@ -79,7 +79,7 @@ function markdownToHtml(value: string) {
   }).join("").replace(/\n/g, "<br>");
   return html
     .replace(/\uE000(\d+)\uE001/g, (_match, index: string) => escapedCharacters[Number(index)] ?? "")
-    .replace(/\uE002(\d+)\uE003/g, () => '<span data-visual-blank="true" class="whitespace-nowrap">_____</span>');
+    .replace(/\uE002(\d+)\uE003/g, () => '<span data-visual-blank="true" class="whitespace-nowrap">⟦visual-blank⟧</span>');
 }
 
 export function InlineRichTextField({ name, label, value, rows, lang, onChange }: { name: string; label: string; value: string; rows: number; lang?: string; onChange?: (value: string) => void }) {
