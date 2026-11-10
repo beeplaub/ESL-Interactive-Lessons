@@ -1648,6 +1648,12 @@ function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainTe
       cursor += "⟦visual-blank⟧".length;
       continue;
     }
+    const legacyVisualBlank = source.slice(cursor).match(/^(?:\\_){5}(?!\\_)/);
+    if (legacyVisualBlank) {
+      output.push(<span key={`${keyPrefix}-${cursor}`} aria-hidden="true" className="inline-block w-[5ch] border-b border-current align-baseline" />);
+      cursor += legacyVisualBlank[0].length;
+      continue;
+    }
     const escapedCharacter = source.slice(cursor).match(/^\\([\\*_~\[\]])/);
     if (escapedCharacter) {
       const rendered = renderPlainText?.(escapedCharacter[1], `${keyPrefix}-${cursor}`);
@@ -1688,6 +1694,8 @@ function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainTe
     const next = openers.map((candidate) => source.indexOf(candidate, cursor + 1)).filter((position) => position >= 0);
     const nextVisualBlank = source.indexOf("⟦visual-blank⟧", cursor + 1);
     if (nextVisualBlank >= 0) next.push(nextVisualBlank);
+    const nextLegacyVisualBlank = source.slice(cursor + 1).search(/(?:\\_){5}(?!\\_)/);
+    if (nextLegacyVisualBlank >= 0) next.push(cursor + 1 + nextLegacyVisualBlank);
     const nextLink = source.indexOf("[", cursor + 1);
     if (nextLink >= 0) next.push(nextLink);
     const end = next.length ? Math.min(...next) : source.length;

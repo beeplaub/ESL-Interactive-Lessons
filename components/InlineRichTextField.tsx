@@ -34,6 +34,7 @@ const VisualBlank = TiptapNode.create({
 const extensions = [StarterKit.configure({ heading: false, blockquote: false, code: false, codeBlock: false, horizontalRule: false, bulletList: false, orderedList: false, listItem: false }), Link.configure({ openOnClick: false, protocols: ["http", "https", "mailto"] }), InlineStyle, VisualBlank];
 
 function escapeInline(value: string) { return value.replace(/([\\*_~\[\]])/g, "\\$1"); }
+function normalizeLegacyVisualBlanks(value: string) { return value.replace(/(?:\\_){5}(?!\\_)/g, "⟦visual-blank⟧"); }
 function serializeMarked(value: string, marks: JSONContent["marks"], allowLink = true) {
   for (const mark of marks || []) {
     const attrs = mark.attrs || {};
@@ -83,14 +84,15 @@ function markdownToHtml(value: string) {
 }
 
 export function InlineRichTextField({ name, label, value, rows, lang, onChange }: { name: string; label: string; value: string; rows: number; lang?: string; onChange?: (value: string) => void }) {
+  const normalizedValue = normalizeLegacyVisualBlanks(value);
   const [toolbarOpen, setToolbarOpen] = useState(false);
   const [textColor, setTextColor] = useState("#29283A");
   const [fontSize, setFontSize] = useState("16");
-  const [serializedValue, setSerializedValue] = useState(value);
+  const [serializedValue, setSerializedValue] = useState(normalizedValue);
   const savedSelection = useRef<{ from: number; to: number } | null>(null);
   const editor = useEditor({
     extensions,
-    content: markdownToHtml(value),
+    content: markdownToHtml(normalizedValue),
     immediatelyRender: false,
     editorProps: {
       attributes: { class: `rich-inline-editor w-full ${rows === 2 ? "min-h-14" : "min-h-28"} rounded-xl border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2.5 text-sm leading-6 outline-none focus:border-[var(--br-brand)] focus:ring-2 focus:ring-[var(--br-brand)]/15 [&_p]:m-0`, "aria-label": label, ...(lang ? { lang } : {}) },
