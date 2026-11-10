@@ -1643,6 +1643,13 @@ function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainTe
   const openers = ["**", "__", "~~", "[[color:", "[[size:", "_"];
   let cursor = 0;
   while (cursor < source.length) {
+    const escapedCharacter = source.slice(cursor).match(/^\\([\\*_~\[\]])/);
+    if (escapedCharacter) {
+      const rendered = renderPlainText?.(escapedCharacter[1], `${keyPrefix}-${cursor}`);
+      output.push(...(rendered ?? [escapedCharacter[1]]));
+      cursor += escapedCharacter[0].length;
+      continue;
+    }
     const linkMatch = source.slice(cursor).match(/^\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^)]*)\)/);
     if (linkMatch) {
       output.push(<a key={`${keyPrefix}-${cursor}`} href={linkMatch[2]} className="underline text-moss" target="_blank" rel="noreferrer">{parseInlineSegments(linkMatch[1], `${keyPrefix}-${cursor}`)}</a>);

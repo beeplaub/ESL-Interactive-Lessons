@@ -45,10 +45,15 @@ function serializeInline(node: JSONContent): string {
 function serializeDocument(doc: JSONContent) { return (doc.content || []).map((node) => serializeInline(node)).join("\n"); }
 
 function markdownToHtml(value: string) {
-  const escaped = value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  const escapedCharacters: string[] = [];
+  const protectedValue = value.replace(/\\([\\*_~\[\]])/g, (_match, character: string) => {
+    const index = escapedCharacters.push(character) - 1;
+    return `\uE000${index}\uE001`;
+  });
+  const escaped = protectedValue.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/\[\[color:(#[\da-f]{6})\|([\s\S]*?)\]\]/gi, '<span style="color: $1">$2</span>')
     .replace(/\[\[size:(\d{2})\|([\s\S]*?)\]\]/g, (_match, size: string, content: string) => `<span style="font-size: ${Math.min(48, Math.max(10, Number(size)))}px">${content}</span>`);
-  return escaped.split(/(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|_[^_]+_|\[[^\]]+\]\((?:https?:\/\/|mailto:)[^)]*\))/g).map((part) => {
+  const html = escaped.split(/(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|_[^_]+_|\[[^\]]+\]\((?:https?:\/\/|mailto:)[^)]*\))/g).map((part) => {
     if (part.startsWith("**") && part.endsWith("**")) return `<strong>${part.slice(2, -2)}</strong>`;
     if (part.startsWith("__") && part.endsWith("__")) return `<u>${part.slice(2, -2)}</u>`;
     if (part.startsWith("~~") && part.endsWith("~~")) return `<s>${part.slice(2, -2)}</s>`;
@@ -57,6 +62,7 @@ function markdownToHtml(value: string) {
     if (link) return `<a href="${link[2]}">${link[1]}</a>`;
     return part;
   }).join("").replace(/\n/g, "<br>");
+  return html.replace(/\uE000(\d+)\uE001/g, (_match, index: string) => escapedCharacters[Number(index)] ?? "");
 }
 
 export function InlineRichTextField({ name, label, value, rows, lang, onChange }: { name: string; label: string; value: string; rows: number; lang?: string; onChange?: (value: string) => void }) {
