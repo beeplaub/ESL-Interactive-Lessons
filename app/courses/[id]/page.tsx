@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Star
 } from "lucide-react";
-import { BuyCourseButton, SignInToEnrollButton } from "@/components/BuyCourseButton";
+import { BuyCourseButton, GuestBuyCourseButton, SignInToEnrollButton } from "@/components/BuyCourseButton";
 import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -82,8 +82,14 @@ function CourseDescription({ text }: { text: string }) {
   </div>;
 }
 
-export default async function CourseLandingPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function CourseLandingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ checkout?: string }>;
+}) {
+  const [{ id }, { checkout }] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -224,6 +230,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                   paymentInstructions={course.payment_instructions}
                   practiceAddonPriceBdt={practiceAddonPrice}
                   activeOrder={activeOrder}
+                  autoOpen={checkout === "1"}
                 />
               ) : (
                 <form action={enrollInCourse.bind(null, course.id)}>
@@ -233,7 +240,15 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                 </form>
               )
             ) : (
-              <SignInToEnrollButton />
+              isPaidCourse ? (
+                <GuestBuyCourseButton
+                  courseId={course.id}
+                  priceBdt={course.price_bdt!}
+                  originalPriceBdt={course.original_price_bdt}
+                />
+              ) : (
+                <SignInToEnrollButton />
+              )
             )}
             <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[var(--br-border)] bg-surface px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-[var(--br-shadow)]">
               View curriculum

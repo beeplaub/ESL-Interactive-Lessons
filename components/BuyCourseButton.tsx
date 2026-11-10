@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { ArrowRight, Clock3, Play, ShieldCheck, X, Upload, CheckCircle } from "lucide-react";
 import { submitCourseOrder } from "@/app/courses/actions";
@@ -19,6 +19,7 @@ interface BuyCourseButtonProps {
   paymentInstructions?: string | null;
   practiceAddonPriceBdt?: number | null;
   activeOrder: ActiveOrder;
+  autoOpen?: boolean;
 }
 
 export function BuyCourseButton({
@@ -28,6 +29,7 @@ export function BuyCourseButton({
   paymentInstructions,
   practiceAddonPriceBdt = null,
   activeOrder,
+  autoOpen = false,
 }: BuyCourseButtonProps) {
   const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -36,6 +38,12 @@ export function BuyCourseButton({
   const [fileName, setFileName] = useState<string | null>(null);
   const [includePracticeAddon, setIncludePracticeAddon] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (!autoOpen || activeOrder?.status === "PENDING") return;
+    setOpen(true);
+    dialogRef.current?.showModal();
+  }, [autoOpen, activeOrder?.status]);
 
   function openModal() {
     setOpen(true);
@@ -279,6 +287,30 @@ export function SignInToEnrollButton() {
       className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)]"
     >
       Sign in to enroll <ArrowRight className="size-4" />
+    </Link>
+  );
+}
+
+export function GuestBuyCourseButton({
+  courseId,
+  priceBdt,
+  originalPriceBdt,
+}: {
+  courseId: string;
+  priceBdt: number;
+  originalPriceBdt?: number | null;
+}) {
+  const checkoutPath = `/courses/${courseId}?checkout=1`;
+  return (
+    <Link
+      href={`/login?next=${encodeURIComponent(checkoutPath)}`}
+      className="br-button-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold"
+    >
+      Buy Course ·{" "}
+      {originalPriceBdt && originalPriceBdt > priceBdt ? (
+        <span className="mr-0.5 opacity-60 line-through">৳{originalPriceBdt}</span>
+      ) : null}
+      ৳{priceBdt} <ArrowRight className="size-4" />
     </Link>
   );
 }

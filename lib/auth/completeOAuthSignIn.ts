@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isStaff, roleHomePath } from "@/lib/auth";
+import { resolvePostLoginPath } from "@/lib/auth";
 
 function safeNextPath(nextPath: string | null) {
   return nextPath?.startsWith("/")
@@ -83,5 +83,5 @@ export async function completeOAuthSignIn(user: User, nextPath: string | null) {
   }
 
   const safeNext = safeNextPath(nextPath);
-  return isStaff(role) ? "/admin" : safeNext ?? roleHomePath(role);
+  return resolvePostLoginPath(role, safeNext);
 }
