@@ -167,6 +167,7 @@ export function BilingualBlockFields({
           </> : null}
           {bullets ? <label className="block text-sm">Bullet points <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name={englishField} rows={5} defaultValue={linesValue(data[englishField])} onChange={(event) => onContentChange?.(englishField, event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2 text-sm outline-none focus:border-[var(--br-brand)] focus:ring-2 focus:ring-[var(--br-brand)]/15" /></label> : <div className="text-sm">{heading ? "Heading text" : text ? "Body text" : "Instruction text"}
             <InlineRichTextField name={englishField} label={heading ? "Heading text" : text ? "Body text" : "Instruction text"} rows={heading ? 2 : 4} value={textValue(data, englishField, !heading && text ? textValue(data, "text") : "")} onChange={(value) => onContentChange?.(englishField, value)} />
+            {text ? <p className="mt-1 text-xs text-[var(--br-text-muted)]">Use <code className="rounded bg-[var(--br-surface-muted)] px-1">{"⟦visual-blank⟧"}</code> for a non-interactive five-character blank. <code className="rounded bg-[var(--br-surface-muted)] px-1">___</code> remains an interactive gap.</p> : null}
           </div>}
         </div>
         <div style={{ display: language === "bn" ? "grid" : "none" }} className="gap-3" lang="bn">

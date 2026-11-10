@@ -1643,6 +1643,11 @@ function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainTe
   const openers = ["**", "__", "~~", "[[color:", "[[size:", "_"];
   let cursor = 0;
   while (cursor < source.length) {
+    if (source.startsWith("⟦visual-blank⟧", cursor)) {
+      output.push(<span key={`${keyPrefix}-${cursor}`} aria-hidden="true" className="inline-block w-[5ch] border-b border-current align-baseline" />);
+      cursor += "⟦visual-blank⟧".length;
+      continue;
+    }
     const escapedCharacter = source.slice(cursor).match(/^\\([\\*_~\[\]])/);
     if (escapedCharacter) {
       const rendered = renderPlainText?.(escapedCharacter[1], `${keyPrefix}-${cursor}`);
