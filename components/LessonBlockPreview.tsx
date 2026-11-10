@@ -1643,16 +1643,6 @@ function parseInlineSegments(source: string, keyPrefix = "inline", renderPlainTe
   const openers = ["**", "__", "~~", "[[color:", "[[size:", "_"];
   let cursor = 0;
   while (cursor < source.length) {
-    const underscoreRun = source.slice(cursor).match(/^(?:\\+_){3,}|_{3,}/);
-    const underscoreRunBefore = source[cursor - 1] || "";
-    const underscoreRunAfter = underscoreRun ? source[cursor + underscoreRun[0].length] || "" : "";
-    if (underscoreRun && !/[\p{L}\p{N}]/u.test(underscoreRunBefore) && !/[\p{L}\p{N}]/u.test(underscoreRunAfter)) {
-      const literalUnderscores = "_".repeat((underscoreRun[0].match(/_/g) || []).length);
-      const rendered = renderPlainText?.(literalUnderscores, `${keyPrefix}-${cursor}`);
-      output.push(...(rendered ?? [literalUnderscores]));
-      cursor += underscoreRun[0].length;
-      continue;
-    }
     const escapedCharacter = source.slice(cursor).match(/^\\([\\*_~\[\]])/);
     if (escapedCharacter) {
       const rendered = renderPlainText?.(escapedCharacter[1], `${keyPrefix}-${cursor}`);
