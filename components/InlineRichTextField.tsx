@@ -5,7 +5,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { Mark, Node as TiptapNode, mergeAttributes, type JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import { Bold, Italic, Underline, Strikethrough, Link2, RemoveFormatting, TextCursorInput } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, Link2, RemoveFormatting } from "lucide-react";
 import { ColorPickerPopover } from "@/components/ColorPickerPopover";
 
 const InlineStyle = Mark.create({
@@ -147,7 +147,7 @@ export function InlineRichTextField({ name, label, value, rows, lang, onChange }
         const selection = editor.state.selection;
         const marks = (editor.state.storedMarks ?? selection.$from.marks()).filter((mark) => mark.type.name !== "link").map((mark) => ({ type: mark.type.name, attrs: mark.attrs }));
         run(() => editor.chain().focus().insertContent({ type: "visualBlank", marks }).run());
-      }}><TextCursorInput size={15} /></ToolbarButton>
+      }}><span aria-hidden="true" className="font-mono text-[10px] font-bold tracking-[-0.08em]">_____</span></ToolbarButton>
     </div> : null}
     <EditorContent editor={editor} />
     <p className="mt-1 text-[11px] text-[var(--br-text-muted)]">Right-click to format selected text or insert a non-interactive blank.</p>
