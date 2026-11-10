@@ -352,7 +352,7 @@ export function BuilderLessonPlayer({
   const [notesSaved, setNotesSaved] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number; horizontalScroller: HTMLElement | null; tableScrollLeft: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; horizontalScroller: HTMLElement | null; tableScrollLeft: number; imageStage: HTMLElement | null; imageZoom: number; multiTouch: boolean } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [liveActivityStates, setLiveActivityStates] = useState<Record<string, { state: string; closesAt: string | null }>>({});
@@ -669,6 +669,12 @@ export function BuilderLessonPlayer({
   function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
     const start = touchStartRef.current;
     if (!start) return;
+    if (event.touches.length > 1) {
+      start.multiTouch = true;
+      return;
+    }
+    const currentImageZoom = Number(start.imageStage?.dataset.imageZoom ?? 1);
+    if (start.imageZoom > 1 || currentImageZoom > 1) return;
     const touch = event.touches[0];
     if (!touch) return;
     const deltaX = touch.clientX - start.x;
@@ -687,10 +693,10 @@ export function BuilderLessonPlayer({
   }
 
   function handleLessonTouchEnd(event: TouchEvent<HTMLElement>) {
-    if (isLiveStudent && liveNavigationLocked) return;
     const start = touchStartRef.current;
     touchStartRef.current = null;
     setIsDragging(false);
+    if (isLiveStudent && liveNavigationLocked) return;
     if (!start) return;
     const touch = event.changedTouches[0];
     if (!touch) {
@@ -700,6 +706,7 @@ export function BuilderLessonPlayer({
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
     setDragX(0);
+    if (start.multiTouch || start.imageZoom > 1 || Number(start.imageStage?.dataset.imageZoom ?? 1) > 1) return;
     if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
     if (start.horizontalScroller) {
       const maxScrollLeft = start.horizontalScroller.scrollWidth - start.horizontalScroller.clientWidth;
@@ -853,8 +860,21 @@ export function BuilderLessonPlayer({
         onTouchStart={(event) => {
           const touch = event.touches[0];
           const target = event.target as Element | null;
+          if (target?.closest("[data-image-zoom-controls]")) {
+            touchStartRef.current = null;
+            return;
+          }
           const horizontalScroller = target?.closest<HTMLElement>("[data-lesson-horizontal-scroll]") ?? null;
-          if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY, horizontalScroller, tableScrollLeft: horizontalScroller?.scrollLeft ?? 0 };
+          const imageStage = target?.closest<HTMLElement>("[data-zoomable-image-stage]") ?? null;
+          if (touch) touchStartRef.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+            horizontalScroller,
+            tableScrollLeft: horizontalScroller?.scrollLeft ?? 0,
+            imageStage,
+            imageZoom: Number(imageStage?.dataset.imageZoom ?? 1),
+            multiTouch: event.touches.length > 1,
+          };
         }}
         onTouchMove={handleLessonTouchMove}
         onTouchCancel={() => {
