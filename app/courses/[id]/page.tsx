@@ -24,6 +24,9 @@ import { getFreshProfile, isStaff } from "@/lib/auth";
 import { CourseInstructorByline } from "@/components/CourseInstructorByline";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
 
+// Keep the assessment card implementation available for a later relaunch.
+const ENABLE_COURSE_ASSESSMENT_CARD = false;
+
 type CourseItemView = {
   id: string;
   section_id: string | null;
@@ -508,7 +511,7 @@ export default async function CourseLandingPage({
             <section className="grid min-w-0 gap-5">
               {curriculumCard}
               <aside className="grid min-w-0 content-start gap-4">
-                {assessmentPanel}
+                {ENABLE_COURSE_ASSESSMENT_CARD ? assessmentPanel : null}
                 {supportPanel}
               </aside>
             </section>
@@ -523,8 +526,8 @@ export default async function CourseLandingPage({
               </div>
               <aside className="grid min-w-0 content-start gap-4">
                 {progressPanel}
-                {assessmentPanel}
                 {outcomesPanel}
+                {ENABLE_COURSE_ASSESSMENT_CARD ? assessmentPanel : null}
                 {supportPanel}
               </aside>
             </div>
