@@ -1019,7 +1019,11 @@ export function BuilderLessonPlayer({
 
   autoplayAdvanceRef.current = () => {
     if (template === "LO" && index >= slides.length - 1) finish();
-    else move(1);
+    else if (template === "LTP" && slide?.player_phase === "LEARN" && slides[index + 1]?.player_phase === "PRACTICE") {
+      setPendingPracticeIndex(index + 1);
+      setShowLearnGate(false);
+      setShowPracticeGate(true);
+    } else move(1);
   };
 
   function reviewLesson() {
