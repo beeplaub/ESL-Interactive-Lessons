@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Languages, List, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Languages, List, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, Timer, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints, lessonActivityScore } from "@/components/LessonActivityPanel";
 import { LessonContentTabs } from "@/components/LessonContentTabs";
@@ -14,16 +14,19 @@ import type { Json } from "@/types/database.types";
 import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
 import { NarrationFullScript, NarrationGlossaryPanel, NarrationGlossaryWord, NarrationReadPreview, PinnedNarrationReadPreview, narrationGlossary, type NarrationGlossaryEntry } from "@/components/NarrationStudyAssist";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
+import { resolveLessonPlayerSteps, supportsAutoplay, type LessonPhaseItem, type LessonTemplate, type PracticeLearnLink } from "@/lib/lessonTemplates";
 
-type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
+type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null; lesson_template?: LessonTemplate; autoplay_enabled?: boolean; autoplay_mode?: "FIXED_DURATION" | "NARRATION_DURATION"; autoplay_duration_seconds?: number };
 type Slide = {
   id: string; slide_number: number; title: string; section_label: string | null;
   content_order?: "LEARN_FIRST" | "PRACTICE_FIRST" | null;
   require_practice_before_learn?: boolean | null;
+  player_phase?: "LEARN" | "PRACTICE";
+  phase_item_id?: string;
 };
 type Block = { id: string; slide_id: string; position: number; block_type: string; content: Json };
 type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
-type Progress = { current_slide_number: number; completed: boolean } | null;
+type Progress = { current_slide_number: number; current_phase_item_id?: string | null; completed: boolean } | null;
 type ActivityAttempt = { id?: string; lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string; status?: string | null; grading_source?: string | null };
 type InstantClassMode = {
   api: string;
@@ -72,6 +75,70 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
   </div>;
 }
 
+type GateRailSlide = { title: string; player_phase?: "LEARN" | "PRACTICE" };
+
+function PhaseGateMarker({ phase, onClick, compact = false }: { phase: "LEARN" | "PRACTICE"; onClick?: () => void; compact?: boolean }) {
+  const label = phase === "LEARN" ? "L" : "P";
+  const title = phase === "LEARN" ? "Open Start Learning" : "Open Start Practicing";
+  const color = phase === "LEARN" ? "bg-[var(--br-chart-primary)]" : "bg-[var(--br-chart-secondary)]";
+  const className = `grid shrink-0 place-items-center rounded-full ${color} font-black text-on-dark ${compact ? "size-8 text-[11px] min-[1180px]:size-7 min-[1180px]:text-[10px]" : "size-7 text-[10px]"}`;
+  return onClick
+    ? <button type="button" onClick={onClick} aria-label={title} title={title} className={`${className} transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-brand)]`}>{label}</button>
+    : <span aria-label={title} title={title} className={className}>{label}</span>;
+}
+
+export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, autoplayAvailable = false, autoplayPaused = false, unlockedPhases = [], onToggleAutoplay, onSelectGate, onSelectSlide, onStart }: {
+  title: string; phase: "START" | "PRACTICE"; buttonLabel: string; imageUrl?: string | null; slides: GateRailSlide[];
+  autoplayAvailable?: boolean; autoplayPaused?: boolean; unlockedPhases?: Array<"LEARN" | "PRACTICE">; onToggleAutoplay?: () => void;
+  onSelectGate?: (phase: "LEARN" | "PRACTICE") => void; onSelectSlide?: (index: number) => void; onStart: () => void;
+}) {
+  const desktopGateRailRef = useRef<HTMLDivElement>(null);
+  const mobileGateRailRef = useRef<HTMLDivElement>(null);
+  const practiceStart = slides.findIndex((item) => item.player_phase === "PRACTICE");
+  const learnStart = slides.findIndex((item) => item.player_phase === "LEARN");
+  const showLearnMarker = learnStart >= 0 || (slides[0]?.player_phase !== "PRACTICE" && slides.length > 0);
+  const showPracticeMarker = practiceStart >= 0;
+  const practiceOnlyStart = phase === "START" && buttonLabel === "Start Practicing";
+  const rail = <>
+    {slides.map((item, index) => <div key={`${item.title}-${index}`} className="flex shrink-0 items-center gap-1">
+      {showLearnMarker && index === (learnStart >= 0 ? learnStart : 0) ? <PhaseGateMarker phase="LEARN" onClick={() => onSelectGate?.("LEARN")} compact /> : null}
+      {showPracticeMarker && index === practiceStart ? <PhaseGateMarker phase="PRACTICE" onClick={() => onSelectGate?.("PRACTICE")} compact /> : null}
+      <button type="button" disabled={!onSelectSlide || !unlockedPhases.includes(item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN"))} onClick={() => onSelectSlide?.(index)} aria-label={`Slide ${index + 1}: ${item.title}`} className={`grid size-8 shrink-0 place-items-center rounded-full border bg-[var(--br-canvas-elevated)] text-[11px] font-extrabold text-[var(--br-text-muted)] min-[1180px]:size-7 min-[1180px]:text-[10px] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"} ${unlockedPhases.includes(item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN")) ? "" : "opacity-60"}`}>{index + 1}</button>
+    </div>)}
+  </>;
+  const autoButton = autoplayAvailable ? <button type="button" onClick={onToggleAutoplay} className="flex min-h-10 w-10 shrink-0 flex-col items-center justify-center rounded-2xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-[var(--br-shadow)] transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Enable autoplay after starting" : "Disable autoplay after starting"} title={autoplayPaused ? "Enable autoplay after starting" : "Disable autoplay after starting"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null;
+  const counter = phase === "START" ? 0 : slides.filter((item) => item.player_phase === "LEARN").length;
+  const slideMap = <div ref={mobileGateRailRef} className="flex min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: "pan-x pan-y" }}>{rail}</div>;
+
+  return <main className="mx-auto max-w-7xl overflow-x-hidden px-1 py-3 sm:px-4 sm:py-5 min-[1180px]:px-0">
+    <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
+      <aside className="hidden min-[1180px]:block"><div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1">{autoButton}<div className="flex max-h-[calc(100dvh-2.5rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]"><button type="button" onClick={() => desktopGateRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button><nav ref={desktopGateRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{slides.map((item, index) => { const itemPhase = item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN"); const itemUnlocked = unlockedPhases.includes(itemPhase); return <div key={`${item.title}-rail-${index}`} className="flex flex-col items-center gap-1 py-0.5">{showLearnMarker && index === (learnStart >= 0 ? learnStart : 0) ? <PhaseGateMarker phase="LEARN" onClick={() => onSelectGate?.("LEARN")} /> : null}{showPracticeMarker && index === practiceStart ? <PhaseGateMarker phase="PRACTICE" onClick={() => onSelectGate?.("PRACTICE")} /> : null}<button type="button" disabled={!onSelectSlide || !itemUnlocked} onClick={() => onSelectSlide?.(index)} aria-label={`Slide ${index + 1}: ${item.title}`} className={`grid size-7 place-items-center rounded-full border bg-[var(--br-canvas-elevated)] text-[10px] font-extrabold text-[var(--br-text-muted)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"} ${itemUnlocked ? "" : "opacity-60"}`}>{index + 1}</button></div>; })}</nav><button type="button" onClick={() => desktopGateRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button></div></div></aside>
+      <section className="min-w-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
+        <header className="mb-4 rounded-[18px] bg-[var(--br-brand)] px-4 py-3 text-white">
+          <div className="flex items-center justify-between gap-2"><p className="text-xs uppercase tracking-wide text-white/55">Slide {counter} of {slides.length}</p></div>
+          <h1 className="mt-1 text-[22px] font-extrabold">{title}</h1>
+          <p className="mt-1 text-sm text-white/60">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
+        </header>
+        <div className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] min-[1180px]:hidden">{autoButton}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>{slideMap}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button></div>
+        <div className="grid place-items-center px-1 pb-1 sm:px-2 sm:pb-2">
+          <div className="relative grid aspect-[9/16] w-full max-w-[360px] place-items-center overflow-hidden rounded-[18px] border border-[var(--br-surface-strong)] bg-[radial-gradient(ellipse_at_20%_15%,var(--br-brand-soft),transparent_55%),linear-gradient(145deg,var(--br-canvas-elevated),var(--br-surface))] p-5 shadow-inner sm:aspect-video sm:max-w-none sm:p-8">
+            {imageUrl ? <>
+              {/* eslint-disable-next-line @next/next/no-img-element -- Course images may use creator-provided hosts. */}
+              <img src={imageUrl} alt="" aria-hidden="true" className="absolute inset-0 size-full object-cover" />
+              <div aria-hidden="true" className="absolute inset-0 bg-black/30" />
+            </> : null}
+            <div aria-hidden="true" className="absolute inset-3 rounded-[14px] border border-white/75 sm:inset-4" />
+            <button type="button" onClick={onStart} className="relative z-10 flex flex-col items-center gap-2.5 rounded-2xl p-2 focus-visible:outline focus-visible:outline-4 focus-visible:outline-white/70">
+              <span className="grid size-16 place-items-center rounded-[20px] bg-[var(--br-action)] text-on-dark shadow-xl transition hover:scale-105 sm:size-[72px]"><Play size={29} fill="currentColor" strokeWidth={1.5} className="ml-1" /></span>
+              <span className="rounded-lg bg-white px-5 py-2.5 text-sm font-black text-[var(--br-brand)] shadow-lg">{buttonLabel}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>;
+}
+
 function youtubeVideoId(url: string) {
   try {
     const parsed = new URL(url);
@@ -82,7 +149,7 @@ function youtubeVideoId(url: string) {
   } catch { return null; }
 }
 
-function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", onProgressChange }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; onProgressChange?: (state: { currentTime: number; duration: number }) => void }) {
+function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", onProgressChange, onEnded, autoplayControlled = false }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; onProgressChange?: (state: { currentTime: number; duration: number }) => void; onEnded?: () => void; autoplayControlled?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const youtubeRef = useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -127,6 +194,14 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
       audio.currentTime = 0;
     };
   }, [src, isYouTubeAudio]);
+
+  useEffect(() => {
+    if (!autoplayControlled || !isYouTubeAudio) return;
+    sendYouTube("playVideo");
+  // YouTube narration is started when autoplay is enabled; slide autoplay
+  // pause only stops slide advancement and never controls narration playback.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoplayControlled, isYouTubeAudio]);
 
   function sendYouTube(command: "playVideo" | "pauseVideo" | "seekTo") {
     youtubeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func: command, args: command === "seekTo" ? [Math.max(0, currentTime), true] : [] }), "https://www.youtube-nocookie.com");
@@ -188,7 +263,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
         onPlay={() => { setPlaying(true); setAudioError(null); setAutoplayBlocked(false); }}
         onError={() => { setPlaying(false); setAudioError("Narration could not load. Tap play to retry."); }}
         onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); }}
+        onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); onEnded?.(); }}
         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
       />}
@@ -298,14 +373,16 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false, instantClass,
+  lesson, slides: sourceSlides, phaseItems = [], practiceLinks = [], blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, courseFeatureImageUrl = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false, instantClass,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
+  phaseItems?: LessonPhaseItem[]; practiceLinks?: PracticeLearnLink[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
   narrationMap?: Record<string, string>;
   narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[] }>;
   courseItemId?: string | null;
+  courseFeatureImageUrl?: string | null;
   backHref?: string;
   liveSession?: LiveSessionMode | null;
   startInReviewMode?: boolean;
@@ -317,12 +394,63 @@ export function BuilderLessonPlayer({
   instantClass?: InstantClassMode;
 }) {
   const inInstantClass = Boolean(instantClass);
+  const requestedTemplate = lesson.lesson_template ?? "LAP";
+  const standaloneTemplate = !liveSession && !instantClass && !practiceModuleMode;
+  const template: LessonTemplate = standaloneTemplate ? requestedTemplate : "LAP";
+  const slides = useMemo(() => {
+    if (!standaloneTemplate) return sourceSlides;
+    if (template === "LAP") {
+      const learnItems = phaseItems.filter((item) => item.phase === "LEARN");
+      return sourceSlides.map((source) => ({
+        ...source,
+        phase_item_id: learnItems.find((item) => item.slide_id === source.id)?.id,
+      }));
+    }
+    let items = phaseItems;
+    if (!items.length) {
+      const learnSlides = sourceSlides.filter((candidate) => blocks.some((block) => block.slide_id === candidate.id));
+      const practiceSlides = sourceSlides.filter((candidate) => activities.some((activity) => activity.slide_id === candidate.id));
+      items = [
+        ...learnSlides.map((candidate, index) => ({ id: `legacy-learn-${candidate.id}`, lesson_id: lesson.id, slide_id: candidate.id, phase: "LEARN" as const, position: index + 1 })),
+        ...practiceSlides.map((candidate, index) => ({ id: `legacy-practice-${candidate.id}`, lesson_id: lesson.id, slide_id: candidate.id, phase: "PRACTICE" as const, position: index + 1 })),
+      ];
+    }
+    items = items.filter((item) => item.phase === "LEARN"
+      ? blocks.some((block) => block.slide_id === item.slide_id)
+      : activities.some((activity) => activity.slide_id === item.slide_id));
+    const steps = resolveLessonPlayerSteps({ template, phaseItems: items, links: practiceLinks });
+    return steps.flatMap((step) => {
+      if (step.type !== "LEARN" && step.type !== "PRACTICE") return [];
+      const source = sourceSlides.find((candidate) => candidate.id === step.item.slide_id);
+      return source ? [{ ...source, player_phase: step.type, phase_item_id: step.item.id }] : [];
+    });
+  }, [activities, blocks, lesson.id, phaseItems, practiceLinks, sourceSlides, standaloneTemplate, template]);
   const instantIndex = instantClass?.selection.index;
   const instantTab = instantClass?.selection.tab;
   const instantActivityId = instantClass?.selection.activityId;
   const resolvedInitialSlideNumber = startInReviewMode ? 1 : initialSlideNumber ?? liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
-  const initialIndex = Math.max(0, Math.min(slides.length - 1, resolvedInitialSlideNumber - 1));
+  const savedPhaseIndex = initialSlideNumber === undefined && !startInReviewMode && initialProgress?.current_phase_item_id ? slides.findIndex((item) => item.phase_item_id === initialProgress.current_phase_item_id) : -1;
+  const legacySlideIndex = slides.findIndex((item) => item.slide_number === resolvedInitialSlideNumber);
+  const initialIndex = Math.max(0, Math.min(slides.length - 1, savedPhaseIndex >= 0 ? savedPhaseIndex : legacySlideIndex >= 0 ? legacySlideIndex : 0));
+  const progressedPhase = initialProgress
+    ? slides.find((item) => item.phase_item_id && item.phase_item_id === initialProgress.current_phase_item_id)?.player_phase ?? slides[initialIndex]?.player_phase
+    : undefined;
   const [index, setIndex] = useState(initialIndex);
+  const [hasStarted, setHasStarted] = useState(!standaloneTemplate);
+  const [entryGatePhase, setEntryGatePhase] = useState<"LEARN" | "PRACTICE">(template === "PO" ? "PRACTICE" : "LEARN");
+  const [learnPhaseOpened, setLearnPhaseOpened] = useState(!standaloneTemplate || (template === "LAP" && Boolean(initialProgress)) || progressedPhase === "LEARN");
+  const [practicePhaseOpened, setPracticePhaseOpened] = useState(!standaloneTemplate || (template === "LAP" && Boolean(initialProgress)) || progressedPhase === "PRACTICE");
+  const [showLearnGate, setShowLearnGate] = useState(false);
+  const [showPracticeGate, setShowPracticeGate] = useState(false);
+  const [pendingPracticeIndex, setPendingPracticeIndex] = useState<number | null>(null);
+  const [narrationEnded, setNarrationEnded] = useState(false);
+  const [fixedDurationElapsed, setFixedDurationElapsed] = useState(false);
+  const [narrationFallbackElapsed, setNarrationFallbackElapsed] = useState(false);
+  const [autoplayPaused, setAutoplayPaused] = useState(false);
+  const autoplayAdvanceRef = useRef<() => void>(() => {});
+  const autoplayTimerRemainingRef = useRef(30_000);
+  const autoplayTimerStartedAtRef = useRef<number | null>(null);
+  const autoplayTimerExpiredRef = useRef(false);
   const [narrationProgress, setNarrationProgress] = useState({ currentTime: 0, duration: 0 });
   const [studyPanel, setStudyPanel] = useState<"read" | "glossary" | "notes" | null>(null);
   const [fullScriptOpen, setFullScriptOpen] = useState(false);
@@ -434,23 +562,26 @@ export function BuilderLessonPlayer({
 
   const slideBlocks = slide ? blocksBySlide.get(slide.id) ?? [] : [];
   const slideActivities = useMemo(
-    () => slide ? activities.filter((activity) => activity.slide_id === slide.id) : [],
-    [activities, slide?.id]
+    () => {
+      if (!slide) return [];
+      return activities.filter((activity) => activity.slide_id === slide.id);
+    },
+    [activities, slide]
   );
   const learnAvailable = slideBlocks.length > 0;
   const practiceAvailable = slideActivities.length > 0;
   const practiceFirst = slide?.content_order === "PRACTICE_FIRST";
   const defaultTab: "learn" | "practice" =
-    practiceFirst && practiceAvailable ? "practice" : learnAvailable ? "learn" : practiceAvailable ? "practice" : "learn";
+    slide?.player_phase === "PRACTICE" ? "practice" : slide?.player_phase === "LEARN" ? "learn" : practiceFirst && practiceAvailable ? "practice" : learnAvailable ? "learn" : practiceAvailable ? "practice" : "learn";
   const [activeTab, setActiveTab] = useState<"learn" | "practice">(defaultTab);
   const initialTabRef = useRef(initialTab);
 
   useEffect(() => {
-    setActiveTab(initialTabRef.current === "practice" && practiceAvailable ? "practice" : initialTabRef.current === "learn" && learnAvailable ? "learn" : defaultTab);
+    setActiveTab(template === "LAP" && initialTabRef.current === "practice" && practiceAvailable ? "practice" : template === "LAP" && initialTabRef.current === "learn" && learnAvailable ? "learn" : defaultTab);
     initialTabRef.current = undefined;
     // Only re-run when the slide itself changes, not on every re-render caused by, e.g., new attempts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slide?.id]);
+  }, [slide?.id, slide?.phase_item_id]);
 
   useEffect(() => {
     if (activeTab !== "practice" || !focusActivityId) return;
@@ -555,6 +686,7 @@ export function BuilderLessonPlayer({
 
   // Narration for current slide
   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
+  const narrationVisible = Boolean(slide) && activeTab !== "practice" && slide.player_phase !== "PRACTICE";
   const narrationConfig = slide ? narrationConfigMap[slide.id] : undefined;
   const hasTranscript = Boolean(narrationConfig?.transcript?.trim());
   const hasGlossary = narrationGlossary(narrationConfig?.glossary).length > 0;
@@ -608,27 +740,75 @@ export function BuilderLessonPlayer({
     fetch(`/api/lessons/${lesson.id}/progress`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ current_slide_number: nextIndex + 1, completed: nextCompleted }),
+      body: JSON.stringify({ current_slide_number: slides[nextIndex]?.slide_number ?? nextIndex + 1, current_phase_item_id: slides[nextIndex]?.phase_item_id ?? null, completed: nextCompleted }),
     }).then((r) => {
       if (!r.ok) setMessage("Could not save progress.");
     }).catch(() => setMessage("Could not save progress."));
-  }, [completed, lesson.id, inInstantClass]);
+  }, [completed, lesson.id, inInstantClass, slides]);
 
   function scheduleProgressSave(nextIndex: number, nextCompleted = completed) {
     if (progressSaveRef.current) clearTimeout(progressSaveRef.current);
     progressSaveRef.current = setTimeout(() => saveProgress(nextIndex, nextCompleted), 250);
   }
 
+  function canOpenSlide(item: Slide | undefined) {
+    if (!item || !standaloneTemplate) return Boolean(item);
+    if (template === "LAP") return hasStarted || Boolean(initialProgress);
+    const phase = item.player_phase ?? "LEARN";
+    return phase === "PRACTICE" ? practicePhaseOpened : learnPhaseOpened;
+  }
+
   function move(direction: -1 | 1) {
     if (isLiveStudent && liveNavigationLocked) return;
     const next = Math.max(0, Math.min(slides.length - 1, index + direction));
     if (next === index) return;
+    if (template === "LTP" && direction === 1 && slides[index]?.player_phase === "LEARN" && slides[next]?.player_phase === "PRACTICE" && !practicePhaseOpened) {
+      setPendingPracticeIndex(next);
+      setShowPracticeGate(true);
+      return;
+    }
+    if (!canOpenSlide(slides[next])) return;
     jumpTo(next);
+  }
+
+  function startPracticePhase() {
+    const next = pendingPracticeIndex ?? slides.findIndex((item) => item.player_phase === "PRACTICE");
+    if (next < 0) return;
+    setHasStarted(true);
+    setPracticePhaseOpened(true);
+    setShowPracticeGate(false);
+    setPendingPracticeIndex(null);
+    setIndex(next);
+    scheduleProgressSave(next);
+  }
+
+  function startEntryGate() {
+    setHasStarted(true);
+    if (entryGatePhase === "PRACTICE") {
+      const next = slides.findIndex((item) => item.player_phase === "PRACTICE");
+      setPracticePhaseOpened(true);
+      if (next >= 0) { setIndex(next); scheduleProgressSave(next); }
+      return;
+    }
+    const learnStart = slides.findIndex((item) => item.player_phase === "LEARN");
+    const next = learnStart >= 0 ? learnStart : 0;
+    setLearnPhaseOpened(true);
+    if (slides.length) { setIndex(next); scheduleProgressSave(next); }
+  }
+
+  function startLearnPhase() {
+    const next = learnRailStart >= 0 ? learnRailStart : 0;
+    setHasStarted(true);
+    setLearnPhaseOpened(true);
+    setShowLearnGate(false);
+    setIndex(next);
+    scheduleProgressSave(next);
   }
 
   function jumpTo(next: number) {
     if (isLiveStudent && liveNavigationLocked) return;
     const normalized = Math.max(0, Math.min(slides.length - 1, next));
+    if (!canOpenSlide(slides[normalized])) return;
     setJumpOpen(false);
     if (instantClass) {
       if (instantClass.creator && !instantClass.paused && normalized !== index) void instantClass.onSelect({...instantClass.selection,index:normalized,tab:undefined,activityId:undefined});
@@ -644,6 +824,99 @@ export function BuilderLessonPlayer({
         .catch(() => setMessage("Could not sync this slide. Check your connection and try again."));
     }
   }
+
+  useEffect(() => {
+    setNarrationEnded(false);
+    setFixedDurationElapsed(false);
+    setNarrationFallbackElapsed(false);
+    autoplayTimerExpiredRef.current = false;
+    autoplayTimerRemainingRef.current = (lesson.autoplay_mode === "FIXED_DURATION"
+      ? Math.max(5, Math.min(600, lesson.autoplay_duration_seconds ?? 30)) * 1000
+      : 30_000);
+  }, [slide?.id, slide?.phase_item_id, lesson.autoplay_duration_seconds, lesson.autoplay_mode]);
+
+  const autoplayConfigured = standaloneTemplate
+    && supportsAutoplay(template)
+    && Boolean(lesson.autoplay_enabled)
+    && slide?.player_phase !== "PRACTICE"
+    && hasStarted
+    && !showLearnGate
+    && !showPracticeGate
+    && !completed;
+  const autoplayActive = autoplayConfigured && !autoplayPaused;
+  const learnRailStart = !standaloneTemplate ? -1 : template === "LTP" ? slides.findIndex((item) => item.player_phase === "LEARN") : template === "PO" ? -1 : 0;
+  const practiceRailStart = !standaloneTemplate ? -1 : template === "LTP" ? slides.findIndex((item) => item.player_phase === "PRACTICE") : template === "PO" && slides.length ? 0 : -1;
+  const showLearnRailMarker = learnRailStart >= 0 && slides.length > 0;
+  const showPracticeRailMarker = practiceRailStart >= 0;
+
+  function openLearnGate() {
+    if (learnRailStart < 0) return;
+    setShowLearnGate(true);
+    setShowPracticeGate(false);
+    setPendingPracticeIndex(null);
+  }
+
+  function openPracticeGate() {
+    if (practiceRailStart < 0) return;
+    setPendingPracticeIndex(practiceRailStart);
+    setShowLearnGate(false);
+    setShowPracticeGate(true);
+  }
+
+  function selectGate(phase: "LEARN" | "PRACTICE") {
+    if (!hasStarted) {
+      setEntryGatePhase(phase);
+      return;
+    }
+    if (phase === "LEARN") openLearnGate();
+    else openPracticeGate();
+  }
+
+  function selectGateSlide(next: number) {
+    setHasStarted(true);
+    setShowLearnGate(false);
+    setShowPracticeGate(false);
+    setPendingPracticeIndex(null);
+    jumpTo(next);
+  }
+
+  const unlockedPhases: Array<"LEARN" | "PRACTICE"> = [
+    ...(learnPhaseOpened ? ["LEARN" as const] : []),
+    ...(practicePhaseOpened ? ["PRACTICE" as const] : []),
+    ...(template === "LAP" && (hasStarted || Boolean(initialProgress)) ? ["LEARN" as const, "PRACTICE" as const] : []),
+  ];
+  useEffect(() => {
+    if (!autoplayActive) return;
+    const mode = lesson.autoplay_mode ?? "NARRATION_DURATION";
+    if (mode === "NARRATION_DURATION" && narrationUrl) return;
+    const timeoutMs = Math.max(0, autoplayTimerRemainingRef.current);
+    const startedAt = Date.now();
+    autoplayTimerStartedAtRef.current = startedAt;
+    const timer = window.setTimeout(() => {
+      autoplayTimerExpiredRef.current = true;
+      autoplayTimerRemainingRef.current = 0;
+      if (mode === "FIXED_DURATION") setFixedDurationElapsed(true);
+      else setNarrationFallbackElapsed(true);
+    }, timeoutMs);
+    return () => {
+      window.clearTimeout(timer);
+      if (!autoplayTimerExpiredRef.current && autoplayTimerStartedAtRef.current === startedAt) {
+        autoplayTimerRemainingRef.current = Math.max(0, timeoutMs - (Date.now() - startedAt));
+        autoplayTimerStartedAtRef.current = null;
+      }
+    };
+  }, [autoplayActive, index, lesson.autoplay_mode, narrationUrl, slide?.phase_item_id]);
+
+  useEffect(() => {
+    if (!autoplayActive) return;
+    const mode = lesson.autoplay_mode ?? "NARRATION_DURATION";
+    const durationReady = mode === "FIXED_DURATION" && fixedDurationElapsed && (!narrationUrl || narrationEnded);
+    const narrationReady = mode === "NARRATION_DURATION" && (narrationUrl ? narrationEnded : narrationFallbackElapsed);
+    if (!durationReady && !narrationReady) return;
+    const delay = mode === "NARRATION_DURATION" && narrationUrl ? 1000 : 0;
+    const timer = window.setTimeout(() => autoplayAdvanceRef.current(), delay);
+    return () => window.clearTimeout(timer);
+  }, [autoplayActive, fixedDurationElapsed, narrationEnded, narrationFallbackElapsed, lesson.autoplay_mode, narrationUrl, index, template, slides.length]);
 
   useEffect(() => {
     const mobileTrack = mobileSlideMapRef.current;
@@ -733,6 +1006,11 @@ export function BuilderLessonPlayer({
     startTransition(() => saveProgress(index, true));
   }, [index, reviewChecklistBlocked, saveProgress]);
 
+  autoplayAdvanceRef.current = () => {
+    if (template === "LO" && index >= slides.length - 1) finish();
+    else move(1);
+  };
+
   function reviewLesson() {
     if (instantClass) { jumpTo(0); return; }
     setIndex(0);
@@ -795,6 +1073,17 @@ export function BuilderLessonPlayer({
     );
   }
 
+  if (standaloneTemplate && !hasStarted) {
+    const choosingPractice = entryGatePhase === "PRACTICE";
+    return <SystemLessonGate title={lesson.title} phase={choosingPractice ? "PRACTICE" : "START"} buttonLabel={choosingPractice ? "Start Practicing" : "Start Learning"} imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} autoplayAvailable={!choosingPractice && supportsAutoplay(template) && Boolean(lesson.autoplay_enabled)} autoplayPaused={autoplayPaused} unlockedPhases={unlockedPhases} onToggleAutoplay={() => setAutoplayPaused((value) => !value)} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startEntryGate} />;
+  }
+  if (standaloneTemplate && showLearnGate) {
+    return <SystemLessonGate title={lesson.title} phase="START" buttonLabel="Start Learning" imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} autoplayAvailable={supportsAutoplay(template) && Boolean(lesson.autoplay_enabled)} autoplayPaused={autoplayPaused} unlockedPhases={unlockedPhases} onToggleAutoplay={() => setAutoplayPaused((value) => !value)} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startLearnPhase} />;
+  }
+  if (standaloneTemplate && showPracticeGate) {
+    return <SystemLessonGate title={lesson.title} phase="PRACTICE" buttonLabel="Start Practicing" imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} unlockedPhases={unlockedPhases} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startPracticePhase} />;
+  }
+
   return (
     <main ref={lessonViewportRef} className="mx-auto max-w-7xl overflow-x-hidden px-1 sm:px-4 min-[1180px]:px-0">
       {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
@@ -815,7 +1104,7 @@ export function BuilderLessonPlayer({
               <div className="grid h-1.5 flex-1 auto-cols-fr grid-flow-col gap-1">
                 {slides.map((item, slideIndex) => (
                   <span
-                    key={item.id}
+                    key={item.phase_item_id ?? item.id}
                     className={`rounded-full transition-colors ${slideIndex <= index ? "bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-success)]" : "bg-[var(--br-surface-strong)]"}`}
                   />
                 ))}
@@ -846,12 +1135,19 @@ export function BuilderLessonPlayer({
 
       <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
       {!practiceModuleMode ? <aside className="hidden min-[1180px]:block">
-        <div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]">
-          <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button>
-          <nav ref={desktopSlideRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-extrabold transition ${slideIndex === index ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-[var(--br-border)]"} disabled:cursor-not-allowed disabled:opacity-45`}>{slideIndex + 1}</button>)}
-          </nav>
-          <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button>
+        <div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1">
+          {autoplayConfigured ? <button type="button" onClick={() => setAutoplayPaused((value) => !value)} className="flex min-h-10 w-10 shrink-0 flex-col items-center justify-center rounded-2xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-[var(--br-shadow)] transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"} title={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null}
+          <div className="flex max-h-[calc(100dvh-2.5rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]">
+            <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button>
+            <nav ref={desktopSlideRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {slides.map((item, slideIndex) => <div key={item.phase_item_id ?? item.id} className="flex flex-col items-center gap-1">
+                {showLearnRailMarker && slideIndex === learnRailStart ? <PhaseGateMarker phase="LEARN" onClick={openLearnGate} /> : null}
+                {showPracticeRailMarker && slideIndex === practiceRailStart ? <PhaseGateMarker phase="PRACTICE" onClick={openPracticeGate} /> : null}
+                <button key={item.phase_item_id ?? item.id} type="button" data-slide-index={slideIndex} disabled={(isLiveStudent && liveNavigationLocked) || !canOpenSlide(item)} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-7 shrink-0 place-items-center rounded-full border text-[10px] font-extrabold transition ${slideIndex === index ? item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)] bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-transparent bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : `bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-[var(--br-border)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-transparent"}`} disabled:cursor-not-allowed disabled:opacity-45`}>{slideIndex + 1}</button>
+              </div>)}
+            </nav>
+            <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button>
+          </div>
         </div>
       </aside> : null}
       <div
@@ -920,14 +1216,14 @@ export function BuilderLessonPlayer({
       <div className="flex min-w-0 flex-col gap-4">
 
         <div className="relative">
-          <section className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
+          <section key={slide.phase_item_id ?? slide.id} className={`rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3 ${autoplayActive ? "animate-lesson-sweep" : ""}`}>
             {/* Slide header */}
-            <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] px-4 py-3 text-on-dark">
+            <div className={`mb-4 rounded-[18px] px-4 py-3 text-white ${template === "LAP" ? "bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] text-on-dark" : template === "LTP" || slide.player_phase !== "PRACTICE" ? "bg-[var(--br-brand)]" : "bg-[var(--br-chart-secondary)]"}`}>
               {/* Line 1 — slide counter (left) + narration pill (right) */}
               <div className="flex items-center justify-between gap-2">
                 {!practiceModuleMode ? <p className="text-xs uppercase tracking-wide text-white/55">Slide {index + 1} of {slides.length}</p> : <span />}
-                {narrationUrl && (
-                  <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} />
+                {narrationVisible && narrationUrl && (
+                  <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} onEnded={() => setNarrationEnded(true)} autoplayControlled={autoplayConfigured} />
                 )}
               </div>
 
@@ -941,7 +1237,7 @@ export function BuilderLessonPlayer({
             </div>
 
             {/* ── Learn / Practice tabs — side by side at every breakpoint ── */}
-            <LessonContentTabs activeTab={activeTab} learnAvailable={learnAvailable} practiceAvailable={practiceAvailable} learnLocked={learnLocked} selectTab={selectTab} />
+            {template === "LAP" ? <LessonContentTabs activeTab={activeTab} learnAvailable={learnAvailable} practiceAvailable={practiceAvailable} learnLocked={learnLocked} selectTab={selectTab} /> : null}
 
             {!practiceModuleMode ? <div
               onTouchStart={(event) => { event.stopPropagation(); touchStartRef.current = null; }}
@@ -950,9 +1246,14 @@ export function BuilderLessonPlayer({
               onTouchCancel={(event) => event.stopPropagation()}
               className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] [touch-action:pan-x_pan-y] min-[1180px]:hidden"
             >
+              {autoplayConfigured ? <button type="button" onClick={() => setAutoplayPaused((value) => !value)} className="flex h-9 w-10 shrink-0 flex-col items-center justify-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-sm transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"} title={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null}
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>
               <div ref={mobileSlideMapRef} aria-label="Slide map; swipe to browse slide numbers and tap a number to open that slide" className="flex min-w-0 flex-1 gap-2 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: "pan-x pan-y" }}>
-                {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-8 shrink-0 place-items-center rounded-full border text-[11px] font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${slideIndex === index ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>{slideIndex + 1}</button>)}
+                {slides.map((item, slideIndex) => <div key={item.phase_item_id ?? item.id} className="flex shrink-0 items-center gap-1">
+                  {showLearnRailMarker && slideIndex === learnRailStart ? <PhaseGateMarker phase="LEARN" onClick={openLearnGate} compact /> : null}
+                  {showPracticeRailMarker && slideIndex === practiceRailStart ? <PhaseGateMarker phase="PRACTICE" onClick={openPracticeGate} compact /> : null}
+                  <button type="button" data-slide-index={slideIndex} disabled={(isLiveStudent && liveNavigationLocked) || !canOpenSlide(item)} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-8 shrink-0 place-items-center rounded-full border text-[11px] font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${slideIndex === index ? item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)] bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : `bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"}`}`}>{slideIndex + 1}</button>
+                </div>)}
               </div>
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button>
             </div> : null}
@@ -1028,13 +1329,15 @@ export function BuilderLessonPlayer({
 
       {/* ── In-flow study dock and bottom navigation ── */}
       <div className="mt-5">
-          {pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview anchor={lessonViewport} transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setStudyPanel("read"); }} onOpenScript={() => { setPinnedReadingGuide(false); setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
+          {narrationVisible && pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview anchor={lessonViewport} transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setStudyPanel("read"); }} onOpenScript={() => { setPinnedReadingGuide(false); setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
           <div className="mx-auto flex w-fit items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1.5 shadow-[var(--br-shadow)]">
-            <button type="button" disabled={!hasTranscript} onClick={() => { const guideOpen = studyPanel === "read" || pinnedReadingGuide; setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel(guideOpen ? null : "read"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasTranscript ? studyPanel === "read" || pinnedReadingGuide ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasTranscript ? "Follow the narration" : "No reading script on this slide"}><BookOpenText size={14} />Read</button>
-            <button type="button" disabled={!hasGlossary} onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "glossary" ? null : "glossary"); }} className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasGlossary ? studyPanel === "glossary" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasGlossary ? "Open glossary" : "No glossary on this slide"}><List size={14} />Glossary</button>
+            {narrationVisible ? <>
+              <button type="button" disabled={!hasTranscript} onClick={() => { const guideOpen = studyPanel === "read" || pinnedReadingGuide; setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel(guideOpen ? null : "read"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasTranscript ? studyPanel === "read" || pinnedReadingGuide ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasTranscript ? "Follow the narration" : "No reading script on this slide"}><BookOpenText size={14} />Read</button>
+              <button type="button" disabled={!hasGlossary} onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "glossary" ? null : "glossary"); }} className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasGlossary ? studyPanel === "glossary" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasGlossary ? "Open glossary" : "No glossary on this slide"}><List size={14} />Glossary</button>
+            </> : null}
             <button type="button" onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "notes" ? null : "notes"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${studyPanel === "notes" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`}><NotebookPen size={14} />Notes</button>
           </div>
-          {studyPanel || fullScriptOpen || selectedGlossaryEntry ? <div className="mx-auto mt-2 w-full max-w-xl">
+          {(narrationVisible && (studyPanel === "read" || studyPanel === "glossary" || fullScriptOpen || selectedGlossaryEntry)) || studyPanel === "notes" ? <div className="mx-auto mt-2 w-full max-w-xl">
             {fullScriptOpen ? <NarrationFullScript transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onClose={() => { setFullScriptOpen(false); setStudyPanel("read"); }} onSelectTerm={(entry) => { setFullScriptOpen(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
             {studyPanel === "read" && !pinnedReadingGuide ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={false} onTogglePin={() => { setPinnedReadingGuide(true); setStudyPanel(null); }} onOpenScript={() => { setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
             {studyPanel === "glossary" ? <NarrationGlossaryPanel glossary={narrationConfig?.glossary} /> : null}
@@ -1046,12 +1349,12 @@ export function BuilderLessonPlayer({
         {!practiceModuleMode ? <button
           type="button"
           onClick={() => move(-1)}
-          disabled={index === 0 || (isLiveStudent && liveNavigationLocked)}
+          disabled={index === 0 || (isLiveStudent && liveNavigationLocked) || !canOpenSlide(slides[index - 1])}
           className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
         >
           <ChevronLeft size={14} className="shrink-0" /> Previous
         </button> : <span />}
-        {!practiceModuleMode ? <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
+        {!practiceModuleMode && template === "LAP" ? <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
           {message ? <span className="hidden text-xs text-[var(--br-danger)] sm:inline">{message}</span> : null}
           <button
             ref={jumpButtonRef}
@@ -1065,7 +1368,7 @@ export function BuilderLessonPlayer({
               if (rect) setJumpMenuPosition({ left: rect.left + rect.width / 2, bottom: window.innerHeight - rect.top + 8 });
               setJumpOpen(true);
             }}
-                  disabled={isLiveStudent && liveNavigationLocked}
+            disabled={isLiveStudent && liveNavigationLocked}
             aria-expanded={jumpOpen}
             aria-label="Jump to slide"
             className="shrink-0 whitespace-nowrap rounded-full border border-[var(--br-surface-strong)] bg-surface px-2 py-1 text-xs font-extrabold text-[var(--br-dark-card)] outline-none transition hover:bg-[var(--br-canvas-elevated)] focus:border-[var(--br-chart-primary)]/50 focus:ring-2 focus:ring-[var(--br-chart-primary)]/15 sm:px-3 sm:py-1.5 sm:text-sm"
@@ -1077,8 +1380,9 @@ export function BuilderLessonPlayer({
             <div role="group" aria-label="Choose a slide" style={{ left: jumpMenuPosition.left, bottom: jumpMenuPosition.bottom }} className="fixed z-[10000] max-h-[min(18rem,calc(100dvh-1.5rem))] w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-1.5 text-left shadow-2xl">
               {slides.map((item, slideIndex) => (
                 <button
-                  key={item.id}
+                  key={item.phase_item_id ?? item.id}
                   type="button"
+                  disabled={(isLiveStudent && liveNavigationLocked) || !canOpenSlide(item)}
                   aria-current={slideIndex === index ? "true" : undefined}
                   onClick={() => jumpTo(slideIndex)}
                   className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
@@ -1091,7 +1395,7 @@ export function BuilderLessonPlayer({
               ))}
             </div>, document.body
           ) : null}
-        </div> : null}
+        </div> : !practiceModuleMode ? <span className="text-xs font-bold text-[var(--br-text-muted)]">Step {index + 1} of {slides.length}</span> : null}
         {practiceModuleMode ? completed ? <button type="button" onClick={retakeLesson} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark"><RotateCcw size={13} />Practise again</button> : <button type="button" onClick={finish} disabled={isPending || reviewChecklistBlocked} className="shrink-0 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark disabled:opacity-45">Complete module</button> : index === slides.length - 1 ? (
           completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
             type="button"

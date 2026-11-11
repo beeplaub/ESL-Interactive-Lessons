@@ -64,6 +64,10 @@ export type Database = {
           duration_minutes: number | null;
           estimated_completion_minutes: number | null;
           timer_minutes: number | null;
+          lesson_template: string;
+          autoplay_enabled: boolean;
+          autoplay_mode: string;
+          autoplay_duration_seconds: number;
           pdf_path: string;
           status: "DRAFT" | "PUBLISHED";
           created_at: string;
@@ -82,6 +86,10 @@ export type Database = {
           duration_minutes?: number | null;
           estimated_completion_minutes?: number | null;
           timer_minutes?: number | null;
+          lesson_template?: string;
+          autoplay_enabled?: boolean;
+          autoplay_mode?: string;
+          autoplay_duration_seconds?: number;
           pdf_path: string;
           status?: "DRAFT" | "PUBLISHED";
           created_at?: string;
@@ -100,6 +108,10 @@ export type Database = {
           duration_minutes?: number | null;
           estimated_completion_minutes?: number | null;
           timer_minutes?: number | null;
+          lesson_template?: string;
+          autoplay_enabled?: boolean;
+          autoplay_mode?: string;
+          autoplay_duration_seconds?: number;
           pdf_path?: string;
           status?: "DRAFT" | "PUBLISHED";
           created_at?: string;
@@ -427,6 +439,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      lesson_phase_items: {
+        Row: {
+          id: string;
+          lesson_id: string;
+          slide_id: string;
+          phase: "LEARN" | "PRACTICE";
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lesson_id: string;
+          slide_id: string;
+          phase: "LEARN" | "PRACTICE";
+          position: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          lesson_id?: string;
+          slide_id?: string;
+          phase?: "LEARN" | "PRACTICE";
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      lesson_practice_learn_links: {
+        Row: {
+          lesson_id: string;
+          practice_item_id: string;
+          learn_item_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          lesson_id: string;
+          practice_item_id: string;
+          learn_item_id: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          lesson_id?: string;
+          practice_item_id?: string;
+          learn_item_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       lesson_progress: {
         Row: {
           id: string;
@@ -435,6 +501,7 @@ export type Database = {
           current_slide_number: number;
           completed: boolean;
           notes: string;
+          current_phase_item_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -445,6 +512,7 @@ export type Database = {
           current_slide_number?: number;
           completed?: boolean;
           notes?: string;
+          current_phase_item_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -455,6 +523,7 @@ export type Database = {
           current_slide_number?: number;
           completed?: boolean;
           notes?: string;
+          current_phase_item_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -40,7 +40,8 @@ const builderLessonSchema = lessonSchema.extend({
   durationMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
   estimatedCompletionMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
   timerMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
-  status: z.enum(["DRAFT", "PUBLISHED"])
+  status: z.enum(["DRAFT", "PUBLISHED"]),
+  lessonTemplate: z.enum(["LAP", "LTP", "LO", "PO"]).optional()
 });
 
 const pathLessonSchema = lessonSchema.extend({
@@ -999,6 +1000,7 @@ export async function createVisualLesson(formData: FormData) {
     status: "DRAFT"
   });
   const outcomes = splitLines(formData.get("outcomes"));
+  const lessonTemplate = z.enum(["LAP", "LTP", "LO", "PO"]).catch("LAP").parse(formData.get("lessonTemplate"));
 
   const lessonId = crypto.randomUUID();
   const { error: lessonError } = await supabase.from("lessons").insert({
@@ -1016,20 +1018,30 @@ export async function createVisualLesson(formData: FormData) {
     timer_minutes: optionalPositiveInt(parsed.timerMinutes),
     pdf_path: `builder/${lessonId}`,
     status: "DRAFT",
+    lesson_template: lessonTemplate,
+    autoplay_enabled: false,
+    autoplay_mode: "NARRATION_DURATION",
+    autoplay_duration_seconds: 30,
     created_by: user.id
   });
   if (lessonError) throw lessonError;
 
   const firstSlideTitle = parsed.subtitle || parsed.title;
-  const { error: slideError } = await supabase.from("slides").insert({
+  const { data: firstSlide, error: slideError } = await supabase.from("slides").insert({
     lesson_id: lessonId,
     slide_number: 1,
     title: firstSlideTitle,
     section_label: "Introduction",
     raw_text: firstSlideTitle,
     type: "INFO"
-  });
+  }).select("id").single();
   if (slideError) throw slideError;
+
+  if (lessonTemplate !== "LAP") {
+    const phase = lessonTemplate === "PO" ? "PRACTICE" : "LEARN";
+    const { error: phaseError } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: lessonId, slide_id: firstSlide.id, phase, position: 1 });
+    if (phaseError) throw phaseError;
+  }
 
   revalidatePath("/admin/lessons");
   redirect(`/admin/lessons/${lessonId}/builder`);
@@ -1038,8 +1050,23 @@ export async function createVisualLesson(formData: FormData) {
 export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED") {
   await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
-  const { data: lesson } = await supabase.from("lessons").select("title,status").eq("id", lessonId).maybeSingle();
-  const { error } = await supabase.from("lessons").update({ status }).eq("id", lessonId);
+  const { data: lesson } = await supabase.from("lessons").select("title,status,lesson_template").eq("id", lessonId).maybeSingle();
+  let nextTemplate = lesson?.lesson_template ?? "LAP";
+  if (status === "PUBLISHED") {
+    const [{ count: learnCount }, { count: practiceCount }] = await Promise.all([
+      supabase.from("lesson_blocks").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId),
+      supabase.from("lesson_slide_activities").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null),
+    ]);
+    const learn = learnCount ?? 0;
+    const practice = practiceCount ?? 0;
+    assertPublishContent(nextTemplate, learn, practice);
+    if (learn > 0 && practice > 0 && (nextTemplate === "LO" || nextTemplate === "PO")) nextTemplate = "LAP";
+  }
+  const { error } = await supabase.from("lessons").update({
+    status,
+    ...(status === "PUBLISHED" ? { lesson_template: nextTemplate } : {}),
+    ...(status === "PUBLISHED" && !["LTP", "LO"].includes(nextTemplate) ? { autoplay_enabled: false } : {}),
+  }).eq("id", lessonId);
   if (error) throw error;
   if (status === "PUBLISHED" && lesson?.status !== "PUBLISHED") {
     const lessonTitle = lesson?.title || "A new lesson";
@@ -1052,6 +1079,61 @@ export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PU
   }
   revalidatePath("/admin/lessons");
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
+}
+
+function assertPublishContent(template: string, learnCount: number, practiceCount: number) {
+  if (learnCount === 0 && practiceCount === 0) throw new Error("Add Learn or Practice content before publishing.");
+  if ((template === "LAP" || template === "LTP") && (learnCount === 0 || practiceCount === 0)) {
+    throw new Error(`Confirm publishing as ${learnCount > 0 ? "Learn Only" : "Practice Only"}, or return and add the missing content.`);
+  }
+  if (template === "LO" && learnCount === 0) throw new Error("Add Learn content before publishing this Learn Only lesson.");
+  if (template === "PO" && practiceCount === 0) throw new Error("Add Practice content before publishing this Practice Only lesson.");
+}
+
+export async function getLessonPublishState(lessonId: string) {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const [{ data: lesson }, { count: learnCount }, { count: practiceCount }] = await Promise.all([
+    supabase.from("lessons").select("lesson_template").eq("id", lessonId).single(),
+    supabase.from("lesson_blocks").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId),
+    supabase.from("lesson_slide_activities").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null),
+  ]);
+  if (!lesson) throw new Error("Lesson not found.");
+  const learn = learnCount ?? 0;
+  const practice = practiceCount ?? 0;
+  if (learn === 0 && practice === 0) return { state: "EMPTY" as const };
+  if (learn > 0 && practice === 0 && lesson.lesson_template !== "LO") return { state: "LEARN_ONLY" as const };
+  if (practice > 0 && learn === 0 && lesson.lesson_template !== "PO") return { state: "PRACTICE_ONLY" as const };
+  return { state: "READY" as const };
+}
+
+export async function publishLessonAsOnly(lessonId: string, template: "LO" | "PO") {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const [{ data: lesson }, { count: learnCount }, { count: practiceCount }] = await Promise.all([
+    supabase.from("lessons").select("title,status,autoplay_enabled").eq("id", lessonId).single(),
+    supabase.from("lesson_blocks").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId),
+    supabase.from("lesson_slide_activities").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null),
+  ]);
+  if (!lesson) throw new Error("Lesson not found.");
+  const learn = learnCount ?? 0;
+  const practice = practiceCount ?? 0;
+  if (template === "LO" && (learn === 0 || practice !== 0)) throw new Error("This lesson is no longer Learn Only. Review its content before publishing.");
+  if (template === "PO" && (practice === 0 || learn !== 0)) throw new Error("This lesson is no longer Practice Only. Review its content before publishing.");
+  await ensureLessonPhaseItemsForContent(supabase, lessonId);
+  const { error } = await (supabase as any).from("lessons").update({ lesson_template: template, autoplay_enabled: template === "LO" ? lesson?.autoplay_enabled ?? false : false, status: "PUBLISHED" }).eq("id", lessonId);
+  if (error) throw error;
+  if (lesson?.status !== "PUBLISHED") {
+    const { data: placements } = await supabase.from("course_items").select("course_id").eq("lesson_id", lessonId);
+    const courseIds = [...new Set((placements ?? []).map((placement) => placement.course_id).filter(Boolean))];
+    if (courseIds.length) {
+      const { data: enrollments } = await supabase.from("course_enrollments").select("user_id,course_id").in("course_id", courseIds).in("status", ["ACTIVE", "COMPLETED"]);
+      await Promise.all((enrollments ?? []).map((enrollment) => notifyUser({ userId: enrollment.user_id, type: "LESSON_PUBLISHED", title: "A lesson is ready", detail: lesson?.title || "A new lesson", href: `/lessons/${lessonId}?courseId=${enrollment.course_id}`, tone: "purple", dedupeKey: `lesson-published:${lessonId}:${enrollment.user_id}` })));
+    }
+  }
+  revalidatePath("/admin/lessons");
+  revalidatePath(`/admin/lessons/${lessonId}/builder`);
+  revalidatePath(`/lessons/${lessonId}`);
 }
 
 export async function updateLessonDetails(lessonId: string, formData: FormData) {
@@ -1097,6 +1179,10 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
     timerMinutes: formData.get("timerMinutes") || "",
     status: formData.get("status")
   });
+  if (parsed.status === "PUBLISHED") {
+    const { data: currentStatus } = await supabase.from("lessons").select("status").eq("id", lessonId).maybeSingle();
+    if (currentStatus?.status !== "PUBLISHED") throw new Error("Use the Publish lesson button to validate and publish this lesson.");
+  }
   const outcomes = splitLines(formData.get("outcomes"));
   const description = outcomes.length > 0 ? JSON.stringify({ outcomes }) : parsed.description ?? "";
 
@@ -1118,6 +1204,91 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
     })
     .eq("id", lessonId);
 
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function updateLessonPlayerSettings(lessonId: string, formData: FormData) {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const template = z.enum(["LAP", "LTP", "LO", "PO"]).parse(formData.get("lessonTemplate"));
+  const autoplayEnabled = formData.get("autoplayEnabled") === "on";
+  const autoplayMode = z.enum(["FIXED_DURATION", "NARRATION_DURATION"]).catch("NARRATION_DURATION").parse(formData.get("autoplayMode"));
+  const duration = z.coerce.number().int().min(5).max(600).catch(30).parse(formData.get("autoplayDurationSeconds"));
+  if (!(["LTP", "LO"].includes(template)) && autoplayEnabled) throw new Error("Autoplay is available only for LTP and LO lessons.");
+
+  if (template === "LTP") {
+    const [{ data: slides, error: slidesError }, { data: blocks, error: blocksError }, { data: activities, error: activitiesError }, { data: existingItems, error: itemsError }] = await Promise.all([
+      supabase.from("slides").select("id,slide_number").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
+      supabase.from("lesson_blocks").select("slide_id").eq("lesson_id", lessonId),
+      supabase.from("lesson_slide_activities").select("slide_id").eq("lesson_id", lessonId).is("deleted_at", null),
+      (supabase as any).from("lesson_phase_items").select("id,slide_id,phase,position").eq("lesson_id", lessonId),
+    ]);
+    if (slidesError) throw slidesError;
+    if (blocksError) throw blocksError;
+    if (activitiesError) throw activitiesError;
+    if (itemsError) throw itemsError;
+
+    const learnIds = new Set((blocks ?? []).map((row) => row.slide_id));
+    const practiceIds = new Set((activities ?? []).map((row) => row.slide_id).filter(Boolean));
+    const items = [...(existingItems ?? [])] as Array<{ id: string; slide_id: string; phase: "LEARN" | "PRACTICE"; position: number }>;
+    for (const phase of ["LEARN", "PRACTICE"] as const) {
+      const contentSlideIds = phase === "LEARN" ? learnIds : practiceIds;
+      const existingSlideIds = new Set(items.filter((item) => item.phase === phase).map((item) => item.slide_id));
+      let position = Math.max(0, ...items.filter((item) => item.phase === phase).map((item) => item.position));
+      for (const slide of slides ?? []) {
+        if (!contentSlideIds.has(slide.id) || existingSlideIds.has(slide.id)) continue;
+        position += 1;
+        const { data: inserted, error } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: lessonId, slide_id: slide.id, phase, position }).select("id,slide_id,phase,position").single();
+        if (error) throw error;
+        items.push(inserted);
+      }
+      const slideNumberById = new Map((slides ?? []).map((slide) => [slide.id, slide.slide_number]));
+      const ordered = items.filter((item) => item.phase === phase).sort((a, b) => (slideNumberById.get(a.slide_id) ?? 0) - (slideNumberById.get(b.slide_id) ?? 0));
+      const temporaryOffset = Math.max(0, ...ordered.map((item) => item.position)) + ordered.length + 1;
+      for (let index = 0; index < ordered.length; index += 1) {
+        const { error } = await (supabase as any).from("lesson_phase_items").update({ position: temporaryOffset + index }).eq("id", ordered[index].id);
+        if (error) throw error;
+      }
+      for (let index = 0; index < ordered.length; index += 1) {
+        const { error } = await (supabase as any).from("lesson_phase_items").update({ position: index + 1 }).eq("id", ordered[index].id);
+        if (error) throw error;
+      }
+    }
+  }
+
+  const { error: updateError } = await (supabase as any).from("lessons").update({
+    lesson_template: template,
+    autoplay_enabled: ["LTP", "LO"].includes(template) && autoplayEnabled,
+    autoplay_mode: autoplayMode,
+    autoplay_duration_seconds: duration,
+  }).eq("id", lessonId);
+  if (updateError) throw updateError;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function addLessonPhaseSlide(lessonId: string, phase: "LEARN" | "PRACTICE", afterSlideNumber: number, title: string, sectionLabel: string) {
+  await requireLessonAccess(lessonId);
+  const slideId = await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
+  if (!slideId) throw new Error("Could not create the slide.");
+  const supabase = createAdminClient();
+  const { count } = await (supabase as any).from("lesson_phase_items").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).eq("phase", phase);
+  const { error } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: lessonId, slide_id: slideId, phase, position: (count ?? 0) + 1 });
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+  return slideId;
+}
+
+export async function saveLessonPracticeLearnLink(lessonId: string, practiceItemId: string, learnItemId: string) {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const { data: items, error: itemError } = await (supabase as any).from("lesson_phase_items")
+    .select("id,phase,lesson_id").eq("lesson_id", lessonId).in("id", [practiceItemId, learnItemId]);
+  if (itemError) throw itemError;
+  const practice = (items ?? []).find((item: { id: string }) => item.id === practiceItemId);
+  const learn = (items ?? []).find((item: { id: string }) => item.id === learnItemId);
+  if (!practice || practice.phase !== "PRACTICE" || !learn || learn.phase !== "LEARN") throw new Error("Choose one Practice slide and one Learn slide from this lesson.");
+  const { error } = await (supabase as any).from("lesson_practice_learn_links").upsert({ lesson_id: lessonId, practice_item_id: practiceItemId, learn_item_id: learnItemId }, { onConflict: "practice_item_id" });
   if (error) throw error;
   revalidateLessonBuilder(lessonId);
 }
@@ -1192,6 +1363,10 @@ export async function duplicateLesson(lessonId: string) {
       timer_minutes: source.timer_minutes,
       pdf_path: source.pdf_path,
       status: "DRAFT",
+      lesson_template: source.lesson_template ?? "LAP",
+      autoplay_enabled: source.autoplay_enabled ?? false,
+      autoplay_mode: source.autoplay_mode ?? "NARRATION_DURATION",
+      autoplay_duration_seconds: source.autoplay_duration_seconds ?? 30,
     })
     .select("id")
     .single();
@@ -1273,6 +1448,31 @@ export async function duplicateLesson(lessonId: string) {
           }))
       );
       if (blockErr) throw new Error("Failed to duplicate lesson blocks");
+    }
+
+    const { data: oldPhaseItems, error: oldPhaseError } = await (supabase as any).from("lesson_phase_items").select("id,slide_id,phase,position").eq("lesson_id", lessonId);
+    if (oldPhaseError) throw oldPhaseError;
+    const phaseItemIdMap = new Map<string, string>();
+    if (oldPhaseItems?.length) {
+      const rows = oldPhaseItems.filter((item: { slide_id: string }) => slideIdMap[item.slide_id]).map((item: { id: string; slide_id: string; phase: string; position: number }) => ({
+        lesson_id: newLessonId, slide_id: slideIdMap[item.slide_id], phase: item.phase, position: item.position, source_id: item.id,
+      }));
+      for (const row of rows) {
+        const { data: inserted, error } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: row.lesson_id, slide_id: row.slide_id, phase: row.phase, position: row.position }).select("id").single();
+        if (error) throw error;
+        phaseItemIdMap.set(row.source_id, inserted.id);
+      }
+      const { data: oldLinks, error: oldLinksError } = await (supabase as any).from("lesson_practice_learn_links").select("practice_item_id,learn_item_id").eq("lesson_id", lessonId);
+      if (oldLinksError) throw oldLinksError;
+      const newLinks = (oldLinks ?? []).flatMap((link: { practice_item_id: string; learn_item_id: string }) => {
+        const practiceItemId = phaseItemIdMap.get(link.practice_item_id);
+        const learnItemId = phaseItemIdMap.get(link.learn_item_id);
+        return practiceItemId && learnItemId ? [{ lesson_id: newLessonId, practice_item_id: practiceItemId, learn_item_id: learnItemId }] : [];
+      });
+      if (newLinks.length) {
+        const { error } = await (supabase as any).from("lesson_practice_learn_links").insert(newLinks);
+        if (error) throw error;
+      }
     }
   }
 
@@ -1383,7 +1583,7 @@ export async function addBuilderSlideAt(
 ) {
   const { user, profile } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
-  const { data: moduleLesson } = await (supabase as any).from("lessons").select("practice_module_id").eq("id", lessonId).maybeSingle();
+  const { data: moduleLesson } = await (supabase as any).from("lessons").select("practice_module_id,lesson_template").eq("id", lessonId).maybeSingle();
   if (moduleLesson?.practice_module_id) throw new Error("Practice modules are limited to one slide.");
 
   const { count: slideCount } = await supabase.from("slides").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null);
@@ -1413,6 +1613,24 @@ export async function addBuilderSlideAt(
     type: "INFO",
   }).select("id").single();
   if (insertError) throw insertError;
+
+  if (["LTP", "LO", "PO"].includes(moduleLesson?.lesson_template ?? "")) {
+    const phaseRows: Array<{ lesson_id: string; slide_id: string; phase: "LEARN" | "PRACTICE"; position: number }> = [];
+    for (const phase of ["LEARN", "PRACTICE"] as const) {
+      const { data: lastItem, error: positionError } = await (supabase as any).from("lesson_phase_items").select("position").eq("lesson_id", lessonId).eq("phase", phase).order("position", { ascending: false }).limit(1).maybeSingle();
+      if (positionError) throw positionError;
+      phaseRows.push({ lesson_id: lessonId, slide_id: insertedSlide.id, phase, position: (lastItem?.position ?? 0) + 1 });
+    }
+    const { data: createdItems, error: phaseInsertError } = await (supabase as any).from("lesson_phase_items").insert(phaseRows).select("id,phase");
+    if (phaseInsertError) throw phaseInsertError;
+    const learnItem = (createdItems ?? []).find((item: { phase: string }) => item.phase === "LEARN");
+    const practiceItem = (createdItems ?? []).find((item: { phase: string }) => item.phase === "PRACTICE");
+    if (learnItem && practiceItem) {
+      const { error: linkError } = await (supabase as any).from("lesson_practice_learn_links").insert({ lesson_id: lessonId, practice_item_id: practiceItem.id, learn_item_id: learnItem.id });
+      if (linkError) throw linkError;
+    }
+    await reorderLessonPhaseItems(supabase, lessonId);
+  }
 
   await syncLessonSlideActivityNumbers(supabase, lessonId);
   revalidatePath(`/admin/lessons/${lessonId}/builder`);
@@ -2561,7 +2779,83 @@ async function reorderSlides(lessonId: string, orderedIds: string[]) {
       .eq("lesson_id", lessonId);
   }
 
+  const { data: phaseItems, error: phaseError } = await (supabase as any).from("lesson_phase_items")
+    .select("id,slide_id,phase,position").eq("lesson_id", lessonId);
+  if (phaseError) throw phaseError;
+  for (const phase of ["LEARN", "PRACTICE"] as const) {
+    const phaseRows = (phaseItems ?? []).filter((item: { phase: string }) => item.phase === phase);
+    const phaseBySlide = new Map(phaseRows.map((item: { slide_id: string; id: string }) => [item.slide_id, item.id]));
+    const orderedPhaseIds = orderedIds.map((slideId) => phaseBySlide.get(slideId)).filter((id): id is string => Boolean(id));
+    if (!orderedPhaseIds.length) continue;
+    const offset = Math.max(1000, ...phaseRows.map((item: { position: number }) => item.position + orderedPhaseIds.length + 1));
+    for (const item of phaseRows) {
+      const { error } = await (supabase as any).from("lesson_phase_items").update({ position: item.position + offset }).eq("id", item.id);
+      if (error) throw error;
+    }
+    for (let index = 0; index < orderedPhaseIds.length; index += 1) {
+      const { error } = await (supabase as any).from("lesson_phase_items").update({ position: index + 1 }).eq("id", orderedPhaseIds[index]);
+      if (error) throw error;
+    }
+  }
+
   await syncLessonSlideActivityNumbers(supabase, lessonId);
+}
+
+async function reorderLessonPhaseItems(supabase: AdminClient, lessonId: string) {
+  const [{ data: slides, error: slideError }, { data: items, error: itemError }] = await Promise.all([
+    supabase.from("slides").select("id,slide_number,deleted_at").eq("lesson_id", lessonId),
+    (supabase as any).from("lesson_phase_items").select("id,slide_id,phase,position").eq("lesson_id", lessonId),
+  ]);
+  if (slideError) throw slideError;
+  if (itemError) throw itemError;
+  const slideOrder = new Map((slides ?? []).map((slide) => [slide.id, { number: slide.slide_number, deleted: Boolean(slide.deleted_at) }]));
+  for (const phase of ["LEARN", "PRACTICE"] as const) {
+    const rows = ((items ?? []) as Array<{ id: string; slide_id: string; phase: string; position: number }>)
+      .filter((item) => item.phase === phase)
+      .sort((a, b) => {
+        const aSlide = slideOrder.get(a.slide_id);
+        const bSlide = slideOrder.get(b.slide_id);
+        return Number(aSlide?.deleted ?? false) - Number(bSlide?.deleted ?? false) || (aSlide?.number ?? 0) - (bSlide?.number ?? 0);
+      });
+    if (!rows.length) continue;
+    const offset = Math.max(...rows.map((row) => row.position)) + rows.length + 1;
+    for (let index = 0; index < rows.length; index += 1) {
+      const { error } = await (supabase as any).from("lesson_phase_items").update({ position: offset + index }).eq("id", rows[index].id);
+      if (error) throw error;
+    }
+    for (let index = 0; index < rows.length; index += 1) {
+      const { error } = await (supabase as any).from("lesson_phase_items").update({ position: index + 1 }).eq("id", rows[index].id);
+      if (error) throw error;
+    }
+  }
+}
+
+async function ensureLessonPhaseItemsForContent(supabase: AdminClient, lessonId: string) {
+  const [{ data: slides, error: slideError }, { data: blocks, error: blockError }, { data: activities, error: activityError }, { data: phaseItems, error: phaseError }] = await Promise.all([
+    supabase.from("slides").select("id").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
+    supabase.from("lesson_blocks").select("slide_id").eq("lesson_id", lessonId),
+    supabase.from("lesson_slide_activities").select("slide_id").eq("lesson_id", lessonId).is("deleted_at", null),
+    (supabase as any).from("lesson_phase_items").select("slide_id,phase,position").eq("lesson_id", lessonId),
+  ]);
+  if (slideError) throw slideError;
+  if (blockError) throw blockError;
+  if (activityError) throw activityError;
+  if (phaseError) throw phaseError;
+  const learnSlides = new Set((blocks ?? []).map((row) => row.slide_id));
+  const practiceSlides = new Set((activities ?? []).map((row) => row.slide_id).filter(Boolean));
+  const existing = (phaseItems ?? []) as Array<{ slide_id: string; phase: "LEARN" | "PRACTICE"; position: number }>;
+  for (const phase of ["LEARN", "PRACTICE"] as const) {
+    const contentSlides = phase === "LEARN" ? learnSlides : practiceSlides;
+    const existingSlides = new Set(existing.filter((item) => item.phase === phase).map((item) => item.slide_id));
+    let position = Math.max(0, ...existing.filter((item) => item.phase === phase).map((item) => item.position));
+    for (const slide of slides ?? []) {
+      if (!contentSlides.has(slide.id) || existingSlides.has(slide.id)) continue;
+      position += 1;
+      const { error } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: lessonId, slide_id: slide.id, phase, position });
+      if (error) throw error;
+    }
+  }
+  await reorderLessonPhaseItems(supabase, lessonId);
 }
 
 async function syncLessonSlideActivityNumbers(supabase: AdminClient, lessonId: string) {

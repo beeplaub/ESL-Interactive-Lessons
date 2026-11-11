@@ -37,6 +37,8 @@ export default async function LessonPage({
   let courseId: string | null = null;
   let resolvedCourseItemId: string | null = null;
   let courseTitle: string | null = null;
+  let courseFeatureImageUrl: string | null = null;
+  let lessonFeatureImageUrl: string | null = null;
   let isEnrolledInCourse = false;
   let isFreePreview = false;
   if (courseItem) {
@@ -91,10 +93,14 @@ export default async function LessonPage({
         .eq("user_id", user.id)
         .eq("course_id", courseId)
         .maybeSingle(),
-      admin.from("courses").select("title,status,visibility").eq("id", courseId).is("deleted_at", null).maybeSingle(),
+      admin.from("courses").select("title,status,visibility,cover_image_path,thumbnail_path").eq("id", courseId).is("deleted_at", null).maybeSingle(),
     ]);
     if (!course || course.status !== "PUBLISHED") notFound();
     courseTitle = course.title;
+    const courseImage = course.cover_image_path || course.thumbnail_path;
+    courseFeatureImageUrl = courseImage
+      ? /^https?:\/\//i.test(courseImage) ? courseImage : courseImage.startsWith("/") ? courseImage : `/${courseImage}`
+      : null;
     isEnrolledInCourse = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
     if (course.visibility === "PRIVATE" && !isEnrolledInCourse) notFound();
     if (!isEnrolledInCourse && !isFreePreview) redirect(`/courses/${courseId}`);
@@ -177,6 +183,8 @@ export default async function LessonPage({
   const [
     { data: lesson },
     { data: slides },
+    { data: phaseItems },
+    { data: practiceLinks },
     { data: blocks },
     { data: activities },
     { data: progress },
@@ -184,17 +192,24 @@ export default async function LessonPage({
     { data: assessmentAttempts },
     { data: audioFiles },
   ] = await Promise.all([
-    admin.from("lessons").select("id,title,topic,level,status,timer_minutes").eq("id", lessonId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
+    admin.from("lessons").select("id,title,topic,level,status,timer_minutes,lesson_template,autoplay_enabled,autoplay_mode,autoplay_duration_seconds,cover_image_path,thumbnail_path").eq("id", lessonId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
     admin.from("slides").select("id,slide_number,title,section_label,content_order,require_practice_before_learn").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
+    (admin as any).from("lesson_phase_items").select("id,lesson_id,slide_id,phase,position").eq("lesson_id", lessonId).order("phase").order("position"),
+    (admin as any).from("lesson_practice_learn_links").select("lesson_id,practice_item_id,learn_item_id").eq("lesson_id", lessonId),
     admin.from("lesson_blocks").select("id,slide_id,position,block_type,content").eq("lesson_id", lessonId).order("position", { ascending: true }),
     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,position,activity_type,activity_data").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
-    admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
+    admin.from("lesson_progress").select("current_slide_number,current_phase_item_id,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
     admin.from("quiz_attempts").select("id,lesson_slide_activity_id,score,total,answers,completed_at,status,grading_source").eq("user_id", user.id).not("lesson_slide_activity_id", "is", null).order("completed_at", { ascending: false }),
     admin.from("assessment_attempts").select("id,lesson_activity_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at,status,grading_source").eq("user_id", user.id).eq("source_type", "LESSON_ACTIVITY").not("lesson_activity_id", "is", null).order("completed_at", { ascending: false }),
     admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,label,linked_slide_number,translation_enabled,narration_language,transcript,glossary").eq("lesson_id", lessonId).eq("label", "narration"),
   ]);
 
   if (!lesson) notFound();
+
+  const lessonImage = lesson.cover_image_path || lesson.thumbnail_path;
+  lessonFeatureImageUrl = lessonImage
+    ? /^https?:\/\//i.test(lessonImage) ? lessonImage : lessonImage.startsWith("/") ? lessonImage : `/${lessonImage}`
+    : null;
 
   // Keep creator-only AI instructions out of the learner client payload. The
   // server actions and live-token route read the private instruction directly
@@ -204,6 +219,9 @@ export default async function LessonPage({
     const { ai_instruction: _privateInstruction, ...learnerData } = activity.activity_data as Record<string, Json>;
     return { ...activity, activity_data: learnerData as Json };
   });
+  const lessonTemplate = lesson.lesson_template ?? "LAP";
+  const playerBlocks = lessonTemplate === "PO" ? [] : blocks ?? [];
+  const playerActivities = lessonTemplate === "LO" ? [] : learnerActivities;
 
   // Assessment tables are canonical for new activity submissions. Build the
   // legacy-shaped payload expected by the existing player, preferring detailed
@@ -299,14 +317,17 @@ export default async function LessonPage({
       <BuilderLessonPlayer
         lesson={lesson}
         slides={slides ?? []}
-        blocks={blocks ?? []}
-        activities={learnerActivities}
+        phaseItems={phaseItems ?? []}
+        practiceLinks={practiceLinks ?? []}
+        blocks={playerBlocks}
+        activities={playerActivities}
         initialProgress={progress ?? null}
         activityAttempts={attempts ?? []}
         initialNotes={progress?.notes ?? {}}
         narrationMap={narrationMap}
         narrationConfigMap={narrationConfigMap}
         courseItemId={courseItem}
+        courseFeatureImageUrl={lessonFeatureImageUrl || courseFeatureImageUrl}
         backHref={practiceModule ? "/activities" : courseId ? `/courses/${courseId}` : "/courses"}
         practiceModuleMode={Boolean(practiceModule)}
         startInReviewMode={review === "1"}

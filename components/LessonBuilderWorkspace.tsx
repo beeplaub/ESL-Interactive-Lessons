@@ -24,7 +24,10 @@ import {
   updateBuilderSlide,
   updateLessonBlock,
   updateLessonBuilderDetails,
-  updateLessonStatus
+  updateLessonPlayerSettings,
+  updateLessonStatus,
+  getLessonPublishState,
+  publishLessonAsOnly
 } from "@/app/admin/lessons/actions";
 import { Sparkles, Loader2 } from "lucide-react";
 import { generateLessonDraftAction, insertDraftIntoLessonAction } from "@/app/admin/lessons/aiActions";
@@ -52,6 +55,8 @@ import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/componen
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
 import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
+import { SystemLessonGate } from "@/components/BuilderLessonPlayer";
+import { resolveLessonPlayerSteps, type LessonTemplate } from "@/lib/lessonTemplates";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT", "STICKY_NOTE", "CLUES",
@@ -67,7 +72,14 @@ type Lesson = {
   topic: string; category: string | null; level: string; status: "DRAFT" | "PUBLISHED";
   thumbnail_path: string | null; cover_image_path: string | null;
   duration_minutes: number | null; estimated_completion_minutes: number | null; timer_minutes: number | null;
+  lesson_template?: "LAP" | "LTP" | "LO" | "PO";
+  autoplay_enabled?: boolean;
+  autoplay_mode?: "FIXED_DURATION" | "NARRATION_DURATION";
+  autoplay_duration_seconds?: number;
 };
+
+type PhaseItem = { id: string; lesson_id: string; slide_id: string; phase: "LEARN" | "PRACTICE"; position: number };
+type PracticeLink = { lesson_id: string; practice_item_id: string; learn_item_id: string };
 
 type Slide = {
   id: string; slide_number: number; title: string;
@@ -105,7 +117,7 @@ type Activity = {
 
 type ObeData = {
   lessonOutcomes: LessonOutcome[];
-  courses: Array<{ id: string; title: string; status: string }>;
+  courses: Array<{ id: string; title: string; status: string; cover_image_path?: string | null; thumbnail_path?: string | null }>;
   courseSections: Array<{ id: string; course_id: string; title: string; position: number }>;
   placements: Array<{
     id: string;
@@ -113,7 +125,7 @@ type ObeData = {
     section_id: string | null;
     position: number;
     assessment_weight: number;
-    courses?: { title?: string | null } | null;
+    courses?: { title?: string | null; cover_image_path?: string | null; thumbnail_path?: string | null } | null;
     course_sections?: { title?: string | null } | null;
   }>;
   courseOutcomes: Array<{ id: string; course_id: string; code: string; outcome: string }>;
@@ -137,11 +149,41 @@ type ObeData = {
   assessmentTargets: Array<{ assessment_item_id: string; learning_target_id: string }>;
 };
 
-type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean; practiceModuleMode?: boolean };
+type Props = { lesson: Lesson; slides: Slide[]; phaseItems?: PhaseItem[]; practiceLinks?: PracticeLink[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean; practiceModuleMode?: boolean };
 type BuilderMode = "SLIDE" | "LEARN" | "PRACTICE";
 type BuilderEditable = HTMLInputElement | HTMLTextAreaElement;
 type BuilderTextSnapshot = { value: string; selectionStart: number | null; selectionEnd: number | null };
 type BuilderTextHistory = { undo: BuilderTextSnapshot[]; redo: BuilderTextSnapshot[]; current: BuilderTextSnapshot };
+
+function LessonPublishControl({ lesson }: { lesson: Lesson }) {
+  const [onlyTemplate, setOnlyTemplate] = useState<"LO" | "PO" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const published = lesson.status === "PUBLISHED";
+
+  function publish() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const outcome = await getLessonPublishState(lesson.id);
+        if (outcome.state === "EMPTY") { setError("Add Learn or Practice content before publishing."); return; }
+        if (outcome.state === "LEARN_ONLY") { setOnlyTemplate("LO"); return; }
+        if (outcome.state === "PRACTICE_ONLY") { setOnlyTemplate("PO"); return; }
+        await updateLessonStatus(lesson.id, "PUBLISHED");
+      } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not publish this lesson."); }
+    });
+  }
+
+  return <>
+    <button type="button" onClick={() => published ? startTransition(async () => { try { await updateLessonStatus(lesson.id, "DRAFT"); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not unpublish this lesson."); } }) : publish()} disabled={isPending} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-black disabled:opacity-50 ${published ? "border border-white/15 text-white/80 hover:bg-white/10" : "bg-[var(--br-brand)] text-on-dark"}`}>
+      {isPending ? "Saving…" : published ? "Unpublish" : "Publish lesson"}
+    </button>
+    {error ? <div role="alert" className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-xl bg-[var(--br-danger)] px-4 py-3 text-sm font-bold text-white shadow-xl">{error}<button type="button" onClick={() => setError(null)} className="ml-3 underline">Dismiss</button></div> : null}
+    {onlyTemplate ? <BuilderModalLayer label={`Publish as ${onlyTemplate}`}>
+      <section className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl"><p className="text-[10px] font-black uppercase tracking-[.14em] text-[var(--br-brand)]">One content type</p><h2 className="mt-2 text-xl font-black text-ink">Publish as {onlyTemplate === "LO" ? "Learn Only" : "Practice Only"}?</h2><p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">{onlyTemplate === "LO" ? "This lesson has Learn content and no Practice. It will be published as Learn only." : "This lesson has Practice content and no Learn. It will be published as Practice only."} Learners will see the lesson normally.</p><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setOnlyTemplate(null)} className="rounded-lg border border-[var(--br-border)] px-4 py-2 text-sm font-bold">Return to builder</button><button type="button" disabled={isPending} onClick={() => startTransition(async () => { try { await publishLessonAsOnly(lesson.id, onlyTemplate); setOnlyTemplate(null); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not publish this lesson."); setOnlyTemplate(null); } })} className="rounded-lg bg-[var(--br-action)] px-4 py-2 text-sm font-black text-on-dark">Confirm and publish</button></div></section>
+    </BuilderModalLayer> : null}
+  </>;
+}
 
 function PreviewDeviceControl({ value, onChange, dark = false }: {
   value: BuilderPreviewDevice;
@@ -730,7 +772,7 @@ function AiGeneratorModal({
   );
 }
 
-export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blocks, activities, obe, isAdmin = false, practiceModuleMode = false }: Props) {
+export function LessonBuilderWorkspace({ lesson, slides, phaseItems = [], practiceLinks = [], trashedSlides = [], blocks, activities, obe, isAdmin = false, practiceModuleMode = false }: Props) {
   const textHistory = useBuilderTextHistory();
   const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
@@ -740,6 +782,13 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   });
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [builderMode, setBuilderMode] = useState<BuilderMode>("LEARN");
+  const template = lesson.lesson_template ?? "LAP";
+  const courseImagePath = obe?.placements.find((placement) => placement.courses?.cover_image_path || placement.courses?.thumbnail_path)?.courses;
+  const lessonImagePath = lesson.cover_image_path || lesson.thumbnail_path;
+  const gateImagePath = lessonImagePath || courseImagePath?.cover_image_path || courseImagePath?.thumbnail_path || null;
+  const courseFeatureImageUrl = gateImagePath
+    ? /^https?:\/\//i.test(gateImagePath) ? gateImagePath : gateImagePath.startsWith("/") ? gateImagePath : `/${gateImagePath}`
+    : null;
   const [previewDevice, setPreviewDevice] = useState<BuilderPreviewDevice>("DESKTOP");
   const [isLessonPreviewOpen, setIsLessonPreviewOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
@@ -758,6 +807,8 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   // reconciled with the server-generated slide id.
   const selectedSlide = localSlides.find((s) => s.id === selectedSlideId) ?? (selectedSlideId.startsWith("optimistic-slide-") ? null : localSlides[0] ?? null);
   const selectedIndex = selectedSlide ? localSlides.findIndex((s) => s.id === selectedSlide.id) : -1;
+  const authoringSlides = localSlides;
+  const previewMode: "LEARN" | "PRACTICE" = builderMode === "PRACTICE" ? "PRACTICE" : "LEARN";
 
   const blocksBySlide = useMemo(() => {
     const map = new Map<string, LessonBlock[]>();
@@ -925,7 +976,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           </div>
         </BuilderModalLayer>
       )}
-      {isLessonPreviewOpen ? <LessonPreviewModal lesson={lesson} slides={localSlides} blocks={blocks} activities={activities} initialSlideId={selectedSlide?.id ?? null} onClose={() => setIsLessonPreviewOpen(false)} /> : null}
+      {isLessonPreviewOpen ? <LessonPreviewModal lesson={lesson} slides={localSlides} phaseItems={phaseItems} practiceLinks={practiceLinks} template={template} blocks={blocks} activities={activities} courseFeatureImageUrl={courseFeatureImageUrl} initialSlideId={selectedSlide?.id ?? null} onClose={() => setIsLessonPreviewOpen(false)} /> : null}
 
       <header className="sticky top-0 z-30 mb-4 rounded-2xl border border-white/10 bg-[var(--br-dark-card)] px-3 py-3 text-on-dark shadow-xl sm:px-4">
         <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -967,11 +1018,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           <a href={`/admin/lessons/${lesson.id}/print`} target="_blank" rel="noopener noreferrer" className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Print lesson" aria-label="Print lesson">
             <Printer size={16} />
           </a>
-          {!practiceModuleMode ? <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")} data-busy-message={lesson.status === "PUBLISHED" ? "Unpublishing..." : "Publishing..."}>
-            <button className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-black ${lesson.status === "PUBLISHED" ? "border border-white/15 text-white/80 hover:bg-white/10" : "bg-[var(--br-brand)] text-on-dark"}`}>
-              {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish lesson"}
-            </button>
-          </form> : null}
+          {!practiceModuleMode ? <LessonPublishControl lesson={lesson} /> : null}
           <button type="button" onClick={() => setIsMetadataOpen(true)} className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Lesson settings">
             <Settings size={16} />
           </button>
@@ -999,8 +1046,8 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           </div>
           <div ref={timelineRef} className="flex touch-pan-x gap-2 overflow-x-auto p-3 2xl:flex-1 2xl:flex-col 2xl:overflow-y-auto 2xl:overflow-x-hidden">
             {!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(0)} className="hidden w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-2 py-2 text-[10px] font-black text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:flex"><Plus size={12} /> Add at beginning</button> : null}
-            {localSlides.map((slide, index) => { const blockCount = blocksBySlide.get(slide.id)?.length ?? 0; const activityCount = activities.filter((activity) => activity.slide_id === slide.id).length; return <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center gap-1 2xl:w-full 2xl:flex-col"><button type="button" draggable onDragStart={() => setDraggedSlideId(slide.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderSlideCards(slide.id)} onDragEnd={() => setDraggedSlideId(null)} onClick={() => selectSlide(slide.id)} className={`group w-48 min-w-0 rounded-xl border p-2.5 text-left transition 2xl:w-full ${slide.id === selectedSlide?.id ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] shadow-sm" : "border-[var(--br-border)] hover:border-[var(--br-brand)]/30"}`}><div className="flex items-center gap-2"><GripVertical size={13} className="shrink-0 cursor-grab text-[var(--br-text-muted)]" /><span className={`grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-black ${slide.id === selectedSlide?.id ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{index + 1}</span><span className="min-w-0 flex-1 truncate text-xs font-black text-ink">{slide.title}</span></div><div className="mt-2 flex items-center gap-2 pl-5 text-[9px] font-bold text-[var(--br-text-muted)]"><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${blockCount ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} /> Learn {blockCount || ""}</span><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${activityCount ? "bg-[var(--br-success)]" : "bg-[var(--br-border)]"}`} /> Practice {activityCount || ""}</span></div></button>{!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(slide.slide_number)} className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:-my-1" aria-label={`Add slide after ${index + 1}`}><Plus size={11} /></button> : null}</div>; })}
-            {!practiceModuleMode && !localSlides.length ? <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-4 py-3 text-sm text-[var(--br-text-muted)]"><Plus size={15} /> Add first slide</button> : null}
+            {authoringSlides.map((slide, index) => { const blockCount = blocksBySlide.get(slide.id)?.length ?? 0; const activityCount = activities.filter((activity) => activity.slide_id === slide.id).length; return <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center gap-1 2xl:w-full 2xl:flex-col"><button type="button" draggable onDragStart={() => setDraggedSlideId(slide.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderSlideCards(slide.id)} onDragEnd={() => setDraggedSlideId(null)} onClick={() => selectSlide(slide.id)} className={`group w-48 min-w-0 rounded-xl border p-2.5 text-left transition 2xl:w-full ${slide.id === selectedSlide?.id ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] shadow-sm" : "border-[var(--br-border)] hover:border-[var(--br-brand)]/30"}`}><div className="flex items-center gap-2"><GripVertical size={13} className="shrink-0 cursor-grab text-[var(--br-text-muted)]" /><span className={`grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-black ${slide.id === selectedSlide?.id ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{index + 1}</span><span className="min-w-0 flex-1 truncate text-xs font-black text-ink">{slide.title}</span></div><div className="mt-2 flex items-center gap-2 pl-5 text-[9px] font-bold text-[var(--br-text-muted)]"><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${blockCount ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} />Learn {blockCount || ""}</span><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${activityCount ? "bg-[var(--br-success)]" : "bg-[var(--br-border)]"}`} />Practice {activityCount || ""}</span></div></button>{!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(slide.slide_number)} className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:-my-1" aria-label={`Add slide after ${index + 1}`}><Plus size={11} /></button> : null}</div>; })}
+            {!practiceModuleMode && !authoringSlides.length ? <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-4 py-3 text-sm text-[var(--br-text-muted)]"><Plus size={15} /> Add first slide</button> : null}
           </div>
           {!practiceModuleMode ? <button type="button" onClick={() => setIsSlideTrashOpen(true)} className="hidden items-center justify-between border-t border-[var(--br-border)] p-3 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] 2xl:flex"><span className="inline-flex items-center gap-2"><Trash2 size={14} /> Slide trash</span>{trashedSlides.length ? <span className="rounded-full bg-[var(--br-surface-muted)] px-2 py-0.5 text-[10px]">{trashedSlides.length}</span> : null}</button> : null}
         </aside>
@@ -1028,8 +1075,8 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
                     <h3 className="mt-1 text-xl font-black sm:text-2xl">{selectedSlide.title}</h3>
                     {selectedSlide.section_label && <p className="mt-1 text-sm text-white/60">{selectedSlide.section_label}</p>}
                   </div>
-                  <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Preview Learn or Practice"><button type="button" onClick={() => setBuilderMode("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode !== "PRACTICE" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setBuilderMode("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
-                  {builderMode === "PRACTICE" ? selectedActivities.length ? <PreviewActivitySequence key={selectedSlide.id} activities={selectedActivities} onNextSlide={() => selectRelative(1)} /> : <button type="button" onClick={() => setBuilderMode("PRACTICE")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</button> : selectedBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={selectedBlocks} emptyText="All blocks on this slide are hidden from learners." /></div> : <button type="button" onClick={() => setBuilderMode("LEARN")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</button>}
+                  <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Preview Learn or Practice"><button type="button" onClick={() => setBuilderMode("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${previewMode === "LEARN" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setBuilderMode("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${previewMode === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
+                  {previewMode === "PRACTICE" ? selectedActivities.length ? <PreviewActivitySequence key={selectedSlide.id} activities={selectedActivities} onNextSlide={() => selectRelative(1)} /> : <div className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</div> : selectedBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={selectedBlocks} emptyText="All blocks on this slide are hidden from learners." /></div> : <div className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</div>}
                 </>
               ) : (
                 <div className="grid min-h-[360px] place-items-center text-center text-sm text-[var(--br-text-muted)]">Add your first slide below.</div>
@@ -1068,9 +1115,37 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   );
 }
 
+function LessonPlayerSettings({ lesson }: { lesson: Lesson }) {
+  const [separatePractice, setSeparatePractice] = useState(lesson.lesson_template === "LTP");
+  const allowAutoplay = separatePractice || lesson.lesson_template === "LO";
+
+  return <section className="rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-4">
+    <div><h3 className="text-sm font-black text-ink">Learning sequence</h3><p className="mt-1 max-w-xl text-xs leading-5 text-[var(--br-text-muted)]">Choose whether learners practice after each slide or after completing all learning slides.</p></div>
+    <form action={updateLessonPlayerSettings.bind(null, lesson.id)} className="mt-4 grid gap-3 sm:grid-cols-2">
+      <input type="hidden" name="lessonTemplate" value={separatePractice ? "LTP" : lesson.lesson_template === "LO" || lesson.lesson_template === "PO" ? lesson.lesson_template : "LAP"} />
+      <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3">
+        <label className="flex items-center gap-2 text-sm font-black text-ink"><input name="separatePractice" type="checkbox" checked={separatePractice} onChange={(event) => setSeparatePractice(event.target.checked)} className="size-4 accent-[var(--br-brand)]" />Show all Practice after Learn</label>
+        <p className="mt-1 text-[11px] text-[var(--br-text-muted)]">When enabled, learners complete all Learn slides first, then practice. The slide list and editor stay the same.</p>
+      </div>
+      {allowAutoplay ? <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3">
+        <label className="flex items-center gap-2 text-sm font-black text-ink"><input name="autoplayEnabled" type="checkbox" defaultChecked={lesson.autoplay_enabled ?? false} className="size-4 accent-[var(--br-brand)]" />Enable Learn autoplay</label>
+        <p className="mt-1 text-[11px] text-[var(--br-text-muted)]">Learn slides advance automatically when enabled. Practice stays manual.</p>
+        <label className="mt-3 block text-xs font-bold text-[var(--br-text-muted)]">Timing mode<select name="autoplayMode" defaultValue={lesson.autoplay_mode ?? "NARRATION_DURATION"} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm"><option value="NARRATION_DURATION">Match narration · 30 second fallback</option><option value="FIXED_DURATION">Fixed duration</option></select></label>
+        <label className="mt-3 block text-xs font-bold text-[var(--br-text-muted)]">Fixed duration (seconds)<input name="autoplayDurationSeconds" type="number" min="5" max="600" defaultValue={lesson.autoplay_duration_seconds ?? 30} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" /></label>
+      </div> : null}
+      <div className="flex items-center justify-between gap-3 sm:col-span-2">
+        <p className="text-[11px] text-[var(--br-text-muted)]">Slide authoring stays unchanged. Practice always remains manual.</p>
+        <button type="submit" className="rounded-lg bg-[var(--br-brand)] px-4 py-2.5 text-xs font-black text-on-dark">Save player settings</button>
+      </div>
+    </form>
+    {separatePractice && lesson.lesson_template !== "LTP" ? <p className="mt-3 rounded-lg border border-sky-300/50 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-900">Save settings to apply this learning sequence.</p> : null}
+  </section>;
+}
+
 function MetadataForm({ lesson, obe, practiceModuleMode = false }: { lesson: Lesson; obe?: ObeData; practiceModuleMode?: boolean }) {
   return (
     <>
+      {!practiceModuleMode ? <LessonPlayerSettings lesson={lesson} /> : null}
       {!practiceModuleMode ? <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm">Title<input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
@@ -1078,7 +1153,7 @@ function MetadataForm({ lesson, obe, practiceModuleMode = false }: { lesson: Les
           <label className="text-sm">Topic<input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
           <label className="text-sm">Category<input name="category" defaultValue={lesson.category ?? ""} placeholder="Grammar, Speaking, Exam prep" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
           <label className="text-sm">CEFR level<select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">{levelOptions.map((l) => <option key={l}>{l}</option>)}</select></label>
-          <label className="text-sm">Status<select name="status" defaultValue={lesson.status} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option></select></label>
+          <label className="text-sm">Status<input type="hidden" name="status" value={lesson.status} /><span className="mt-1 block rounded-md border border-[var(--br-border)] px-3 py-2">{lesson.status === "PUBLISHED" ? "Published" : "Draft"}</span><span className="mt-1 block text-[11px] text-[var(--br-text-muted)]">Use the Publish button after reviewing the lesson.</span></label>
           <label className="text-sm">Class duration (minutes)<input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
           <label className="text-sm">Estimated completion (minutes)<input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
           <label className="text-sm">Attempt timer (minutes)<input name="timerMinutes" type="number" min="1" defaultValue={lesson.timer_minutes ?? ""} placeholder="Untimed" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
@@ -1101,28 +1176,57 @@ function MetadataForm({ lesson, obe, practiceModuleMode = false }: { lesson: Les
   );
 }
 
-function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId, onClose }: {
+function LessonPreviewModal({ lesson, slides: sourceSlides, phaseItems, practiceLinks, template, blocks, activities, courseFeatureImageUrl, initialSlideId, onClose }: {
   lesson: Lesson;
   slides: Slide[];
+  phaseItems: PhaseItem[];
+  practiceLinks: PracticeLink[];
+  template: LessonTemplate;
   blocks: LessonBlock[];
   activities: Activity[];
+  courseFeatureImageUrl: string | null;
   initialSlideId: string | null;
   onClose: () => void;
 }) {
+  const slides = useMemo<Array<Slide & { preview_phase?: "LEARN" | "PRACTICE" }>>(() => {
+    if (template === "LAP") {
+      return sourceSlides;
+    }
+    const visiblePhaseItems = phaseItems.filter((item) => item.phase === "LEARN"
+      ? blocks.some((block) => block.slide_id === item.slide_id)
+      : activities.some((activity) => activity.slide_id === item.slide_id));
+    const steps = resolveLessonPlayerSteps({ template, phaseItems: visiblePhaseItems, links: practiceLinks });
+    return steps.flatMap((step) => {
+      if (step.type !== "LEARN" && step.type !== "PRACTICE") return [];
+      const source = sourceSlides.find((slide) => slide.id === step.item.slide_id);
+      return source ? [{ ...source, preview_phase: step.type }] : [];
+    });
+  }, [activities, blocks, phaseItems, practiceLinks, sourceSlides, template]);
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.id === initialSlideId));
   const [index, setIndex] = useState(initialIndex);
-  const [tab, setTab] = useState<"LEARN" | "PRACTICE">("LEARN");
+  const [tab, setTab] = useState<"LEARN" | "PRACTICE">(slides[initialIndex]?.preview_phase === "PRACTICE" || template === "PO" ? "PRACTICE" : "LEARN");
+  const [showStart, setShowStart] = useState(true);
+  const [showPracticeStart, setShowPracticeStart] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<BuilderPreviewDevice>("DESKTOP");
   const slide = slides[index] ?? null;
   const slideBlocks = slide ? blocks.filter((block) => block.slide_id === slide.id) : [];
-  const slideActivities = slide ? activities.filter((activity) => activity.slide_id === slide.id) : [];
+  const slideActivities = slide ? (() => {
+    return activities.filter((activity) => activity.slide_id === slide.id);
+  })() : [];
 
-  function go(nextIndex: number) {
+  function go(nextIndex: number, showPhaseGate = false) {
     if (nextIndex < 0 || nextIndex >= slides.length) return;
+    if (showPhaseGate && template === "LTP" && nextIndex > index && slides[index]?.preview_phase === "LEARN" && slides[nextIndex]?.preview_phase === "PRACTICE") {
+      setShowPracticeStart(true);
+      return;
+    }
     setIndex(nextIndex);
     const nextSlide = slides[nextIndex];
     setTab(nextSlide?.content_order === "PRACTICE_FIRST" ? "PRACTICE" : "LEARN");
   }
+
+  if (showStart) return <BuilderModalLayer label={`Preview ${lesson.title}`} className="bg-[var(--br-canvas)]" fullBleed><SystemLessonGate title={lesson.title} phase="START" buttonLabel={template === "PO" ? "Start Practicing" : "Start Learning"} imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.preview_phase }))} onStart={() => setShowStart(false)} /></BuilderModalLayer>;
+  if (showPracticeStart) return <BuilderModalLayer label={`Preview ${lesson.title}`} className="bg-[var(--br-canvas)]" fullBleed><SystemLessonGate title={lesson.title} phase="PRACTICE" buttonLabel="Start Practicing" imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.preview_phase }))} onStart={() => { const next = slides.findIndex((item, itemIndex) => itemIndex > index && item.preview_phase === "PRACTICE"); if (next >= 0) { setIndex(next); setTab("PRACTICE"); } setShowPracticeStart(false); }} /></BuilderModalLayer>;
 
   return (
     <BuilderModalLayer label={`Preview ${lesson.title}`} className="bg-[var(--br-canvas)] backdrop-blur-none" fullBleed>
@@ -1136,12 +1240,12 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
         <BuilderDevicePreviewFrame device={previewDevice} title={`${previewDevice.toLowerCase()} full preview of ${lesson.title}`} minHeight={560}>
         {slide ? <section className="mx-auto max-w-5xl rounded-[18px] border border-[var(--br-border)] bg-surface p-2 shadow-sm sm:p-4">
           <div className="rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-on-dark"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/50">Slide {index + 1}{slide.section_label ? ` · ${slide.section_label}` : ""}</p><h3 className="mt-1 text-xl font-black sm:text-2xl">{slide.title}</h3></div>
-          <div className="my-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTab("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "LEARN" ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setTab("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
+          {template === "LAP" ? <div className="my-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTab("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "LEARN" ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setTab("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div> : <p className={`my-3 inline-flex rounded-full px-3 py-1.5 text-xs font-black ${tab === "PRACTICE" ? "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "bg-[var(--br-brand-soft)] text-[var(--br-brand)]"}`}>{template === "PO" || slides[index].preview_phase === "PRACTICE" ? "Practice phase" : "Learn phase"}</p>}
           {tab === "LEARN" ? slideBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={slideBlocks} emptyText="All blocks on this slide are hidden from learners." /></div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Learn content on this slide.</div> : slideActivities.length ? <PreviewActivitySequence key={slide.id} activities={slideActivities} onNextSlide={() => go(index + 1)} /> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Practice activity on this slide.</div>}
         </section> : <div className="grid flex-1 place-items-center text-sm text-[var(--br-text-muted)]">This lesson has no slides yet.</div>}
         </BuilderDevicePreviewFrame>
       </main>
-      <footer className="flex items-center justify-between gap-3 border-t border-[var(--br-border)] bg-surface px-3 py-3 sm:px-5"><button type="button" onClick={() => go(index - 1)} disabled={index <= 0} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35"><ArrowLeft size={14} /> Previous</button><label className="text-xs font-bold text-[var(--br-text-muted)]"><span className="sr-only">Jump to slide</span><select value={index} onChange={(event) => go(Number(event.target.value))} className="rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-xs font-black text-ink">{slides.map((item, itemIndex) => <option key={item.id} value={itemIndex}>{itemIndex + 1}. {item.title}</option>)}</select></label><button type="button" onClick={() => go(index + 1)} disabled={index >= slides.length - 1} className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-black text-on-dark disabled:opacity-35">Next <ArrowRight size={14} /></button></footer>
+      <footer className="flex items-center justify-between gap-3 border-t border-[var(--br-border)] bg-surface px-3 py-3 sm:px-5"><button type="button" onClick={() => go(index - 1)} disabled={index <= 0} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35"><ArrowLeft size={14} /> Previous</button><label className="text-xs font-bold text-[var(--br-text-muted)]"><span className="sr-only">Jump to slide</span><select value={index} onChange={(event) => go(Number(event.target.value))} className="rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-xs font-black text-ink">{slides.map((item, itemIndex) => <option key={item.id} value={itemIndex}>{itemIndex + 1}. {item.title}</option>)}</select></label><button type="button" onClick={() => go(index + 1, true)} disabled={index >= slides.length - 1} className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-black text-on-dark disabled:opacity-35">Next <ArrowRight size={14} /></button></footer>
     </div>
     </BuilderModalLayer>
   );
@@ -1271,6 +1375,7 @@ function SelectedSlideEditor({
   useEffect(() => setLocalBlocks(blocks), [blocks]);
   const openBlock = localBlocks.find((block) => block.id === openBlockId) ?? null;
   const openBlockIndex = openBlock ? localBlocks.findIndex((block) => block.id === openBlock.id) : -1;
+  const editorModes: BuilderMode[] = ["SLIDE", "LEARN", "PRACTICE"];
 
   function reorderBlockCards(targetId: string) {
     if (!draggedBlockId || draggedBlockId === targetId || isBlockReordering) return;
@@ -1293,12 +1398,12 @@ function SelectedSlideEditor({
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden">
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--br-surface-muted)] p-1" role="tablist" aria-label="Selected slide editor">
+      <div className={`grid ${editorModes.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-1 rounded-xl bg-[var(--br-surface-muted)] p-1`} role="tablist" aria-label="Selected slide editor">
         {([
           { id: "SLIDE" as const, label: "Slide", icon: SlidersHorizontal },
           { id: "LEARN" as const, label: "Learn", icon: BookOpen },
           { id: "PRACTICE" as const, label: "Practice", icon: PenLine },
-        ]).map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => onModeChange(id)} className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-black transition ${mode === id ? "bg-surface text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:text-ink"}`}><Icon size={14} /><span className="truncate">{label}</span>{id === "LEARN" && localBlocks.length ? <span className="rounded-full bg-[var(--br-brand-soft)] px-1.5 text-[9px]">{localBlocks.length}</span> : null}{id === "PRACTICE" && slideActivities.length ? <span className="rounded-full bg-[var(--br-success-soft)] px-1.5 text-[9px] text-[var(--br-success)]">{slideActivities.length}</span> : null}</button>)}
+        ]).filter(({ id }) => editorModes.includes(id)).map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => onModeChange(id)} className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-black transition ${mode === id ? "bg-surface text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:text-ink"}`}><Icon size={14} /><span className="truncate">{label}</span>{id === "LEARN" && localBlocks.length ? <span className="rounded-full bg-[var(--br-brand-soft)] px-1.5 text-[9px]">{localBlocks.length}</span> : null}{id === "PRACTICE" && slideActivities.length ? <span className="rounded-full bg-[var(--br-success-soft)] px-1.5 text-[9px] text-[var(--br-success)]">{slideActivities.length}</span> : null}</button>)}
       </div>
 
       {mode === "SLIDE" ? <section className="mt-4 min-w-0">

@@ -24,7 +24,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
     ownCourseIds = (ownCourses ?? []).map((c) => c.id);
   }
 
-  let coursesQuery = supabase.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false });
+  let coursesQuery = supabase.from("courses").select("id,title,status,cover_image_path,thumbnail_path").is("deleted_at", null).order("created_at", { ascending: false });
   let courseSectionsQuery = supabase.from("course_sections").select("id,course_id,title,position").order("position", { ascending: true });
   let courseOutcomesQuery = supabase.from("course_outcomes").select("id,course_id,code,outcome").order("position", { ascending: true });
   if (ownCourseIds !== null) {
@@ -37,6 +37,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
 
   const [
     lessonResult,
+    phaseItemsResult,
+    practiceLinksResult,
     slidesResult,
     trashedSlidesResult,
     activitiesResult,
@@ -50,6 +52,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
     learningTargetsResult,
   ] = await Promise.all([
     supabase.from("lessons").select("*").eq("id", id).maybeSingle(),
+    (supabase as any).from("lesson_phase_items").select("id,lesson_id,slide_id,phase,position").eq("lesson_id", id).order("phase").order("position"),
+    (supabase as any).from("lesson_practice_learn_links").select("lesson_id,practice_item_id,learn_item_id").eq("lesson_id", id),
     supabase.from("slides").select("id, slide_number, title, section_label, raw_text, content_order, require_practice_before_learn").eq("lesson_id", id).is("deleted_at", null).order("slide_number", { ascending: true }),
     supabase.from("slides").select("id, slide_number, title, section_label, deleted_at").eq("lesson_id", id).not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
     // Keep the first render bounded. The old wildcard selects pulled large
@@ -60,7 +64,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
     supabase.from("lesson_outcomes").select("*").eq("lesson_id", id).order("position", { ascending: true }),
     coursesQuery,
     courseSectionsQuery,
-    supabase.from("course_items").select("id,course_id,section_id,position,assessment_weight,courses(title),course_sections(title)").eq("lesson_id", id).order("position", { ascending: true }),
+    supabase.from("course_items").select("id,course_id,section_id,position,assessment_weight,courses(title,cover_image_path,thumbnail_path),course_sections(title)").eq("lesson_id", id).order("position", { ascending: true }),
     courseOutcomesQuery,
     supabase.from("learning_skills").select("id,parent_id,name,slug").eq("status", "ACTIVE").order("position", { ascending: true }),
     supabase.from("learning_targets").select("id,target_type,label").eq("status", "ACTIVE").order("label", { ascending: true }),
@@ -107,6 +111,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
   return (
     <LessonBuilderWorkspace
       lesson={lesson}
+      phaseItems={phaseItemsResult.data ?? []}
+      practiceLinks={practiceLinksResult.data ?? []}
       slides={slides ?? []}
       trashedSlides={trashedSlides ?? []}
       blocks={blocks ?? []}

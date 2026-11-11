@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 
 type ProgressBody = {
   current_slide_number?: number;
+  current_phase_item_id?: string | null;
   completed?: boolean;
   notes?: Record<string, string>; // { slideId: noteText }
 };
@@ -17,6 +18,7 @@ type SavePayload = {
   user_id: string;
   lesson_id: string;
   current_slide_number: number;
+  current_phase_item_id: string | null;
   completed: boolean;
   notes: Record<string, string>;
 };
@@ -55,6 +57,13 @@ export async function POST(
   if (!lesson) return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
   if (!(await userCanOpenLesson(user.id, lessonId))) return NextResponse.json({ error: "You do not have access to this module." }, { status: 403 });
 
+  let currentPhaseItemId: string | null = null;
+  if (body.current_phase_item_id) {
+    const { data: phaseItem } = await (admin as any).from("lesson_phase_items").select("id").eq("id", body.current_phase_item_id).eq("lesson_id", lessonId).maybeSingle();
+    if (!phaseItem) return NextResponse.json({ error: "Invalid lesson phase location." }, { status: 400 });
+    currentPhaseItemId = phaseItem.id;
+  }
+
   const { data: existing } = await admin
     .from("lesson_progress")
     .select("*")
@@ -66,6 +75,7 @@ export async function POST(
     user_id: user.id,
     lesson_id: lessonId,
     current_slide_number: body.current_slide_number ?? existing?.current_slide_number ?? 1,
+    current_phase_item_id: body.current_phase_item_id === undefined ? existing?.current_phase_item_id ?? null : currentPhaseItemId,
     completed: body.completed ?? existing?.completed ?? false,
     notes: body.notes ?? existing?.notes ?? {},
   };

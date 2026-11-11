@@ -1,0 +1,2326 @@
+diff --git a/app/admin/lessons/[id]/builder/page.tsx b/app/admin/lessons/[id]/builder/page.tsx
+index ad908f6..4902566 100644
+--- a/app/admin/lessons/[id]/builder/page.tsx
++++ b/app/admin/lessons/[id]/builder/page.tsx
+@@ -37,6 +37,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{
+ 
+   const [
+     lessonResult,
++    phaseItemsResult,
++    practiceLinksResult,
+     slidesResult,
+     trashedSlidesResult,
+     activitiesResult,
+@@ -50,6 +52,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{
+     learningTargetsResult,
+   ] = await Promise.all([
+     supabase.from("lessons").select("*").eq("id", id).maybeSingle(),
++    (supabase as any).from("lesson_phase_items").select("id,lesson_id,slide_id,phase,position").eq("lesson_id", id).order("phase").order("position"),
++    (supabase as any).from("lesson_practice_learn_links").select("lesson_id,practice_item_id,learn_item_id").eq("lesson_id", id),
+     supabase.from("slides").select("id, slide_number, title, section_label, raw_text, content_order, require_practice_before_learn").eq("lesson_id", id).is("deleted_at", null).order("slide_number", { ascending: true }),
+     supabase.from("slides").select("id, slide_number, title, section_label, deleted_at").eq("lesson_id", id).not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
+     // Keep the first render bounded. The old wildcard selects pulled large
+@@ -107,6 +111,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{
+   return (
+     <LessonBuilderWorkspace
+       lesson={lesson}
++      phaseItems={phaseItemsResult.data ?? []}
++      practiceLinks={practiceLinksResult.data ?? []}
+       slides={slides ?? []}
+       trashedSlides={trashedSlides ?? []}
+       blocks={blocks ?? []}
+diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+index 78655ad..b74f677 100644
+--- a/app/admin/lessons/actions.ts
++++ b/app/admin/lessons/actions.ts
+@@ -40,7 +40,8 @@ const builderLessonSchema = lessonSchema.extend({
+   durationMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
+   estimatedCompletionMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
+   timerMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
+-  status: z.enum(["DRAFT", "PUBLISHED"])
++  status: z.enum(["DRAFT", "PUBLISHED"]),
++  lessonTemplate: z.enum(["LAP", "LTP", "LO", "PO"]).optional()
+ });
+ 
+ const pathLessonSchema = lessonSchema.extend({
+@@ -999,6 +1000,7 @@ export async function createVisualLesson(formData: FormData) {
+     status: "DRAFT"
+   });
+   const outcomes = splitLines(formData.get("outcomes"));
++  const lessonTemplate = z.enum(["LAP", "LTP", "LO", "PO"]).catch("LAP").parse(formData.get("lessonTemplate"));
+ 
+   const lessonId = crypto.randomUUID();
+   const { error: lessonError } = await supabase.from("lessons").insert({
+@@ -1016,21 +1018,31 @@ export async function createVisualLesson(formData: FormData) {
+     timer_minutes: optionalPositiveInt(parsed.timerMinutes),
+     pdf_path: `builder/${lessonId}`,
+     status: "DRAFT",
++    lesson_template: lessonTemplate,
++    autoplay_enabled: false,
++    autoplay_mode: "NARRATION_DURATION",
++    autoplay_duration_seconds: 30,
+     created_by: user.id
+   });
+   if (lessonError) throw lessonError;
+ 
+   const firstSlideTitle = parsed.subtitle || parsed.title;
+-  const { error: slideError } = await supabase.from("slides").insert({
++  const { data: firstSlide, error: slideError } = await supabase.from("slides").insert({
+     lesson_id: lessonId,
+     slide_number: 1,
+     title: firstSlideTitle,
+     section_label: "Introduction",
+     raw_text: firstSlideTitle,
+     type: "INFO"
+-  });
++  }).select("id").single();
+   if (slideError) throw slideError;
+ 
++  if (lessonTemplate !== "LAP") {
++    const phase = lessonTemplate === "PO" ? "PRACTICE" : "LEARN";
++    const { error: phaseError } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: lessonId, slide_id: firstSlide.id, phase, position: 1 });
++    if (phaseError) throw phaseError;
++  }
++
+   revalidatePath("/admin/lessons");
+   redirect(`/admin/lessons/${lessonId}/builder`);
+ }
+@@ -1038,7 +1050,15 @@ export async function createVisualLesson(formData: FormData) {
+ export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED") {
+   await requireLessonAccess(lessonId);
+   const supabase = createAdminClient();
+-  const { data: lesson } = await supabase.from("lessons").select("title,status").eq("id", lessonId).maybeSingle();
++  const { data: lesson } = await supabase.from("lessons").select("title,status,lesson_template").eq("id", lessonId).maybeSingle();
++  if (status === "PUBLISHED") {
++    const [{ count: learnCount }, { count: practiceCount }] = await Promise.all([
++      supabase.from("lesson_blocks").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId),
++      supabase.from("lesson_slide_activities").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null),
++    ]);
++    const template = lesson?.lesson_template ?? "LAP";
++    assertPublishContent(template, learnCount ?? 0, practiceCount ?? 0);
++  }
+   const { error } = await supabase.from("lessons").update({ status }).eq("id", lessonId);
+   if (error) throw error;
+   if (status === "PUBLISHED" && lesson?.status !== "PUBLISHED") {
+@@ -1054,6 +1074,61 @@ export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PU
+   revalidatePath(`/admin/lessons/${lessonId}/edit`);
+ }
+ 
++function assertPublishContent(template: string, learnCount: number, practiceCount: number) {
++  if (learnCount === 0 && practiceCount === 0) throw new Error("Add Learn or Practice content before publishing.");
++  if ((template === "LAP" || template === "LTP") && (learnCount === 0 || practiceCount === 0)) {
++    const onlyTemplate = learnCount > 0 ? "LO" : "PO";
++    throw new Error(`Confirm publishing as ${onlyTemplate}, or return and add the missing content.`);
++  }
++  if (template === "LO" && learnCount === 0) throw new Error("Add Learn content before publishing this Learn Only lesson.");
++  if (template === "PO" && practiceCount === 0) throw new Error("Add Practice content before publishing this Practice Only lesson.");
++}
++
++export async function getLessonPublishState(lessonId: string) {
++  await requireLessonAccess(lessonId);
++  const supabase = createAdminClient();
++  const [{ data: lesson }, { count: learnCount }, { count: practiceCount }] = await Promise.all([
++    supabase.from("lessons").select("lesson_template").eq("id", lessonId).single(),
++    supabase.from("lesson_blocks").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId),
++    supabase.from("lesson_slide_activities").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null),
++  ]);
++  if (!lesson) throw new Error("Lesson not found.");
++  const learn = learnCount ?? 0;
++  const practice = practiceCount ?? 0;
++  if (learn === 0 && practice === 0) return { state: "EMPTY" as const };
++  if (learn > 0 && practice === 0 && ["LAP", "LTP"].includes(lesson.lesson_template ?? "LAP")) return { state: "LEARN_ONLY" as const };
++  if (practice > 0 && learn === 0 && ["LAP", "LTP"].includes(lesson.lesson_template ?? "LAP")) return { state: "PRACTICE_ONLY" as const };
++  return { state: "READY" as const };
++}
++
++export async function publishLessonAsOnly(lessonId: string, template: "LO" | "PO") {
++  await requireLessonAccess(lessonId);
++  const supabase = createAdminClient();
++  const [{ data: lesson }, { count: learnCount }, { count: practiceCount }] = await Promise.all([
++    supabase.from("lessons").select("title,status,autoplay_enabled").eq("id", lessonId).single(),
++    supabase.from("lesson_blocks").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId),
++    supabase.from("lesson_slide_activities").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null),
++  ]);
++  if (!lesson) throw new Error("Lesson not found.");
++  const learn = learnCount ?? 0;
++  const practice = practiceCount ?? 0;
++  if (template === "LO" && (learn === 0 || practice !== 0)) throw new Error("This lesson is no longer Learn Only. Review its content before publishing.");
++  if (template === "PO" && (practice === 0 || learn !== 0)) throw new Error("This lesson is no longer Practice Only. Review its content before publishing.");
++  const { error } = await (supabase as any).from("lessons").update({ lesson_template: template, autoplay_enabled: template === "LO" ? lesson?.autoplay_enabled ?? false : false, status: "PUBLISHED" }).eq("id", lessonId);
++  if (error) throw error;
++  if (lesson?.status !== "PUBLISHED") {
++    const { data: placements } = await supabase.from("course_items").select("course_id").eq("lesson_id", lessonId);
++    const courseIds = [...new Set((placements ?? []).map((placement) => placement.course_id).filter(Boolean))];
++    if (courseIds.length) {
++      const { data: enrollments } = await supabase.from("course_enrollments").select("user_id,course_id").in("course_id", courseIds).in("status", ["ACTIVE", "COMPLETED"]);
++      await Promise.all((enrollments ?? []).map((enrollment) => notifyUser({ userId: enrollment.user_id, type: "LESSON_PUBLISHED", title: "A lesson is ready", detail: lesson?.title || "A new lesson", href: `/lessons/${lessonId}?courseId=${enrollment.course_id}`, tone: "purple", dedupeKey: `lesson-published:${lessonId}:${enrollment.user_id}` })));
++    }
++  }
++  revalidatePath("/admin/lessons");
++  revalidatePath(`/admin/lessons/${lessonId}/builder`);
++  revalidatePath(`/lessons/${lessonId}`);
++}
++
+ export async function updateLessonDetails(lessonId: string, formData: FormData) {
+   await requireLessonAccess(lessonId);
+   const supabase = createAdminClient();
+@@ -1097,6 +1172,10 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
+     timerMinutes: formData.get("timerMinutes") || "",
+     status: formData.get("status")
+   });
++  if (parsed.status === "PUBLISHED") {
++    const { data: currentStatus } = await supabase.from("lessons").select("status").eq("id", lessonId).maybeSingle();
++    if (currentStatus?.status !== "PUBLISHED") throw new Error("Use the Publish lesson button to validate and publish this lesson.");
++  }
+   const outcomes = splitLines(formData.get("outcomes"));
+   const description = outcomes.length > 0 ? JSON.stringify({ outcomes }) : parsed.description ?? "";
+ 
+@@ -1122,6 +1201,93 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
+   revalidateLessonBuilder(lessonId);
+ }
+ 
++export async function updateLessonPlayerSettings(lessonId: string, formData: FormData) {
++  await requireLessonAccess(lessonId);
++  const supabase = createAdminClient();
++  const template = z.enum(["LAP", "LTP", "LO", "PO"]).parse(formData.get("lessonTemplate"));
++  const autoplayEnabled = formData.get("autoplayEnabled") === "on";
++  const autoplayMode = z.enum(["FIXED_DURATION", "NARRATION_DURATION"]).catch("NARRATION_DURATION").parse(formData.get("autoplayMode"));
++  const duration = z.coerce.number().int().min(5).max(600).catch(30).parse(formData.get("autoplayDurationSeconds"));
++  if (!(["LTP", "LO"].includes(template)) && autoplayEnabled) throw new Error("Autoplay is available only for LTP and LO lessons.");
++
++  const { data: current, error: currentError } = await supabase.from("lessons").select("lesson_template").eq("id", lessonId).single();
++  if (currentError) throw currentError;
++  const oldTemplate = current.lesson_template ?? "LAP";
++  if (oldTemplate !== "LTP" && template === "LTP") {
++    const [{ data: slides, error: slidesError }, { data: blocks, error: blocksError }, { data: activities, error: activitiesError }] = await Promise.all([
++      supabase.from("slides").select("id,slide_number").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
++      supabase.from("lesson_blocks").select("slide_id").eq("lesson_id", lessonId),
++      supabase.from("lesson_slide_activities").select("slide_id").eq("lesson_id", lessonId).is("deleted_at", null),
++    ]);
++    if (slidesError) throw slidesError;
++    if (blocksError) throw blocksError;
++    if (activitiesError) throw activitiesError;
++    const learnIds = new Set((blocks ?? []).map((row) => row.slide_id));
++    const practiceIds = new Set((activities ?? []).map((row) => row.slide_id).filter(Boolean));
++    for (const phase of ["LEARN", "PRACTICE"] as const) {
++      const ids = phase === "LEARN" ? learnIds : practiceIds;
++      const items = (slides ?? []).filter((slide) => ids.has(slide.id)).map((slide, index) => ({ lesson_id: lessonId, slide_id: slide.id, phase, position: index + 1 }));
++      if (items.length) {
++        const { error } = await (supabase as any).from("lesson_phase_items").upsert(items, { onConflict: "lesson_id,slide_id,phase", ignoreDuplicates: true });
++        if (error) throw error;
++      }
++    }
++    const { data: pairedItems, error: pairedError } = await (supabase as any).from("lesson_phase_items").select("id,slide_id,phase,lesson_id").eq("lesson_id", lessonId);
++    if (pairedError) throw pairedError;
++    const phaseBySlide = new Map<string, Record<string, string>>();
++    for (const item of pairedItems ?? []) phaseBySlide.set(item.slide_id, { ...(phaseBySlide.get(item.slide_id) ?? {}), [item.phase]: item.id });
++    const links = [...phaseBySlide.entries()].flatMap(([slideId, items]) => items.LEARN && items.PRACTICE ? [{ lesson_id: lessonId, practice_item_id: items.PRACTICE, learn_item_id: items.LEARN }] : []);
++    if (links.length) {
++      const { error } = await (supabase as any).from("lesson_practice_learn_links").upsert(links, { onConflict: "practice_item_id", ignoreDuplicates: true });
++      if (error) throw error;
++    }
++  }
++  if (oldTemplate === "LTP" && template === "LAP") {
++    const { data: items, error: itemError } = await (supabase as any).from("lesson_phase_items").select("id,phase").eq("lesson_id", lessonId);
++    if (itemError) throw itemError;
++    const practiceItems = (items ?? []).filter((item: { phase: string }) => item.phase === "PRACTICE");
++    const { data: links, error: linksError } = await (supabase as any).from("lesson_practice_learn_links").select("practice_item_id").eq("lesson_id", lessonId);
++    if (linksError) throw linksError;
++    const linked = new Set((links ?? []).map((link: { practice_item_id: string }) => link.practice_item_id));
++    if (practiceItems.some((item: { id: string }) => !linked.has(item.id))) throw new Error("Link every Practice slide to a Learn slide before switching to LAP.");
++  }
++
++  const { error: updateError } = await (supabase as any).from("lessons").update({
++    lesson_template: template,
++    autoplay_enabled: ["LTP", "LO"].includes(template) && autoplayEnabled,
++    autoplay_mode: autoplayMode,
++    autoplay_duration_seconds: duration,
++  }).eq("id", lessonId);
++  if (updateError) throw updateError;
++  revalidateLessonBuilder(lessonId);
++}
++
++export async function addLessonPhaseSlide(lessonId: string, phase: "LEARN" | "PRACTICE", afterSlideNumber: number, title: string, sectionLabel: string) {
++  await requireLessonAccess(lessonId);
++  const slideId = await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
++  if (!slideId) throw new Error("Could not create the slide.");
++  const supabase = createAdminClient();
++  const { count } = await (supabase as any).from("lesson_phase_items").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).eq("phase", phase);
++  const { error } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: lessonId, slide_id: slideId, phase, position: (count ?? 0) + 1 });
++  if (error) throw error;
++  revalidateLessonBuilder(lessonId);
++  return slideId;
++}
++
++export async function saveLessonPracticeLearnLink(lessonId: string, practiceItemId: string, learnItemId: string) {
++  await requireLessonAccess(lessonId);
++  const supabase = createAdminClient();
++  const { data: items, error: itemError } = await (supabase as any).from("lesson_phase_items")
++    .select("id,phase,lesson_id").eq("lesson_id", lessonId).in("id", [practiceItemId, learnItemId]);
++  if (itemError) throw itemError;
++  const practice = (items ?? []).find((item: { id: string }) => item.id === practiceItemId);
++  const learn = (items ?? []).find((item: { id: string }) => item.id === learnItemId);
++  if (!practice || practice.phase !== "PRACTICE" || !learn || learn.phase !== "LEARN") throw new Error("Choose one Practice slide and one Learn slide from this lesson.");
++  const { error } = await (supabase as any).from("lesson_practice_learn_links").upsert({ lesson_id: lessonId, practice_item_id: practiceItemId, learn_item_id: learnItemId }, { onConflict: "practice_item_id" });
++  if (error) throw error;
++  revalidateLessonBuilder(lessonId);
++}
++
+ export async function deleteLesson(lessonId: string) {
+   const { user } = await requireLessonAccess(lessonId);
+   const supabase = createAdminClient();
+@@ -1192,6 +1358,10 @@ export async function duplicateLesson(lessonId: string) {
+       timer_minutes: source.timer_minutes,
+       pdf_path: source.pdf_path,
+       status: "DRAFT",
++      lesson_template: source.lesson_template ?? "LAP",
++      autoplay_enabled: source.autoplay_enabled ?? false,
++      autoplay_mode: source.autoplay_mode ?? "NARRATION_DURATION",
++      autoplay_duration_seconds: source.autoplay_duration_seconds ?? 30,
+     })
+     .select("id")
+     .single();
+@@ -1274,6 +1444,31 @@ export async function duplicateLesson(lessonId: string) {
+       );
+       if (blockErr) throw new Error("Failed to duplicate lesson blocks");
+     }
++
++    const { data: oldPhaseItems, error: oldPhaseError } = await (supabase as any).from("lesson_phase_items").select("id,slide_id,phase,position").eq("lesson_id", lessonId);
++    if (oldPhaseError) throw oldPhaseError;
++    const phaseItemIdMap = new Map<string, string>();
++    if (oldPhaseItems?.length) {
++      const rows = oldPhaseItems.filter((item: { slide_id: string }) => slideIdMap[item.slide_id]).map((item: { id: string; slide_id: string; phase: string; position: number }) => ({
++        lesson_id: newLessonId, slide_id: slideIdMap[item.slide_id], phase: item.phase, position: item.position, source_id: item.id,
++      }));
++      for (const row of rows) {
++        const { data: inserted, error } = await (supabase as any).from("lesson_phase_items").insert({ lesson_id: row.lesson_id, slide_id: row.slide_id, phase: row.phase, position: row.position }).select("id").single();
++        if (error) throw error;
++        phaseItemIdMap.set(row.source_id, inserted.id);
++      }
++      const { data: oldLinks, error: oldLinksError } = await (supabase as any).from("lesson_practice_learn_links").select("practice_item_id,learn_item_id").eq("lesson_id", lessonId);
++      if (oldLinksError) throw oldLinksError;
++      const newLinks = (oldLinks ?? []).flatMap((link: { practice_item_id: string; learn_item_id: string }) => {
++        const practiceItemId = phaseItemIdMap.get(link.practice_item_id);
++        const learnItemId = phaseItemIdMap.get(link.learn_item_id);
++        return practiceItemId && learnItemId ? [{ lesson_id: newLessonId, practice_item_id: practiceItemId, learn_item_id: learnItemId }] : [];
++      });
++      if (newLinks.length) {
++        const { error } = await (supabase as any).from("lesson_practice_learn_links").insert(newLinks);
++        if (error) throw error;
++      }
++    }
+   }
+ 
+   const { data: audioFiles } = await supabase.from("lesson_audio_files").select("*").eq("lesson_id", lessonId);
+@@ -2561,6 +2756,25 @@ async function reorderSlides(lessonId: string, orderedIds: string[]) {
+       .eq("lesson_id", lessonId);
+   }
+ 
++  const { data: phaseItems, error: phaseError } = await (supabase as any).from("lesson_phase_items")
++    .select("id,slide_id,phase,position").eq("lesson_id", lessonId);
++  if (phaseError) throw phaseError;
++  for (const phase of ["LEARN", "PRACTICE"] as const) {
++    const phaseRows = (phaseItems ?? []).filter((item: { phase: string }) => item.phase === phase);
++    const phaseBySlide = new Map(phaseRows.map((item: { slide_id: string; id: string }) => [item.slide_id, item.id]));
++    const orderedPhaseIds = orderedIds.map((slideId) => phaseBySlide.get(slideId)).filter((id): id is string => Boolean(id));
++    if (!orderedPhaseIds.length) continue;
++    const offset = Math.max(1000, ...phaseRows.map((item: { position: number }) => item.position + orderedPhaseIds.length + 1));
++    for (const item of phaseRows) {
++      const { error } = await (supabase as any).from("lesson_phase_items").update({ position: item.position + offset }).eq("id", item.id);
++      if (error) throw error;
++    }
++    for (let index = 0; index < orderedPhaseIds.length; index += 1) {
++      const { error } = await (supabase as any).from("lesson_phase_items").update({ position: index + 1 }).eq("id", orderedPhaseIds[index]);
++      if (error) throw error;
++    }
++  }
++
+   await syncLessonSlideActivityNumbers(supabase, lessonId);
+ }
+ 
+diff --git a/app/admin/lessons/new/page.tsx b/app/admin/lessons/new/page.tsx
+index 393ba93..d8f5fd0 100644
+--- a/app/admin/lessons/new/page.tsx
++++ b/app/admin/lessons/new/page.tsx
+@@ -75,6 +75,16 @@ export default async function NewLessonPage() {
+                 ))}
+               </select>
+             </label>
++            <label className="text-sm font-medium">
++              Lesson template
++              <select name="lessonTemplate" defaultValue="LAP" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal">
++                <option value="LAP">Learn And Practice (LAP)</option>
++                <option value="LTP">Learn Then Practice (LTP)</option>
++                <option value="LO">Learn Only (LO)</option>
++                <option value="PO">Practice Only (PO)</option>
++              </select>
++              <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">You can change the template later in the lesson builder.</span>
++            </label>
+             <label className="text-sm font-medium">
+               Estimated completion minutes
+               <input
+diff --git a/app/api/lessons/[lessonId]/progress/route.ts b/app/api/lessons/[lessonId]/progress/route.ts
+index 089eda5..71d47bd 100644
+--- a/app/api/lessons/[lessonId]/progress/route.ts
++++ b/app/api/lessons/[lessonId]/progress/route.ts
+@@ -9,6 +9,7 @@ export const runtime = "nodejs";
+ 
+ type ProgressBody = {
+   current_slide_number?: number;
++  current_phase_item_id?: string | null;
+   completed?: boolean;
+   notes?: Record<string, string>; // { slideId: noteText }
+ };
+@@ -17,6 +18,7 @@ type SavePayload = {
+   user_id: string;
+   lesson_id: string;
+   current_slide_number: number;
++  current_phase_item_id: string | null;
+   completed: boolean;
+   notes: Record<string, string>;
+ };
+@@ -55,6 +57,13 @@ export async function POST(
+   if (!lesson) return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+   if (!(await userCanOpenLesson(user.id, lessonId))) return NextResponse.json({ error: "You do not have access to this module." }, { status: 403 });
+ 
++  let currentPhaseItemId: string | null = null;
++  if (body.current_phase_item_id) {
++    const { data: phaseItem } = await (admin as any).from("lesson_phase_items").select("id").eq("id", body.current_phase_item_id).eq("lesson_id", lessonId).maybeSingle();
++    if (!phaseItem) return NextResponse.json({ error: "Invalid lesson phase location." }, { status: 400 });
++    currentPhaseItemId = phaseItem.id;
++  }
++
+   const { data: existing } = await admin
+     .from("lesson_progress")
+     .select("*")
+@@ -66,6 +75,7 @@ export async function POST(
+     user_id: user.id,
+     lesson_id: lessonId,
+     current_slide_number: body.current_slide_number ?? existing?.current_slide_number ?? 1,
++    current_phase_item_id: body.current_phase_item_id === undefined ? existing?.current_phase_item_id ?? null : currentPhaseItemId,
+     completed: body.completed ?? existing?.completed ?? false,
+     notes: body.notes ?? existing?.notes ?? {},
+   };
+diff --git a/app/globals.css b/app/globals.css
+index 921ce37..e5f7c13 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -957,6 +957,13 @@ details > div {
+   50% { height: 16px; opacity: 1; }
+ }
+ 
++@keyframes lesson-player-sweep {
++  from { opacity: .75; transform: translateX(28px); }
++  to { opacity: 1; transform: translateX(0); }
++}
++
++.animate-lesson-sweep { animation: lesson-player-sweep 360ms cubic-bezier(.2,.7,.2,1) both; }
++
+ @media (max-width: 520px) {
+   .br-loading-screen { padding: 16px; }
+   .br-loading-card { width: min(100%, 320px); padding: 20px 16px 22px; border-radius: 22px; }
+@@ -971,5 +978,6 @@ details > div {
+ @media (prefers-reduced-motion: reduce) {
+   .br-loading-orbit,
+   .br-loading-sun,
+-  .br-loading-wave i { animation-duration: .01ms; animation-iteration-count: 1; }
++  .br-loading-wave i,
++  .animate-lesson-sweep { animation-duration: .01ms; animation-iteration-count: 1; }
+ }
+diff --git a/app/lessons/[lessonId]/page.tsx b/app/lessons/[lessonId]/page.tsx
+index 1af3d07..ec079ad 100644
+--- a/app/lessons/[lessonId]/page.tsx
++++ b/app/lessons/[lessonId]/page.tsx
+@@ -177,6 +177,8 @@ export default async function LessonPage({
+   const [
+     { data: lesson },
+     { data: slides },
++    { data: phaseItems },
++    { data: practiceLinks },
+     { data: blocks },
+     { data: activities },
+     { data: progress },
+@@ -184,11 +186,13 @@ export default async function LessonPage({
+     { data: assessmentAttempts },
+     { data: audioFiles },
+   ] = await Promise.all([
+-    admin.from("lessons").select("id,title,topic,level,status,timer_minutes").eq("id", lessonId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
++    admin.from("lessons").select("id,title,topic,level,status,timer_minutes,lesson_template,autoplay_enabled,autoplay_mode,autoplay_duration_seconds").eq("id", lessonId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
+     admin.from("slides").select("id,slide_number,title,section_label,content_order,require_practice_before_learn").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
++    (admin as any).from("lesson_phase_items").select("id,lesson_id,slide_id,phase,position").eq("lesson_id", lessonId).order("phase").order("position"),
++    (admin as any).from("lesson_practice_learn_links").select("lesson_id,practice_item_id,learn_item_id").eq("lesson_id", lessonId),
+     admin.from("lesson_blocks").select("id,slide_id,position,block_type,content").eq("lesson_id", lessonId).order("position", { ascending: true }),
+     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,position,activity_type,activity_data").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
+-    admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
++    admin.from("lesson_progress").select("current_slide_number,current_phase_item_id,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
+     admin.from("quiz_attempts").select("id,lesson_slide_activity_id,score,total,answers,completed_at,status,grading_source").eq("user_id", user.id).not("lesson_slide_activity_id", "is", null).order("completed_at", { ascending: false }),
+     admin.from("assessment_attempts").select("id,lesson_activity_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at,status,grading_source").eq("user_id", user.id).eq("source_type", "LESSON_ACTIVITY").not("lesson_activity_id", "is", null).order("completed_at", { ascending: false }),
+     admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,label,linked_slide_number,translation_enabled,narration_language,transcript,glossary").eq("lesson_id", lessonId).eq("label", "narration"),
+@@ -204,6 +208,9 @@ export default async function LessonPage({
+     const { ai_instruction: _privateInstruction, ...learnerData } = activity.activity_data as Record<string, Json>;
+     return { ...activity, activity_data: learnerData as Json };
+   });
++  const lessonTemplate = lesson.lesson_template ?? "LAP";
++  const playerBlocks = lessonTemplate === "PO" ? [] : blocks ?? [];
++  const playerActivities = lessonTemplate === "LO" ? [] : learnerActivities;
+ 
+   // Assessment tables are canonical for new activity submissions. Build the
+   // legacy-shaped payload expected by the existing player, preferring detailed
+@@ -299,8 +306,10 @@ export default async function LessonPage({
+       <BuilderLessonPlayer
+         lesson={lesson}
+         slides={slides ?? []}
+-        blocks={blocks ?? []}
+-        activities={learnerActivities}
++        phaseItems={phaseItems ?? []}
++        practiceLinks={practiceLinks ?? []}
++        blocks={playerBlocks}
++        activities={playerActivities}
+         initialProgress={progress ?? null}
+         activityAttempts={attempts ?? []}
+         initialNotes={progress?.notes ?? {}}
+diff --git a/components/BuilderLessonPlayer.tsx b/components/BuilderLessonPlayer.tsx
+index 1d33308..ad88c53 100644
+--- a/components/BuilderLessonPlayer.tsx
++++ b/components/BuilderLessonPlayer.tsx
+@@ -14,16 +14,19 @@ import type { Json } from "@/types/database.types";
+ import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
+ import { NarrationFullScript, NarrationGlossaryPanel, NarrationGlossaryWord, NarrationReadPreview, PinnedNarrationReadPreview, narrationGlossary, type NarrationGlossaryEntry } from "@/components/NarrationStudyAssist";
+ import { normalizeDisplayScore } from "@/lib/assessmentContract";
++import { resolveLessonPlayerSteps, supportsAutoplay, type LessonPhaseItem, type LessonTemplate, type PracticeLearnLink } from "@/lib/lessonTemplates";
+ 
+-type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
++type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null; lesson_template?: LessonTemplate; autoplay_enabled?: boolean; autoplay_mode?: "FIXED_DURATION" | "NARRATION_DURATION"; autoplay_duration_seconds?: number };
+ type Slide = {
+   id: string; slide_number: number; title: string; section_label: string | null;
+   content_order?: "LEARN_FIRST" | "PRACTICE_FIRST" | null;
+   require_practice_before_learn?: boolean | null;
++  player_phase?: "LEARN" | "PRACTICE";
++  phase_item_id?: string;
+ };
+ type Block = { id: string; slide_id: string; position: number; block_type: string; content: Json };
+ type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
+-type Progress = { current_slide_number: number; completed: boolean } | null;
++type Progress = { current_slide_number: number; current_phase_item_id?: string | null; completed: boolean } | null;
+ type ActivityAttempt = { id?: string; lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string; status?: string | null; grading_source?: string | null };
+ type InstantClassMode = {
+   api: string;
+@@ -72,6 +75,17 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
+   </div>;
+ }
+ 
++export function SystemLessonGate({ title, phase, buttonLabel, onStart }: { title: string; phase: "START" | "PRACTICE"; buttonLabel: string; onStart: () => void }) {
++  return <main className="mx-auto grid min-h-[calc(100dvh-2rem)] max-w-7xl place-items-center px-4 py-8">
++    <section className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)]">
++      <header className="bg-[var(--br-dark-card)] px-6 py-5 text-on-dark sm:px-10"><p className="text-xs font-black uppercase tracking-[.16em] text-white/55">{phase === "START" ? "Lesson" : "Next phase"}</p><h1 className="mt-2 text-2xl font-black sm:text-3xl">{title}</h1></header>
++      <div className="grid min-h-[min(58vh,520px)] place-items-center bg-[radial-gradient(ellipse_at_top_left,var(--br-brand-soft),transparent_55%),linear-gradient(135deg,var(--br-canvas-elevated),var(--br-surface))] p-6 sm:p-10">
++        <div className="text-center"><div className="mx-auto grid aspect-video w-[min(72vw,540px)] place-items-center rounded-[24px] border border-white/70 bg-white/60 shadow-inner"><div className="size-16 rounded-full bg-[var(--br-action)]/15 p-5"><BookOpenText className="size-6 text-[var(--br-action)]" /></div></div><button type="button" onClick={onStart} className="mt-7 rounded-full bg-[var(--br-action)] px-8 py-4 text-sm font-black text-on-dark shadow-lg transition hover:brightness-105 focus-visible:outline focus-visible:outline-4 focus-visible:outline-[var(--br-action)]/25">{buttonLabel}</button></div>
++      </div>
++    </section>
++  </main>;
++}
++
+ function youtubeVideoId(url: string) {
+   try {
+     const parsed = new URL(url);
+@@ -82,7 +96,7 @@ function youtubeVideoId(url: string) {
+   } catch { return null; }
+ }
+ 
+-function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", onProgressChange }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; onProgressChange?: (state: { currentTime: number; duration: number }) => void }) {
++function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", onProgressChange, onEnded, autoplayControlled = false, autoplayPaused = false }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; onProgressChange?: (state: { currentTime: number; duration: number }) => void; onEnded?: () => void; autoplayControlled?: boolean; autoplayPaused?: boolean }) {
+   const audioRef = useRef<HTMLAudioElement>(null);
+   const youtubeRef = useRef<HTMLIFrameElement>(null);
+   const [playing, setPlaying] = useState(false);
+@@ -95,6 +109,8 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
+   const [originalFinished, setOriginalFinished] = useState(false);
+   const [translationState, setTranslationState] = useState<"idle" | "loading" | "playing" | "done" | "error">("idle");
+   const [translationError, setTranslationError] = useState<string | null>(null);
++  const autoplayStateRef = useRef({ controlled: autoplayControlled, paused: autoplayPaused });
++  autoplayStateRef.current = { controlled: autoplayControlled, paused: autoplayPaused };
+   const videoId = useMemo(() => sourceType === "LINK" ? youtubeVideoId(src) : null, [sourceType, src]);
+   const isYouTubeAudio = Boolean(videoId);
+ 
+@@ -116,6 +132,13 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
+     setSpeed(1);
+     setOriginalFinished(false);
+     setTranslationState("idle");
++    if (autoplayStateRef.current.controlled && autoplayStateRef.current.paused) {
++      audio.pause();
++      return () => {
++        audio.pause();
++        audio.currentTime = 0;
++      };
++    }
+     const attempt = audio.play();
+     if (attempt !== undefined) {
+       attempt
+@@ -128,6 +151,21 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
+     };
+   }, [src, isYouTubeAudio]);
+ 
++  useEffect(() => {
++    if (!autoplayControlled) return;
++    if (autoplayPaused) {
++      if (isYouTubeAudio) sendYouTube("pauseVideo");
++      else audioRef.current?.pause();
++      return;
++    }
++    if (isYouTubeAudio) sendYouTube("playVideo");
++    else if (audioRef.current?.paused && !audioRef.current.ended) {
++      void audioRef.current.play().catch(() => setAutoplayBlocked(true));
++    }
++  // This follows the learner's explicit player-level Play/Pause control.
++  // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [autoplayControlled, autoplayPaused, isYouTubeAudio]);
++
+   function sendYouTube(command: "playVideo" | "pauseVideo" | "seekTo") {
+     youtubeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func: command, args: command === "seekTo" ? [Math.max(0, currentTime), true] : [] }), "https://www.youtube-nocookie.com");
+   }
+@@ -188,7 +226,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
+         onPlay={() => { setPlaying(true); setAudioError(null); setAutoplayBlocked(false); }}
+         onError={() => { setPlaying(false); setAudioError("Narration could not load. Tap play to retry."); }}
+         onPause={() => setPlaying(false)}
+-        onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); }}
++        onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); onEnded?.(); }}
+         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
+         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+       />}
+@@ -298,9 +336,10 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
+ }
+ 
+ export function BuilderLessonPlayer({
+-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false, instantClass,
++  lesson, slides: sourceSlides, phaseItems = [], practiceLinks = [], blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false, instantClass,
+ }: {
+   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
++  phaseItems?: LessonPhaseItem[]; practiceLinks?: PracticeLearnLink[];
+   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
+   initialNotes?: Record<string, string>;
+   narrationMap?: Record<string, string>;
+@@ -317,12 +356,56 @@ export function BuilderLessonPlayer({
+   instantClass?: InstantClassMode;
+ }) {
+   const inInstantClass = Boolean(instantClass);
++  const requestedTemplate = lesson.lesson_template ?? "LAP";
++  const standaloneTemplate = !liveSession && !instantClass && !practiceModuleMode;
++  const template: LessonTemplate = standaloneTemplate ? requestedTemplate : "LAP";
++  const slides = useMemo(() => {
++    if (!standaloneTemplate) return sourceSlides;
++    if (template === "LAP") {
++      const learnItems = phaseItems.filter((item) => item.phase === "LEARN");
++      const linkedPracticeIds = new Set(practiceLinks.map((link) => link.practice_item_id));
++      const mappedPracticeSlides = new Set(phaseItems.filter((item) => item.phase === "PRACTICE" && linkedPracticeIds.has(item.id)).map((item) => item.slide_id));
++      const learnSlideIds = new Set(learnItems.map((item) => item.slide_id));
++      return sourceSlides.filter((source) => !mappedPracticeSlides.has(source.id) || learnSlideIds.has(source.id) || blocks.some((block) => block.slide_id === source.id)).map((source) => ({
++        ...source,
++        phase_item_id: learnItems.find((item) => item.slide_id === source.id)?.id,
++      }));
++    }
++    let items = phaseItems;
++    if (!items.length) {
++      const learnSlides = sourceSlides.filter((candidate) => blocks.some((block) => block.slide_id === candidate.id));
++      const practiceSlides = sourceSlides.filter((candidate) => activities.some((activity) => activity.slide_id === candidate.id));
++      items = [
++        ...learnSlides.map((candidate, index) => ({ id: `legacy-learn-${candidate.id}`, lesson_id: lesson.id, slide_id: candidate.id, phase: "LEARN" as const, position: index + 1 })),
++        ...practiceSlides.map((candidate, index) => ({ id: `legacy-practice-${candidate.id}`, lesson_id: lesson.id, slide_id: candidate.id, phase: "PRACTICE" as const, position: index + 1 })),
++      ];
++    }
++    const steps = resolveLessonPlayerSteps({ template, phaseItems: items, links: practiceLinks });
++    return steps.flatMap((step) => {
++      if (step.type !== "LEARN" && step.type !== "PRACTICE") return [];
++      const source = sourceSlides.find((candidate) => candidate.id === step.item.slide_id);
++      return source ? [{ ...source, player_phase: step.type, phase_item_id: step.item.id }] : [];
++    });
++  }, [activities, blocks, lesson.id, phaseItems, practiceLinks, sourceSlides, standaloneTemplate, template]);
+   const instantIndex = instantClass?.selection.index;
+   const instantTab = instantClass?.selection.tab;
+   const instantActivityId = instantClass?.selection.activityId;
+   const resolvedInitialSlideNumber = startInReviewMode ? 1 : initialSlideNumber ?? liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
+-  const initialIndex = Math.max(0, Math.min(slides.length - 1, resolvedInitialSlideNumber - 1));
++  const savedPhaseIndex = initialSlideNumber === undefined && !startInReviewMode && initialProgress?.current_phase_item_id ? slides.findIndex((item) => item.phase_item_id === initialProgress.current_phase_item_id) : -1;
++  const legacySlideIndex = slides.findIndex((item) => item.slide_number === resolvedInitialSlideNumber);
++  const initialIndex = Math.max(0, Math.min(slides.length - 1, savedPhaseIndex >= 0 ? savedPhaseIndex : legacySlideIndex >= 0 ? legacySlideIndex : 0));
+   const [index, setIndex] = useState(initialIndex);
++  const [hasStarted, setHasStarted] = useState(!standaloneTemplate);
++  const [showPracticeGate, setShowPracticeGate] = useState(false);
++  const [pendingPracticeIndex, setPendingPracticeIndex] = useState<number | null>(null);
++  const [narrationEnded, setNarrationEnded] = useState(false);
++  const [fixedDurationElapsed, setFixedDurationElapsed] = useState(false);
++  const [narrationFallbackElapsed, setNarrationFallbackElapsed] = useState(false);
++  const [autoplayPaused, setAutoplayPaused] = useState(false);
++  const autoplayAdvanceRef = useRef<() => void>(() => {});
++  const autoplayTimerRemainingRef = useRef(30_000);
++  const autoplayTimerStartedAtRef = useRef<number | null>(null);
++  const autoplayTimerExpiredRef = useRef(false);
+   const [narrationProgress, setNarrationProgress] = useState({ currentTime: 0, duration: 0 });
+   const [studyPanel, setStudyPanel] = useState<"read" | "glossary" | "notes" | null>(null);
+   const [fullScriptOpen, setFullScriptOpen] = useState(false);
+@@ -434,23 +517,30 @@ export function BuilderLessonPlayer({
+ 
+   const slideBlocks = slide ? blocksBySlide.get(slide.id) ?? [] : [];
+   const slideActivities = useMemo(
+-    () => slide ? activities.filter((activity) => activity.slide_id === slide.id) : [],
+-    [activities, slide?.id]
++    () => {
++      if (!slide) return [];
++      if (template !== "LAP" || !phaseItems.length || !practiceLinks.length) return activities.filter((activity) => activity.slide_id === slide.id);
++      const learnIds = new Set(phaseItems.filter((item) => item.phase === "LEARN" && item.slide_id === slide.id).map((item) => item.id));
++      const orderedPracticeItems = phaseItems.filter((item) => item.phase === "PRACTICE" && practiceLinks.some((link) => link.practice_item_id === item.id && learnIds.has(link.learn_item_id))).sort((a, b) => a.position - b.position);
++      const orderedSlideIds = [...orderedPracticeItems.map((item) => item.slide_id), slide.id].filter((id, index, all) => all.indexOf(id) === index);
++      return orderedSlideIds.flatMap((slideId) => activities.filter((activity) => activity.slide_id === slideId));
++    },
++    [activities, phaseItems, practiceLinks, slide, template]
+   );
+   const learnAvailable = slideBlocks.length > 0;
+   const practiceAvailable = slideActivities.length > 0;
+   const practiceFirst = slide?.content_order === "PRACTICE_FIRST";
+   const defaultTab: "learn" | "practice" =
+-    practiceFirst && practiceAvailable ? "practice" : learnAvailable ? "learn" : practiceAvailable ? "practice" : "learn";
++    slide?.player_phase === "PRACTICE" ? "practice" : slide?.player_phase === "LEARN" ? "learn" : practiceFirst && practiceAvailable ? "practice" : learnAvailable ? "learn" : practiceAvailable ? "practice" : "learn";
+   const [activeTab, setActiveTab] = useState<"learn" | "practice">(defaultTab);
+   const initialTabRef = useRef(initialTab);
+ 
+   useEffect(() => {
+-    setActiveTab(initialTabRef.current === "practice" && practiceAvailable ? "practice" : initialTabRef.current === "learn" && learnAvailable ? "learn" : defaultTab);
++    setActiveTab(template === "LAP" && initialTabRef.current === "practice" && practiceAvailable ? "practice" : template === "LAP" && initialTabRef.current === "learn" && learnAvailable ? "learn" : defaultTab);
+     initialTabRef.current = undefined;
+     // Only re-run when the slide itself changes, not on every re-render caused by, e.g., new attempts.
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [slide?.id]);
++  }, [slide?.id, slide?.phase_item_id]);
+ 
+   useEffect(() => {
+     if (activeTab !== "practice" || !focusActivityId) return;
+@@ -608,11 +698,11 @@ export function BuilderLessonPlayer({
+     fetch(`/api/lessons/${lesson.id}/progress`, {
+       method: "POST",
+       headers: { "content-type": "application/json" },
+-      body: JSON.stringify({ current_slide_number: nextIndex + 1, completed: nextCompleted }),
++      body: JSON.stringify({ current_slide_number: slides[nextIndex]?.slide_number ?? nextIndex + 1, current_phase_item_id: slides[nextIndex]?.phase_item_id ?? null, completed: nextCompleted }),
+     }).then((r) => {
+       if (!r.ok) setMessage("Could not save progress.");
+     }).catch(() => setMessage("Could not save progress."));
+-  }, [completed, lesson.id, inInstantClass]);
++  }, [completed, lesson.id, inInstantClass, slides]);
+ 
+   function scheduleProgressSave(nextIndex: number, nextCompleted = completed) {
+     if (progressSaveRef.current) clearTimeout(progressSaveRef.current);
+@@ -623,12 +713,31 @@ export function BuilderLessonPlayer({
+     if (isLiveStudent && liveNavigationLocked) return;
+     const next = Math.max(0, Math.min(slides.length - 1, index + direction));
+     if (next === index) return;
++    if (template === "LTP" && direction === 1 && slides[index]?.player_phase === "LEARN" && slides[next]?.player_phase === "PRACTICE") {
++      setPendingPracticeIndex(next);
++      setShowPracticeGate(true);
++      return;
++    }
+     jumpTo(next);
+   }
+ 
++  function startPracticePhase() {
++    if (pendingPracticeIndex === null) return;
++    const next = pendingPracticeIndex;
++    setShowPracticeGate(false);
++    setPendingPracticeIndex(null);
++    setIndex(next);
++    scheduleProgressSave(next);
++  }
++
+   function jumpTo(next: number) {
+     if (isLiveStudent && liveNavigationLocked) return;
+     const normalized = Math.max(0, Math.min(slides.length - 1, next));
++    if (template === "LTP" && normalized > index && slides[index]?.player_phase === "LEARN" && slides[normalized]?.player_phase === "PRACTICE") {
++      setPendingPracticeIndex(normalized);
++      setShowPracticeGate(true);
++      return;
++    }
+     setJumpOpen(false);
+     if (instantClass) {
+       if (instantClass.creator && !instantClass.paused && normalized !== index) void instantClass.onSelect({...instantClass.selection,index:normalized,tab:undefined,activityId:undefined});
+@@ -645,6 +754,58 @@ export function BuilderLessonPlayer({
+     }
+   }
+ 
++  useEffect(() => {
++    setNarrationEnded(false);
++    setFixedDurationElapsed(false);
++    setNarrationFallbackElapsed(false);
++    autoplayTimerExpiredRef.current = false;
++    autoplayTimerRemainingRef.current = (lesson.autoplay_mode === "FIXED_DURATION"
++      ? Math.max(5, Math.min(600, lesson.autoplay_duration_seconds ?? 30)) * 1000
++      : 30_000);
++  }, [slide?.id, slide?.phase_item_id, lesson.autoplay_duration_seconds, lesson.autoplay_mode]);
++
++  const autoplayConfigured = standaloneTemplate
++    && supportsAutoplay(template)
++    && Boolean(lesson.autoplay_enabled)
++    && slide?.player_phase !== "PRACTICE"
++    && hasStarted
++    && !showPracticeGate
++    && !completed;
++  const autoplayActive = autoplayConfigured && !autoplayPaused;
++
++  useEffect(() => {
++    if (!autoplayActive) return;
++    const mode = lesson.autoplay_mode ?? "NARRATION_DURATION";
++    if (mode === "NARRATION_DURATION" && narrationUrl) return;
++    const timeoutMs = Math.max(0, autoplayTimerRemainingRef.current);
++    const startedAt = Date.now();
++    autoplayTimerStartedAtRef.current = startedAt;
++    const timer = window.setTimeout(() => {
++      autoplayTimerExpiredRef.current = true;
++      autoplayTimerRemainingRef.current = 0;
++      if (mode === "FIXED_DURATION") setFixedDurationElapsed(true);
++      else setNarrationFallbackElapsed(true);
++    }, timeoutMs);
++    return () => {
++      window.clearTimeout(timer);
++      if (!autoplayTimerExpiredRef.current && autoplayTimerStartedAtRef.current === startedAt) {
++        autoplayTimerRemainingRef.current = Math.max(0, timeoutMs - (Date.now() - startedAt));
++        autoplayTimerStartedAtRef.current = null;
++      }
++    };
++  }, [autoplayActive, index, lesson.autoplay_mode, narrationUrl, slide?.phase_item_id]);
++
++  useEffect(() => {
++    if (!autoplayActive) return;
++    const mode = lesson.autoplay_mode ?? "NARRATION_DURATION";
++    const durationReady = mode === "FIXED_DURATION" && fixedDurationElapsed && (!narrationUrl || narrationEnded);
++    const narrationReady = mode === "NARRATION_DURATION" && (narrationUrl ? narrationEnded : narrationFallbackElapsed);
++    if (!durationReady && !narrationReady) return;
++    const delay = mode === "NARRATION_DURATION" && narrationUrl ? 1000 : 0;
++    const timer = window.setTimeout(() => autoplayAdvanceRef.current(), delay);
++    return () => window.clearTimeout(timer);
++  }, [autoplayActive, fixedDurationElapsed, narrationEnded, narrationFallbackElapsed, lesson.autoplay_mode, narrationUrl, index, template, slides.length]);
++
+   useEffect(() => {
+     const mobileTrack = mobileSlideMapRef.current;
+     const mobileActive = mobileTrack?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
+@@ -733,6 +894,11 @@ export function BuilderLessonPlayer({
+     startTransition(() => saveProgress(index, true));
+   }, [index, reviewChecklistBlocked, saveProgress]);
+ 
++  autoplayAdvanceRef.current = () => {
++    if (template === "LO" && index >= slides.length - 1) finish();
++    else move(1);
++  };
++
+   function reviewLesson() {
+     if (instantClass) { jumpTo(0); return; }
+     setIndex(0);
+@@ -795,6 +961,13 @@ export function BuilderLessonPlayer({
+     );
+   }
+ 
++  if (standaloneTemplate && !hasStarted) {
++    return <SystemLessonGate title={lesson.title} phase="START" buttonLabel={template === "PO" ? "Start Practicing" : "Start Learning"} onStart={() => setHasStarted(true)} />;
++  }
++  if (standaloneTemplate && showPracticeGate) {
++    return <SystemLessonGate title={lesson.title} phase="PRACTICE" buttonLabel="Start Practicing" onStart={startPracticePhase} />;
++  }
++
+   return (
+     <main ref={lessonViewportRef} className="mx-auto max-w-7xl overflow-x-hidden px-1 sm:px-4 min-[1180px]:px-0">
+       {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
+@@ -815,7 +988,7 @@ export function BuilderLessonPlayer({
+               <div className="grid h-1.5 flex-1 auto-cols-fr grid-flow-col gap-1">
+                 {slides.map((item, slideIndex) => (
+                   <span
+-                    key={item.id}
++                    key={item.phase_item_id ?? item.id}
+                     className={`rounded-full transition-colors ${slideIndex <= index ? "bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-success)]" : "bg-[var(--br-surface-strong)]"}`}
+                   />
+                 ))}
+@@ -845,11 +1018,11 @@ export function BuilderLessonPlayer({
+       {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={liveNavigationLocked} /> : null}
+ 
+       <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
+-      {!practiceModuleMode ? <aside className="hidden min-[1180px]:block">
++      {!practiceModuleMode && template === "LAP" ? <aside className="hidden min-[1180px]:block">
+         <div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]">
+           <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button>
+           <nav ref={desktopSlideRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+-            {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-extrabold transition ${slideIndex === index ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-[var(--br-border)]"} disabled:cursor-not-allowed disabled:opacity-45`}>{slideIndex + 1}</button>)}
++            {slides.map((item, slideIndex) => <button key={item.phase_item_id ?? item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-extrabold transition ${slideIndex === index ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-[var(--br-border)]"} disabled:cursor-not-allowed disabled:opacity-45`}>{slideIndex + 1}</button>)}
+           </nav>
+           <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button>
+         </div>
+@@ -920,14 +1093,14 @@ export function BuilderLessonPlayer({
+       <div className="flex min-w-0 flex-col gap-4">
+ 
+         <div className="relative">
+-          <section className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
++          <section key={autoplayActive ? slide.phase_item_id ?? slide.id : undefined} className={`rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3 ${autoplayActive ? "animate-lesson-sweep" : ""}`}>
+             {/* Slide header */}
+             <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] px-4 py-3 text-on-dark">
+               {/* Line 1 — slide counter (left) + narration pill (right) */}
+               <div className="flex items-center justify-between gap-2">
+                 {!practiceModuleMode ? <p className="text-xs uppercase tracking-wide text-white/55">Slide {index + 1} of {slides.length}</p> : <span />}
+                 {narrationUrl && (
+-                  <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} />
++                  <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} onEnded={() => setNarrationEnded(true)} autoplayControlled={autoplayConfigured} autoplayPaused={autoplayPaused} />
+                 )}
+               </div>
+ 
+@@ -941,9 +1114,9 @@ export function BuilderLessonPlayer({
+             </div>
+ 
+             {/* ── Learn / Practice tabs — side by side at every breakpoint ── */}
+-            <LessonContentTabs activeTab={activeTab} learnAvailable={learnAvailable} practiceAvailable={practiceAvailable} learnLocked={learnLocked} selectTab={selectTab} />
++            {template === "LAP" ? <LessonContentTabs activeTab={activeTab} learnAvailable={learnAvailable} practiceAvailable={practiceAvailable} learnLocked={learnLocked} selectTab={selectTab} /> : <p className={`mb-3 inline-flex rounded-full px-3 py-1.5 text-xs font-black ${activeTab === "practice" ? "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "bg-[var(--br-brand-soft)] text-[var(--br-brand)]"}`}>{activeTab === "practice" ? "Practice" : "Learn"}</p>}
+ 
+-            {!practiceModuleMode ? <div
++            {!practiceModuleMode && template === "LAP" ? <div
+               onTouchStart={(event) => { event.stopPropagation(); touchStartRef.current = null; }}
+               onTouchMove={(event) => event.stopPropagation()}
+               onTouchEnd={(event) => event.stopPropagation()}
+@@ -1051,7 +1224,8 @@ export function BuilderLessonPlayer({
+         >
+           <ChevronLeft size={14} className="shrink-0" /> Previous
+         </button> : <span />}
+-        {!practiceModuleMode ? <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
++        {autoplayConfigured ? <button type="button" onClick={() => setAutoplayPaused((value) => !value)} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-chart-primary)] shadow-sm transition hover:bg-[var(--br-canvas-elevated)] sm:px-3 sm:py-2 sm:text-sm" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Resume autoplay" : "Pause autoplay"} title={autoplayPaused ? "Resume autoplay" : "Pause autoplay"}>{autoplayPaused ? <Play size={14} className="shrink-0" /> : <Pause size={14} className="shrink-0" />}<span className="hidden sm:inline">{autoplayPaused ? "Play" : "Pause"}</span></button> : null}
++        {!practiceModuleMode && template === "LAP" ? <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
+           {message ? <span className="hidden text-xs text-[var(--br-danger)] sm:inline">{message}</span> : null}
+           <button
+             ref={jumpButtonRef}
+@@ -1077,7 +1251,7 @@ export function BuilderLessonPlayer({
+             <div role="group" aria-label="Choose a slide" style={{ left: jumpMenuPosition.left, bottom: jumpMenuPosition.bottom }} className="fixed z-[10000] max-h-[min(18rem,calc(100dvh-1.5rem))] w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-1.5 text-left shadow-2xl">
+               {slides.map((item, slideIndex) => (
+                 <button
+-                  key={item.id}
++                  key={item.phase_item_id ?? item.id}
+                   type="button"
+                   aria-current={slideIndex === index ? "true" : undefined}
+                   onClick={() => jumpTo(slideIndex)}
+@@ -1091,7 +1265,7 @@ export function BuilderLessonPlayer({
+               ))}
+             </div>, document.body
+           ) : null}
+-        </div> : null}
++        </div> : !practiceModuleMode ? <span className="text-xs font-bold text-[var(--br-text-muted)]">Step {index + 1} of {slides.length}</span> : null}
+         {practiceModuleMode ? completed ? <button type="button" onClick={retakeLesson} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark"><RotateCcw size={13} />Practise again</button> : <button type="button" onClick={finish} disabled={isPending || reviewChecklistBlocked} className="shrink-0 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark disabled:opacity-45">Complete module</button> : index === slides.length - 1 ? (
+           completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
+             type="button"
+diff --git a/components/LessonBuilderWorkspace.tsx b/components/LessonBuilderWorkspace.tsx
+index 86f3a9e..549081d 100644
+--- a/components/LessonBuilderWorkspace.tsx
++++ b/components/LessonBuilderWorkspace.tsx
+@@ -1,11 +1,13 @@
+ "use client";
+ 
+ import Link from "next/link";
++import { useRouter } from "next/navigation";
+ import type { FormEvent } from "react";
+ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+ import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, CheckCircle2, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Printer, Redo2, RefreshCw, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
+ import {
+   addBuilderSlideAt,
++  addLessonPhaseSlide,
+   addLessonBlock,
+   addLessonSlideActivity,
+   copySlideActivityToSlide,
+@@ -24,7 +26,11 @@ import {
+   updateBuilderSlide,
+   updateLessonBlock,
+   updateLessonBuilderDetails,
+-  updateLessonStatus
++  updateLessonPlayerSettings,
++  saveLessonPracticeLearnLink,
++  updateLessonStatus,
++  getLessonPublishState,
++  publishLessonAsOnly
+ } from "@/app/admin/lessons/actions";
+ import { Sparkles, Loader2 } from "lucide-react";
+ import { generateLessonDraftAction, insertDraftIntoLessonAction } from "@/app/admin/lessons/aiActions";
+@@ -52,6 +58,8 @@ import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/componen
+ import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
+ import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
+ import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
++import { SystemLessonGate } from "@/components/BuilderLessonPlayer";
++import { resolveLessonPlayerSteps, type LessonTemplate } from "@/lib/lessonTemplates";
+ 
+ const blockTypes = [
+   "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT", "STICKY_NOTE", "CLUES",
+@@ -67,8 +75,15 @@ type Lesson = {
+   topic: string; category: string | null; level: string; status: "DRAFT" | "PUBLISHED";
+   thumbnail_path: string | null; cover_image_path: string | null;
+   duration_minutes: number | null; estimated_completion_minutes: number | null; timer_minutes: number | null;
++  lesson_template?: "LAP" | "LTP" | "LO" | "PO";
++  autoplay_enabled?: boolean;
++  autoplay_mode?: "FIXED_DURATION" | "NARRATION_DURATION";
++  autoplay_duration_seconds?: number;
+ };
+ 
++type PhaseItem = { id: string; lesson_id: string; slide_id: string; phase: "LEARN" | "PRACTICE"; position: number };
++type PracticeLink = { lesson_id: string; practice_item_id: string; learn_item_id: string };
++
+ type Slide = {
+   id: string; slide_number: number; title: string;
+   section_label: string | null; raw_text: string;
+@@ -137,12 +152,42 @@ type ObeData = {
+   assessmentTargets: Array<{ assessment_item_id: string; learning_target_id: string }>;
+ };
+ 
+-type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean; practiceModuleMode?: boolean };
++type Props = { lesson: Lesson; slides: Slide[]; phaseItems?: PhaseItem[]; practiceLinks?: PracticeLink[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean; practiceModuleMode?: boolean };
+ type BuilderMode = "SLIDE" | "LEARN" | "PRACTICE";
+ type BuilderEditable = HTMLInputElement | HTMLTextAreaElement;
+ type BuilderTextSnapshot = { value: string; selectionStart: number | null; selectionEnd: number | null };
+ type BuilderTextHistory = { undo: BuilderTextSnapshot[]; redo: BuilderTextSnapshot[]; current: BuilderTextSnapshot };
+ 
++function LessonPublishControl({ lesson }: { lesson: Lesson }) {
++  const [onlyTemplate, setOnlyTemplate] = useState<"LO" | "PO" | null>(null);
++  const [error, setError] = useState<string | null>(null);
++  const [isPending, startTransition] = useTransition();
++  const published = lesson.status === "PUBLISHED";
++
++  function publish() {
++    setError(null);
++    startTransition(async () => {
++      try {
++        const outcome = await getLessonPublishState(lesson.id);
++        if (outcome.state === "EMPTY") { setError("Add Learn or Practice content before publishing."); return; }
++        if (outcome.state === "LEARN_ONLY") { setOnlyTemplate("LO"); return; }
++        if (outcome.state === "PRACTICE_ONLY") { setOnlyTemplate("PO"); return; }
++        await updateLessonStatus(lesson.id, "PUBLISHED");
++      } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not publish this lesson."); }
++    });
++  }
++
++  return <>
++    <button type="button" onClick={() => published ? startTransition(async () => { try { await updateLessonStatus(lesson.id, "DRAFT"); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not unpublish this lesson."); } }) : publish()} disabled={isPending} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-black disabled:opacity-50 ${published ? "border border-white/15 text-white/80 hover:bg-white/10" : "bg-[var(--br-brand)] text-on-dark"}`}>
++      {isPending ? "Saving…" : published ? "Unpublish" : "Publish lesson"}
++    </button>
++    {error ? <div role="alert" className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-xl bg-[var(--br-danger)] px-4 py-3 text-sm font-bold text-white shadow-xl">{error}<button type="button" onClick={() => setError(null)} className="ml-3 underline">Dismiss</button></div> : null}
++    {onlyTemplate ? <BuilderModalLayer label={`Publish as ${onlyTemplate}`}>
++      <section className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl"><p className="text-[10px] font-black uppercase tracking-[.14em] text-[var(--br-brand)]">One content type</p><h2 className="mt-2 text-xl font-black text-ink">Publish as {onlyTemplate === "LO" ? "Learn Only" : "Practice Only"}?</h2><p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">{onlyTemplate === "LO" ? "This lesson has Learn content and no Practice. It will be published as LO." : "This lesson has Practice content and no Learn. It will be published as PO."} Learners will see the lesson normally.</p><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setOnlyTemplate(null)} className="rounded-lg border border-[var(--br-border)] px-4 py-2 text-sm font-bold">Return to builder</button><button type="button" disabled={isPending} onClick={() => startTransition(async () => { try { await publishLessonAsOnly(lesson.id, onlyTemplate); setOnlyTemplate(null); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not publish this lesson."); setOnlyTemplate(null); } })} className="rounded-lg bg-[var(--br-action)] px-4 py-2 text-sm font-black text-on-dark">Confirm and publish</button></div></section>
++    </BuilderModalLayer> : null}
++  </>;
++}
++
+ function PreviewDeviceControl({ value, onChange, dark = false }: {
+   value: BuilderPreviewDevice;
+   onChange: (device: BuilderPreviewDevice) => void;
+@@ -344,9 +389,9 @@ function BuilderHeaderUndoRedo({ undo, redo, canUndo, canRedo }: {
+ }
+ 
+ function AddSlideModal({
+-  lessonId, afterSlideNumber, onClose, onBusy, onAdded, onOptimisticAdd,
++  lessonId, afterSlideNumber, phase, onClose, onBusy, onAdded, onOptimisticAdd,
+ }: {
+-  lessonId: string; afterSlideNumber: number; onClose: () => void; onBusy: (msg: string) => void; onAdded: (slideId: string) => void;
++  lessonId: string; afterSlideNumber: number; phase?: "LEARN" | "PRACTICE"; onClose: () => void; onBusy: (msg: string) => void; onAdded: (slideId: string) => void;
+   onOptimisticAdd: (afterSlideNumber: number, title: string, sectionLabel: string) => string;
+ }) {
+   const [title, setTitle] = useState("");
+@@ -359,7 +404,9 @@ function AddSlideModal({
+     onAdded(optimisticId);
+     onClose();
+     startTransition(async () => {
+-      const newSlideId = await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
++      const newSlideId = phase
++        ? await addLessonPhaseSlide(lessonId, phase, afterSlideNumber, title, sectionLabel)
++        : await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
+       if (newSlideId) { onAdded(newSlideId); }
+     });
+   }
+@@ -383,7 +430,7 @@ function AddSlideModal({
+           <div className="mt-2 flex justify-end gap-2">
+             <button type="button" onClick={onClose} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm hover:bg-black/5">Cancel</button>
+             <button type="button" onClick={submit} disabled={!title.trim() || isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-50">
+-              {isPending ? "Adding\u2026" : "Add slide"}
++              {isPending ? "Adding\u2026" : phase ? `Add ${phase === "LEARN" ? "Learn" : "Practice"} slide` : "Add slide"}
+             </button>
+           </div>
+         </div>
+@@ -730,7 +777,7 @@ function AiGeneratorModal({
+   );
+ }
+ 
+-export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blocks, activities, obe, isAdmin = false, practiceModuleMode = false }: Props) {
++export function LessonBuilderWorkspace({ lesson, slides, phaseItems = [], practiceLinks = [], trashedSlides = [], blocks, activities, obe, isAdmin = false, practiceModuleMode = false }: Props) {
+   const textHistory = useBuilderTextHistory();
+   const [localSlides, setLocalSlides] = useState(slides);
+   const [selectedSlideId, setSelectedSlideId] = useState(() => {
+@@ -740,6 +787,9 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+   });
+   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+   const [builderMode, setBuilderMode] = useState<BuilderMode>("LEARN");
++  const template = lesson.lesson_template ?? "LAP";
++  const [activePhase, setActivePhase] = useState<"LEARN" | "PRACTICE">(template === "PO" ? "PRACTICE" : "LEARN");
++  const [phaseToAdd, setPhaseToAdd] = useState<"LEARN" | "PRACTICE" | undefined>();
+   const [previewDevice, setPreviewDevice] = useState<BuilderPreviewDevice>("DESKTOP");
+   const [isLessonPreviewOpen, setIsLessonPreviewOpen] = useState(false);
+   const [busyMessage, setBusyMessage] = useState<string | null>(null);
+@@ -758,6 +808,19 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+   // reconciled with the server-generated slide id.
+   const selectedSlide = localSlides.find((s) => s.id === selectedSlideId) ?? (selectedSlideId.startsWith("optimistic-slide-") ? null : localSlides[0] ?? null);
+   const selectedIndex = selectedSlide ? localSlides.findIndex((s) => s.id === selectedSlide.id) : -1;
++  const phaseSlides = (phase: "LEARN" | "PRACTICE") => phaseItems
++    .filter((item) => item.phase === phase)
++    .sort((a, b) => a.position - b.position)
++    .map((item) => localSlides.find((slide) => slide.id === item.slide_id))
++    .filter((slide): slide is Slide => Boolean(slide));
++  const authoringSlides = template === "LAP"
++    ? localSlides
++    : template === "LO" ? phaseSlides("LEARN")
++      : template === "PO" ? phaseSlides("PRACTICE")
++        : phaseSlides(activePhase);
++  const authoringLearnSlides = phaseSlides("LEARN");
++  const authoringPracticeSlides = phaseSlides("PRACTICE");
++  const previewMode: "LEARN" | "PRACTICE" = template === "LAP" ? (builderMode === "PRACTICE" ? "PRACTICE" : "LEARN") : template === "PO" ? "PRACTICE" : template === "LO" ? "LEARN" : activePhase;
+ 
+   const blocksBySlide = useMemo(() => {
+     const map = new Map<string, LessonBlock[]>();
+@@ -907,7 +970,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+       )}
+ 
+       {addAfter !== null && (
+-        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} onAdded={selectSlide} onOptimisticAdd={optimisticAddSlide} />
++        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} phase={phaseToAdd} onClose={() => { setAddAfter(null); setPhaseToAdd(undefined); }} onBusy={setBusyMessage} onAdded={selectSlide} onOptimisticAdd={optimisticAddSlide} />
+       )}
+       {duplicateSlide && <DuplicateSlideModal lessonId={lesson.id} sourceSlide={duplicateSlide} onClose={() => setDuplicateSlide(null)} onBusy={setBusyMessage} onDuplicated={selectSlide} onOptimisticDuplicate={optimisticDuplicateSlide} />}
+       {isSlideTrashOpen && <SlideTrashModal lessonId={lesson.id} slides={trashedSlides} onClose={() => setIsSlideTrashOpen(false)} onBusy={setBusyMessage} onRestored={selectSlide} />}
+@@ -921,11 +984,11 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+               </div>
+               <button type="button" onClick={() => setIsMetadataOpen(false)} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5"><X size={18} /></button>
+             </div>
+-            <MetadataForm lesson={lesson} obe={obe} practiceModuleMode={practiceModuleMode} />
++            <MetadataForm lesson={lesson} phaseItems={phaseItems} practiceLinks={practiceLinks} slides={localSlides} obe={obe} practiceModuleMode={practiceModuleMode} />
+           </div>
+         </BuilderModalLayer>
+       )}
+-      {isLessonPreviewOpen ? <LessonPreviewModal lesson={lesson} slides={localSlides} blocks={blocks} activities={activities} initialSlideId={selectedSlide?.id ?? null} onClose={() => setIsLessonPreviewOpen(false)} /> : null}
++      {isLessonPreviewOpen ? <LessonPreviewModal lesson={lesson} slides={localSlides} phaseItems={phaseItems} practiceLinks={practiceLinks} template={template} blocks={blocks} activities={activities} initialSlideId={selectedSlide?.id ?? null} onClose={() => setIsLessonPreviewOpen(false)} /> : null}
+ 
+       <header className="sticky top-0 z-30 mb-4 rounded-2xl border border-white/10 bg-[var(--br-dark-card)] px-3 py-3 text-on-dark shadow-xl sm:px-4">
+         <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+@@ -967,11 +1030,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+           <a href={`/admin/lessons/${lesson.id}/print`} target="_blank" rel="noopener noreferrer" className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Print lesson" aria-label="Print lesson">
+             <Printer size={16} />
+           </a>
+-          {!practiceModuleMode ? <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")} data-busy-message={lesson.status === "PUBLISHED" ? "Unpublishing..." : "Publishing..."}>
+-            <button className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-black ${lesson.status === "PUBLISHED" ? "border border-white/15 text-white/80 hover:bg-white/10" : "bg-[var(--br-brand)] text-on-dark"}`}>
+-              {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish lesson"}
+-            </button>
+-          </form> : null}
++          {!practiceModuleMode ? <LessonPublishControl lesson={lesson} /> : null}
+           <button type="button" onClick={() => setIsMetadataOpen(true)} className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Lesson settings">
+             <Settings size={16} />
+           </button>
+@@ -985,6 +1044,17 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+         </div>
+       </header>
+ 
++      {template !== "LAP" ? <section className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-sm">
++        <div>
++          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-text-muted)]">{template} authoring</p>
++          <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">Build each phase separately. Practice slides stay manual for learners.</p>
++        </div>
++        {template === "LTP" ? <div className="flex rounded-lg bg-[var(--br-surface-muted)] p-1" role="tablist" aria-label="Lesson phases">
++          <button type="button" role="tab" aria-selected={activePhase === "LEARN"} onClick={() => { setActivePhase("LEARN"); setBuilderMode("LEARN"); }} className={`rounded-md px-3 py-2 text-xs font-black ${activePhase === "LEARN" ? "bg-surface text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)]"}`}>Learn ({authoringLearnSlides.length})</button>
++          <button type="button" role="tab" aria-selected={activePhase === "PRACTICE"} onClick={() => { setActivePhase("PRACTICE"); setBuilderMode("PRACTICE"); }} className={`rounded-md px-3 py-2 text-xs font-black ${activePhase === "PRACTICE" ? "bg-surface text-[var(--br-chart-secondary)] shadow-sm" : "text-[var(--br-text-muted)]"}`}>Practice ({authoringPracticeSlides.length})</button>
++        </div> : <p className="rounded-lg bg-[var(--br-surface-muted)] px-3 py-2 text-xs font-black text-[var(--br-brand)]">{template === "LO" ? `Learn · ${authoringLearnSlides.length} slides` : `Practice · ${authoringPracticeSlides.length} slides`}</p>}
++      </section> : null}
++
+       <section className="grid min-w-0 gap-4 2xl:grid-cols-[230px_minmax(0,1fr)_390px]">
+         <aside className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface shadow-sm 2xl:sticky 2xl:top-[92px] 2xl:flex 2xl:h-[calc(100vh-108px)] 2xl:flex-col 2xl:overflow-hidden">
+           <div className="flex items-center justify-between gap-2 border-b border-[var(--br-border)] p-3">
+@@ -994,13 +1064,13 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+                 <Trash2 size={14} />
+                 {trashedSlides.length ? <span className="absolute -right-1.5 -top-1.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--br-danger)] px-1 text-[9px] font-black text-on-dark">{trashedSlides.length}</span> : null}
+               </button> : null}
+-              {!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(selectedSlide?.slide_number ?? localSlides.length)} className="grid size-8 place-items-center rounded-lg bg-[var(--br-brand)] text-on-dark" aria-label="Add slide"><Plus size={15} /></button> : null}
++              {!practiceModuleMode ? <button type="button" onClick={() => { setPhaseToAdd(template === "LAP" ? undefined : template === "PO" ? "PRACTICE" : template === "LO" ? "LEARN" : activePhase); setAddAfter(selectedSlide?.slide_number ?? localSlides.length); }} className="grid size-8 place-items-center rounded-lg bg-[var(--br-brand)] text-on-dark" aria-label={template === "LAP" ? "Add slide" : `Add ${template === "PO" ? "Practice" : template === "LO" ? "Learn" : activePhase.toLowerCase()} slide`}><Plus size={15} /></button> : null}
+             </div>
+           </div>
+           <div ref={timelineRef} className="flex touch-pan-x gap-2 overflow-x-auto p-3 2xl:flex-1 2xl:flex-col 2xl:overflow-y-auto 2xl:overflow-x-hidden">
+             {!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(0)} className="hidden w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-2 py-2 text-[10px] font-black text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:flex"><Plus size={12} /> Add at beginning</button> : null}
+-            {localSlides.map((slide, index) => { const blockCount = blocksBySlide.get(slide.id)?.length ?? 0; const activityCount = activities.filter((activity) => activity.slide_id === slide.id).length; return <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center gap-1 2xl:w-full 2xl:flex-col"><button type="button" draggable onDragStart={() => setDraggedSlideId(slide.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderSlideCards(slide.id)} onDragEnd={() => setDraggedSlideId(null)} onClick={() => selectSlide(slide.id)} className={`group w-48 min-w-0 rounded-xl border p-2.5 text-left transition 2xl:w-full ${slide.id === selectedSlide?.id ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] shadow-sm" : "border-[var(--br-border)] hover:border-[var(--br-brand)]/30"}`}><div className="flex items-center gap-2"><GripVertical size={13} className="shrink-0 cursor-grab text-[var(--br-text-muted)]" /><span className={`grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-black ${slide.id === selectedSlide?.id ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{index + 1}</span><span className="min-w-0 flex-1 truncate text-xs font-black text-ink">{slide.title}</span></div><div className="mt-2 flex items-center gap-2 pl-5 text-[9px] font-bold text-[var(--br-text-muted)]"><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${blockCount ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} /> Learn {blockCount || ""}</span><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${activityCount ? "bg-[var(--br-success)]" : "bg-[var(--br-border)]"}`} /> Practice {activityCount || ""}</span></div></button>{!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(slide.slide_number)} className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:-my-1" aria-label={`Add slide after ${index + 1}`}><Plus size={11} /></button> : null}</div>; })}
+-            {!practiceModuleMode && !localSlides.length ? <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-4 py-3 text-sm text-[var(--br-text-muted)]"><Plus size={15} /> Add first slide</button> : null}
++            {authoringSlides.map((slide, index) => { const blockCount = blocksBySlide.get(slide.id)?.length ?? 0; const activityCount = activities.filter((activity) => activity.slide_id === slide.id).length; return <div key={`${template}-${activePhase}-${slide.id}`} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center gap-1 2xl:w-full 2xl:flex-col"><button type="button" draggable={template === "LAP"} onDragStart={() => setDraggedSlideId(slide.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderSlideCards(slide.id)} onDragEnd={() => setDraggedSlideId(null)} onClick={() => selectSlide(slide.id)} className={`group w-48 min-w-0 rounded-xl border p-2.5 text-left transition 2xl:w-full ${slide.id === selectedSlide?.id ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] shadow-sm" : "border-[var(--br-border)] hover:border-[var(--br-brand)]/30"}`}><div className="flex items-center gap-2"><GripVertical size={13} className={`shrink-0 ${template === "LAP" ? "cursor-grab" : "opacity-30"} text-[var(--br-text-muted)]`} /><span className={`grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-black ${slide.id === selectedSlide?.id ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{index + 1}</span><span className="min-w-0 flex-1 truncate text-xs font-black text-ink">{slide.title}</span></div><div className="mt-2 flex items-center gap-2 pl-5 text-[9px] font-bold text-[var(--br-text-muted)]">{template === "LAP" ? <><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${blockCount ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} /> Learn {blockCount || ""}</span><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${activityCount ? "bg-[var(--br-success)]" : "bg-[var(--br-border)]"}`} /> Practice {activityCount || ""}</span></> : <span>{(template === "PO" || (template === "LTP" && activePhase === "PRACTICE")) ? `Practice ${activityCount || ""}` : `Learn ${blockCount || ""}`}</span>}</div></button>{!practiceModuleMode ? <button type="button" onClick={() => { setPhaseToAdd(template === "LAP" ? undefined : template === "PO" ? "PRACTICE" : template === "LO" ? "LEARN" : activePhase); setAddAfter(slide.slide_number); }} className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:-my-1" aria-label={`Add slide after ${index + 1}`}><Plus size={11} /></button> : null}</div>; })}
++            {!practiceModuleMode && !authoringSlides.length ? <button type="button" onClick={() => { setPhaseToAdd(template === "LAP" ? undefined : template === "PO" ? "PRACTICE" : template === "LO" ? "LEARN" : activePhase); setAddAfter(0); }} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-4 py-3 text-sm text-[var(--br-text-muted)]"><Plus size={15} /> Add {template === "LAP" ? "first slide" : template === "PO" || activePhase === "PRACTICE" ? "Practice slide" : "Learn slide"}</button> : null}
+           </div>
+           {!practiceModuleMode ? <button type="button" onClick={() => setIsSlideTrashOpen(true)} className="hidden items-center justify-between border-t border-[var(--br-border)] p-3 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] 2xl:flex"><span className="inline-flex items-center gap-2"><Trash2 size={14} /> Slide trash</span>{trashedSlides.length ? <span className="rounded-full bg-[var(--br-surface-muted)] px-2 py-0.5 text-[10px]">{trashedSlides.length}</span> : null}</button> : null}
+         </aside>
+@@ -1028,8 +1098,8 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+                     <h3 className="mt-1 text-xl font-black sm:text-2xl">{selectedSlide.title}</h3>
+                     {selectedSlide.section_label && <p className="mt-1 text-sm text-white/60">{selectedSlide.section_label}</p>}
+                   </div>
+-                  <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Preview Learn or Practice"><button type="button" onClick={() => setBuilderMode("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode !== "PRACTICE" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setBuilderMode("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
+-                  {builderMode === "PRACTICE" ? selectedActivities.length ? <PreviewActivitySequence key={selectedSlide.id} activities={selectedActivities} onNextSlide={() => selectRelative(1)} /> : <button type="button" onClick={() => setBuilderMode("PRACTICE")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</button> : selectedBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={selectedBlocks} emptyText="All blocks on this slide are hidden from learners." /></div> : <button type="button" onClick={() => setBuilderMode("LEARN")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</button>}
++                  {template === "LAP" ? <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Preview Learn or Practice"><button type="button" onClick={() => setBuilderMode("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${previewMode === "LEARN" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setBuilderMode("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${previewMode === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div> : <p className={`mb-3 inline-flex rounded-full px-3 py-1.5 text-xs font-black ${previewMode === "PRACTICE" ? "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "bg-[var(--br-brand-soft)] text-[var(--br-brand)]"}`}>{previewMode === "PRACTICE" ? "Practice phase" : "Learn phase"}</p>}
++                  {previewMode === "PRACTICE" ? selectedActivities.length ? <PreviewActivitySequence key={selectedSlide.id} activities={selectedActivities} onNextSlide={() => selectRelative(1)} /> : <div className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</div> : selectedBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={selectedBlocks} emptyText="All blocks on this slide are hidden from learners." /></div> : <div className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</div>}
+                 </>
+               ) : (
+                 <div className="grid min-h-[360px] place-items-center text-center text-sm text-[var(--br-text-muted)]">Add your first slide below.</div>
+@@ -1057,6 +1127,8 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+               obe={obe}
+               mode={builderMode}
+               onModeChange={setBuilderMode}
++              template={template}
++              phase={activePhase}
+               practiceModuleMode={practiceModuleMode}
+             />
+           ) : (
+@@ -1068,9 +1140,93 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
+   );
+ }
+ 
+-function MetadataForm({ lesson, obe, practiceModuleMode = false }: { lesson: Lesson; obe?: ObeData; practiceModuleMode?: boolean }) {
++function LessonPlayerSettings({ lesson, phaseItems, practiceLinks, slides }: { lesson: Lesson; phaseItems: PhaseItem[]; practiceLinks: PracticeLink[]; slides: Slide[] }) {
++  const router = useRouter();
++  const [template, setTemplate] = useState<"LAP" | "LTP" | "LO" | "PO">(lesson.lesson_template ?? "LAP");
++  const [linkModalOpen, setLinkModalOpen] = useState(false);
++  const [linkComplete, setLinkComplete] = useState(false);
++  const formRef = useRef<HTMLFormElement>(null);
++  const learnItems = phaseItems.filter((item) => item.phase === "LEARN");
++  const practiceItems = phaseItems.filter((item) => item.phase === "PRACTICE");
++  const linked = new Set(practiceLinks.map((link) => link.practice_item_id));
++  const unlinkedPractice = practiceItems.filter((item) => !linked.has(item.id));
++  const needsLtpMapping = lesson.lesson_template === "LTP" && template === "LAP" && unlinkedPractice.length > 0;
++  const allowAutoplay = template === "LTP" || template === "LO";
++
++  return <section className="rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-4">
++    <div className="flex flex-wrap items-start justify-between gap-3">
++      <div><h3 className="text-sm font-black text-ink">Lesson player template</h3><p className="mt-1 max-w-xl text-xs leading-5 text-[var(--br-text-muted)]">Template changes control how existing Learn and Practice content is presented. Content is retained when hidden.</p></div>
++      {lesson.lesson_template === "LTP" && practiceItems.length ? <button type="button" onClick={() => { setLinkComplete(false); setLinkModalOpen(true); }} className="rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-xs font-black text-[var(--br-brand)]">Review slide links · {practiceItems.length - unlinkedPractice.length}/{practiceItems.length}</button> : null}
++    </div>
++    <form ref={formRef} action={updateLessonPlayerSettings.bind(null, lesson.id)} className="mt-4 grid gap-3 sm:grid-cols-2">
++      <label className="text-xs font-bold text-[var(--br-text-muted)]">Template
++        <select name="lessonTemplate" value={template} onChange={(event) => { setTemplate(event.target.value as typeof template); setLinkComplete(false); }} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 text-sm font-black text-ink">
++          <option value="LAP">Learn And Practice (LAP)</option><option value="LTP">Learn Then Practice (LTP)</option><option value="LO">Learn Only (LO)</option><option value="PO">Practice Only (PO)</option>
++        </select>
++      </label>
++      {allowAutoplay ? <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3">
++        <label className="flex items-center gap-2 text-sm font-black text-ink"><input name="autoplayEnabled" type="checkbox" defaultChecked={lesson.autoplay_enabled ?? false} className="size-4 accent-[var(--br-brand)]" />Enable Learn autoplay</label>
++        <p className="mt-1 text-[11px] text-[var(--br-text-muted)]">Autoplay is only available for LTP Learn and LO lessons. Practice stays manual.</p>
++        <label className="mt-3 block text-xs font-bold text-[var(--br-text-muted)]">Timing mode<select name="autoplayMode" defaultValue={lesson.autoplay_mode ?? "NARRATION_DURATION"} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm"><option value="NARRATION_DURATION">Match narration · 30 second fallback</option><option value="FIXED_DURATION">Fixed duration</option></select></label>
++        <label className="mt-3 block text-xs font-bold text-[var(--br-text-muted)]">Fixed duration (seconds)<input name="autoplayDurationSeconds" type="number" min="5" max="600" defaultValue={lesson.autoplay_duration_seconds ?? 30} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" /></label>
++      </div> : <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3 text-xs font-semibold text-[var(--br-text-muted)]">Autoplay is not available in {template}. LAP and PO remain learner-controlled.</div>}
++      <div className="flex items-center justify-between gap-3 sm:col-span-2">
++        <p className="text-[11px] text-[var(--br-text-muted)]">Current LAP lessons keep their Learn/Practice tabs and manual progression.</p>
++        <button type="submit" onClick={(event) => { if (needsLtpMapping && !linkComplete) { event.preventDefault(); setLinkModalOpen(true); } }} className="rounded-lg bg-[var(--br-brand)] px-4 py-2.5 text-xs font-black text-on-dark">Save player settings</button>
++      </div>
++    </form>
++    {template === "LTP" && practiceItems.length === 0 ? <p className="mt-3 rounded-lg border border-amber-300/50 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">No Practice slides yet. You can publish as LO after confirming at publish time.</p> : null}
++    {linkModalOpen ? <LinkPracticeSlidesModal lessonId={lesson.id} learnItems={learnItems} practiceItems={practiceItems} slides={slides} practiceLinks={practiceLinks} onClose={() => setLinkModalOpen(false)} onComplete={() => { setLinkModalOpen(false); setLinkComplete(true); router.refresh(); if (needsLtpMapping) window.setTimeout(() => formRef.current?.requestSubmit(), 0); }} /> : null}
++  </section>;
++}
++
++function LinkPracticeSlidesModal({ lessonId, learnItems, practiceItems, slides, practiceLinks, onClose, onComplete }: {
++  lessonId: string; learnItems: PhaseItem[]; practiceItems: PhaseItem[]; slides: Slide[]; practiceLinks: PracticeLink[]; onClose: () => void; onComplete: () => void;
++}) {
++  const [links, setLinks] = useState(practiceLinks);
++  const [learnId, setLearnId] = useState(learnItems[0]?.id ?? "");
++  const [practiceId, setPracticeId] = useState(() => practiceItems.find((item) => !practiceLinks.some((link) => link.practice_item_id === item.id))?.id ?? practiceItems[0]?.id ?? "");
++  const [error, setError] = useState<string | null>(null);
++  const [isPending, startTransition] = useTransition();
++  const linkByPractice = new Map(links.map((link) => [link.practice_item_id, link.learn_item_id]));
++  const unlinked = practiceItems.filter((item) => !linkByPractice.has(item.id));
++  const slideForItem = (itemId: string) => {
++    const item = [...learnItems, ...practiceItems].find((candidate) => candidate.id === itemId);
++    return slides.find((slide) => slide.id === item?.slide_id);
++  };
++  const selectedLearn = slideForItem(learnId);
++  const selectedPractice = slideForItem(practiceId);
++  const alreadyLinked = Boolean(practiceId && linkByPractice.has(practiceId));
++
++  function linkSelection() {
++    setError(null);
++    startTransition(async () => {
++      try {
++        await saveLessonPracticeLearnLink(lessonId, practiceId, learnId);
++        setLinks((current) => [...current.filter((link) => link.practice_item_id !== practiceId), { lesson_id: lessonId, practice_item_id: practiceId, learn_item_id: learnId }]);
++        const next = practiceItems.find((item) => item.id !== practiceId && !links.some((link) => link.practice_item_id === item.id));
++        if (next) setPracticeId(next.id);
++      } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save this link."); }
++    });
++  }
++
++  return <BuilderModalLayer label="Link Practice slides to Learn slides">
++    <div className="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-hidden rounded-2xl bg-surface shadow-2xl">
++      <header className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] p-4 sm:p-5"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[var(--br-brand)]">LTP → LAP conversion</p><h2 className="mt-1 text-lg font-black text-ink">Link each Practice slide</h2><p className="mt-1 text-xs text-[var(--br-text-muted)]">A Practice slide links to one Learn slide. A Learn slide can have several linked Practice slides.</p></div><button type="button" onClick={onClose} className="rounded-lg border border-[var(--br-border)] p-2" aria-label="Close link modal"><X size={16}/></button></header>
++      <div className="grid max-h-[60dvh] gap-3 overflow-y-auto p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:p-5">
++        <section className="rounded-xl border border-[var(--br-border)] p-3"><p className="mb-2 text-xs font-black text-[var(--br-brand)]">Learn slides</p><div className="max-h-48 space-y-1 overflow-y-auto">{learnItems.map((item, index) => { const slide = slideForItem(item.id); return <button key={item.id} type="button" onClick={() => setLearnId(item.id)} className={`w-full rounded-lg border p-2 text-left ${learnId === item.id ? "border-[var(--br-brand)] bg-[var(--br-brand)]/5" : "border-transparent hover:bg-[var(--br-canvas-elevated)]"}`}><span className="block text-[10px] font-bold text-[var(--br-text-muted)]">Learn {index + 1}</span><span className="block truncate text-xs font-black text-ink">{slide?.title ?? "Untitled slide"}</span></button>; })}</div><div className="mt-3 min-h-16 rounded-lg bg-[var(--br-canvas-elevated)] p-2 text-[11px] text-[var(--br-text-muted)]"><b className="text-ink">Preview:</b> {selectedLearn?.title ?? "Select a Learn slide"}<p className="mt-1 line-clamp-2">{selectedLearn?.section_label || "Learn content preview"}</p></div></section>
++        <button type="button" onClick={linkSelection} disabled={!learnId || !practiceId || isPending} className="rounded-full bg-[var(--br-action)] px-5 py-3 text-xs font-black text-on-dark disabled:opacity-45">{isPending ? "Linking…" : alreadyLinked ? "Relink" : "Link"}</button>
++        <section className="rounded-xl border border-[var(--br-border)] p-3"><p className="mb-2 text-xs font-black text-[var(--br-chart-secondary)]">Practice slides · {practiceItems.length - unlinked.length}/{practiceItems.length} linked</p><div className="max-h-48 space-y-1 overflow-y-auto">{practiceItems.map((item, index) => { const slide = slideForItem(item.id); const linkedLearn = linkByPractice.get(item.id); return <button key={item.id} type="button" onClick={() => setPracticeId(item.id)} className={`w-full rounded-lg border p-2 text-left ${practiceId === item.id ? "border-[var(--br-chart-secondary)] bg-[var(--br-success-soft)]" : "border-transparent hover:bg-[var(--br-canvas-elevated)]"}`}><span className="block text-[10px] font-bold text-[var(--br-text-muted)]">Practice {index + 1}{linkedLearn ? " · linked" : " · needs link"}</span><span className="block truncate text-xs font-black text-ink">{slide?.title ?? "Untitled slide"}</span></button>; })}</div><div className="mt-3 min-h-16 rounded-lg bg-[var(--br-canvas-elevated)] p-2 text-[11px] text-[var(--br-text-muted)]"><b className="text-ink">Preview:</b> {selectedPractice?.title ?? "Select a Practice slide"}<p className="mt-1 line-clamp-2">{selectedPractice?.section_label || "Practice content preview"}</p></div></section>
++      </div>
++      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] p-4"><p role="status" className="text-xs font-semibold text-[var(--br-danger)]">{error || `${unlinked.length} Practice slide${unlinked.length === 1 ? "" : "s"} left to link.`}</p><div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-lg border border-[var(--br-border)] px-4 py-2 text-xs font-black">Cancel</button><button type="button" disabled={unlinked.length > 0} onClick={onComplete} className="rounded-lg bg-[var(--br-brand)] px-4 py-2 text-xs font-black text-on-dark disabled:opacity-45">{unlinked.length ? "Link all Practice slides" : "Done"}</button></div></footer>
++    </div>
++  </BuilderModalLayer>;
++}
++
++function MetadataForm({ lesson, phaseItems, practiceLinks, slides, obe, practiceModuleMode = false }: { lesson: Lesson; phaseItems: PhaseItem[]; practiceLinks: PracticeLink[]; slides: Slide[]; obe?: ObeData; practiceModuleMode?: boolean }) {
+   return (
+     <>
++      {!practiceModuleMode ? <LessonPlayerSettings lesson={lesson} phaseItems={phaseItems} practiceLinks={practiceLinks} slides={slides} /> : null}
+       {!practiceModuleMode ? <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
+         <div className="grid gap-4 sm:grid-cols-2">
+           <label className="text-sm">Title<input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+@@ -1078,7 +1234,7 @@ function MetadataForm({ lesson, obe, practiceModuleMode = false }: { lesson: Les
+           <label className="text-sm">Topic<input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+           <label className="text-sm">Category<input name="category" defaultValue={lesson.category ?? ""} placeholder="Grammar, Speaking, Exam prep" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+           <label className="text-sm">CEFR level<select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">{levelOptions.map((l) => <option key={l}>{l}</option>)}</select></label>
+-          <label className="text-sm">Status<select name="status" defaultValue={lesson.status} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option></select></label>
++          <label className="text-sm">Status<input type="hidden" name="status" value={lesson.status} /><span className="mt-1 block rounded-md border border-[var(--br-border)] px-3 py-2">{lesson.status === "PUBLISHED" ? "Published" : "Draft"}</span><span className="mt-1 block text-[11px] text-[var(--br-text-muted)]">Use the Publish button after reviewing the lesson.</span></label>
+           <label className="text-sm">Class duration (minutes)<input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+           <label className="text-sm">Estimated completion (minutes)<input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+           <label className="text-sm">Attempt timer (minutes)<input name="timerMinutes" type="number" min="1" defaultValue={lesson.timer_minutes ?? ""} placeholder="Untimed" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+@@ -1101,29 +1257,62 @@ function MetadataForm({ lesson, obe, practiceModuleMode = false }: { lesson: Les
+   );
+ }
+ 
+-function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId, onClose }: {
++function LessonPreviewModal({ lesson, slides: sourceSlides, phaseItems, practiceLinks, template, blocks, activities, initialSlideId, onClose }: {
+   lesson: Lesson;
+   slides: Slide[];
++  phaseItems: PhaseItem[];
++  practiceLinks: PracticeLink[];
++  template: LessonTemplate;
+   blocks: LessonBlock[];
+   activities: Activity[];
+   initialSlideId: string | null;
+   onClose: () => void;
+ }) {
++  const slides = useMemo<Array<Slide & { preview_phase?: "LEARN" | "PRACTICE" }>>(() => {
++    if (template === "LAP") {
++      const learnRows = phaseItems.filter((item) => item.phase === "LEARN");
++      const linkedPracticeIds = new Set(practiceLinks.map((link) => link.practice_item_id));
++      const mappedPracticeSlideIds = new Set(phaseItems.filter((item) => item.phase === "PRACTICE" && linkedPracticeIds.has(item.id)).map((item) => item.slide_id));
++      const learnSlideIds = new Set(learnRows.map((item) => item.slide_id));
++      return sourceSlides.filter((slide) => !mappedPracticeSlideIds.has(slide.id) || learnSlideIds.has(slide.id) || blocks.some((block) => block.slide_id === slide.id));
++    }
++    const steps = resolveLessonPlayerSteps({ template, phaseItems, links: practiceLinks });
++    return steps.flatMap((step) => {
++      if (step.type !== "LEARN" && step.type !== "PRACTICE") return [];
++      const source = sourceSlides.find((slide) => slide.id === step.item.slide_id);
++      return source ? [{ ...source, preview_phase: step.type }] : [];
++    });
++  }, [blocks, phaseItems, practiceLinks, sourceSlides, template]);
+   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.id === initialSlideId));
+   const [index, setIndex] = useState(initialIndex);
+-  const [tab, setTab] = useState<"LEARN" | "PRACTICE">("LEARN");
++  const [tab, setTab] = useState<"LEARN" | "PRACTICE">(slides[initialIndex]?.preview_phase === "PRACTICE" || template === "PO" ? "PRACTICE" : "LEARN");
++  const [showStart, setShowStart] = useState(true);
++  const [showPracticeStart, setShowPracticeStart] = useState(false);
+   const [previewDevice, setPreviewDevice] = useState<BuilderPreviewDevice>("DESKTOP");
+   const slide = slides[index] ?? null;
+   const slideBlocks = slide ? blocks.filter((block) => block.slide_id === slide.id) : [];
+-  const slideActivities = slide ? activities.filter((activity) => activity.slide_id === slide.id) : [];
++  const slideActivities = slide ? (() => {
++    if (template !== "LAP" || !phaseItems.length || !practiceLinks.length) return activities.filter((activity) => activity.slide_id === slide.id);
++    const learnItemIds = new Set(phaseItems.filter((item) => item.phase === "LEARN" && item.slide_id === slide.id).map((item) => item.id));
++    const orderedPracticeRows = phaseItems.filter((item) => item.phase === "PRACTICE" && practiceLinks.some((link) => link.practice_item_id === item.id && learnItemIds.has(link.learn_item_id))).sort((a, b) => a.position - b.position);
++    const orderedSlideIds = [...orderedPracticeRows.map((item) => item.slide_id), slide.id].filter((id, index, all) => all.indexOf(id) === index);
++    return orderedSlideIds.flatMap((slideId) => activities.filter((activity) => activity.slide_id === slideId));
++  })() : [];
+ 
+   function go(nextIndex: number) {
+     if (nextIndex < 0 || nextIndex >= slides.length) return;
++    if (template === "LTP" && nextIndex > index && slides[index]?.preview_phase === "LEARN" && slides[nextIndex]?.preview_phase === "PRACTICE") {
++      setShowPracticeStart(true);
++      return;
++    }
+     setIndex(nextIndex);
+     const nextSlide = slides[nextIndex];
+     setTab(nextSlide?.content_order === "PRACTICE_FIRST" ? "PRACTICE" : "LEARN");
+   }
+ 
++  if (showStart) return <BuilderModalLayer label={`Preview ${lesson.title}`} className="bg-[var(--br-canvas)]" fullBleed><SystemLessonGate title={lesson.title} phase="START" buttonLabel={template === "PO" ? "Start Practicing" : "Start Learning"} onStart={() => setShowStart(false)} /></BuilderModalLayer>;
++  if (showPracticeStart) return <BuilderModalLayer label={`Preview ${lesson.title}`} className="bg-[var(--br-canvas)]" fullBleed><SystemLessonGate title={lesson.title} phase="PRACTICE" buttonLabel="Start Practicing" onStart={() => { const next = slides.findIndex((item, itemIndex) => itemIndex > index && item.preview_phase === "PRACTICE"); if (next >= 0) { setIndex(next); setTab("PRACTICE"); } setShowPracticeStart(false); }} /></BuilderModalLayer>;
++
+   return (
+     <BuilderModalLayer label={`Preview ${lesson.title}`} className="bg-[var(--br-canvas)] backdrop-blur-none" fullBleed>
+     <div className="flex min-h-dvh w-full flex-col bg-[var(--br-canvas)]">
+@@ -1136,7 +1325,7 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
+         <BuilderDevicePreviewFrame device={previewDevice} title={`${previewDevice.toLowerCase()} full preview of ${lesson.title}`} minHeight={560}>
+         {slide ? <section className="mx-auto max-w-5xl rounded-[18px] border border-[var(--br-border)] bg-surface p-2 shadow-sm sm:p-4">
+           <div className="rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-on-dark"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/50">Slide {index + 1}{slide.section_label ? ` · ${slide.section_label}` : ""}</p><h3 className="mt-1 text-xl font-black sm:text-2xl">{slide.title}</h3></div>
+-          <div className="my-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTab("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "LEARN" ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setTab("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
++          {template === "LAP" ? <div className="my-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTab("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "LEARN" ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setTab("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div> : <p className={`my-3 inline-flex rounded-full px-3 py-1.5 text-xs font-black ${tab === "PRACTICE" ? "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "bg-[var(--br-brand-soft)] text-[var(--br-brand)]"}`}>{template === "PO" || slides[index].preview_phase === "PRACTICE" ? "Practice phase" : "Learn phase"}</p>}
+           {tab === "LEARN" ? slideBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={slideBlocks} emptyText="All blocks on this slide are hidden from learners." /></div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Learn content on this slide.</div> : slideActivities.length ? <PreviewActivitySequence key={slide.id} activities={slideActivities} onNextSlide={() => go(index + 1)} /> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Practice activity on this slide.</div>}
+         </section> : <div className="grid flex-1 place-items-center text-sm text-[var(--br-text-muted)]">This lesson has no slides yet.</div>}
+         </BuilderDevicePreviewFrame>
+@@ -1248,7 +1437,7 @@ function ActivityPickerModal({ lessonId, slide, blocks, onClose, onOpenBank, onO
+ }
+ 
+ function SelectedSlideEditor({
+-  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide, obe, mode, onModeChange, practiceModuleMode = false
++  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide, obe, mode, onModeChange, template = "LAP", phase = "LEARN", practiceModuleMode = false
+ }: {
+   lessonId: string; slide: Slide; slideIndex: number; slideCount: number; slides: Slide[];
+   blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
+@@ -1258,6 +1447,8 @@ function SelectedSlideEditor({
+   obe?: ObeData;
+   mode: BuilderMode;
+   onModeChange: (mode: BuilderMode) => void;
++  template?: "LAP" | "LTP" | "LO" | "PO";
++  phase?: "LEARN" | "PRACTICE";
+   practiceModuleMode?: boolean;
+ }) {
+   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
+@@ -1271,6 +1462,7 @@ function SelectedSlideEditor({
+   useEffect(() => setLocalBlocks(blocks), [blocks]);
+   const openBlock = localBlocks.find((block) => block.id === openBlockId) ?? null;
+   const openBlockIndex = openBlock ? localBlocks.findIndex((block) => block.id === openBlock.id) : -1;
++  const editorModes: BuilderMode[] = template === "LAP" ? ["SLIDE", "LEARN", "PRACTICE"] : ["SLIDE", template === "PO" ? "PRACTICE" : template === "LO" ? "LEARN" : phase];
+ 
+   function reorderBlockCards(targetId: string) {
+     if (!draggedBlockId || draggedBlockId === targetId || isBlockReordering) return;
+@@ -1293,12 +1485,12 @@ function SelectedSlideEditor({
+ 
+   return (
+     <div className="min-w-0 max-w-full overflow-x-hidden">
+-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--br-surface-muted)] p-1" role="tablist" aria-label="Selected slide editor">
++      <div className={`grid ${editorModes.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-1 rounded-xl bg-[var(--br-surface-muted)] p-1`} role="tablist" aria-label="Selected slide editor">
+         {([
+           { id: "SLIDE" as const, label: "Slide", icon: SlidersHorizontal },
+           { id: "LEARN" as const, label: "Learn", icon: BookOpen },
+           { id: "PRACTICE" as const, label: "Practice", icon: PenLine },
+-        ]).map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => onModeChange(id)} className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-black transition ${mode === id ? "bg-surface text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:text-ink"}`}><Icon size={14} /><span className="truncate">{label}</span>{id === "LEARN" && localBlocks.length ? <span className="rounded-full bg-[var(--br-brand-soft)] px-1.5 text-[9px]">{localBlocks.length}</span> : null}{id === "PRACTICE" && slideActivities.length ? <span className="rounded-full bg-[var(--br-success-soft)] px-1.5 text-[9px] text-[var(--br-success)]">{slideActivities.length}</span> : null}</button>)}
++        ]).filter(({ id }) => editorModes.includes(id)).map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => onModeChange(id)} className={`inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-black transition ${mode === id ? "bg-surface text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:text-ink"}`}><Icon size={14} /><span className="truncate">{label}</span>{id === "LEARN" && localBlocks.length ? <span className="rounded-full bg-[var(--br-brand-soft)] px-1.5 text-[9px]">{localBlocks.length}</span> : null}{id === "PRACTICE" && slideActivities.length ? <span className="rounded-full bg-[var(--br-success-soft)] px-1.5 text-[9px] text-[var(--br-success)]">{slideActivities.length}</span> : null}</button>)}
+       </div>
+ 
+       {mode === "SLIDE" ? <section className="mt-4 min-w-0">
+diff --git a/types/database.types.ts b/types/database.types.ts
+index 635ade8..3da1d7d 100644
+--- a/types/database.types.ts
++++ b/types/database.types.ts
+@@ -64,6 +64,10 @@ export type Database = {
+           duration_minutes: number | null;
+           estimated_completion_minutes: number | null;
+           timer_minutes: number | null;
++          lesson_template: string;
++          autoplay_enabled: boolean;
++          autoplay_mode: string;
++          autoplay_duration_seconds: number;
+           pdf_path: string;
+           status: "DRAFT" | "PUBLISHED";
+           created_at: string;
+@@ -82,6 +86,10 @@ export type Database = {
+           duration_minutes?: number | null;
+           estimated_completion_minutes?: number | null;
+           timer_minutes?: number | null;
++          lesson_template?: string;
++          autoplay_enabled?: boolean;
++          autoplay_mode?: string;
++          autoplay_duration_seconds?: number;
+           pdf_path: string;
+           status?: "DRAFT" | "PUBLISHED";
+           created_at?: string;
+@@ -100,6 +108,10 @@ export type Database = {
+           duration_minutes?: number | null;
+           estimated_completion_minutes?: number | null;
+           timer_minutes?: number | null;
++          lesson_template?: string;
++          autoplay_enabled?: boolean;
++          autoplay_mode?: string;
++          autoplay_duration_seconds?: number;
+           pdf_path?: string;
+           status?: "DRAFT" | "PUBLISHED";
+           created_at?: string;
+@@ -427,6 +439,60 @@ export type Database = {
+         };
+         Relationships: [];
+       };
++      lesson_phase_items: {
++        Row: {
++          id: string;
++          lesson_id: string;
++          slide_id: string;
++          phase: "LEARN" | "PRACTICE";
++          position: number;
++          created_at: string;
++          updated_at: string;
++        };
++        Insert: {
++          id?: string;
++          lesson_id: string;
++          slide_id: string;
++          phase: "LEARN" | "PRACTICE";
++          position: number;
++          created_at?: string;
++          updated_at?: string;
++        };
++        Update: {
++          id?: string;
++          lesson_id?: string;
++          slide_id?: string;
++          phase?: "LEARN" | "PRACTICE";
++          position?: number;
++          created_at?: string;
++          updated_at?: string;
++        };
++        Relationships: [];
++      };
++      lesson_practice_learn_links: {
++        Row: {
++          lesson_id: string;
++          practice_item_id: string;
++          learn_item_id: string;
++          created_at: string;
++          updated_at: string;
++        };
++        Insert: {
++          lesson_id: string;
++          practice_item_id: string;
++          learn_item_id: string;
++          created_at?: string;
++          updated_at?: string;
++        };
++        Update: {
++          lesson_id?: string;
++          practice_item_id?: string;
++          learn_item_id?: string;
++          created_at?: string;
++          updated_at?: string;
++        };
++        Relationships: [];
++      };
+       lesson_progress: {
+         Row: {
+           id: string;
+@@ -435,6 +501,7 @@ export type Database = {
+           current_slide_number: number;
+           completed: boolean;
+           notes: string;
++          current_phase_item_id: string | null;
+           created_at: string;
+           updated_at: string;
+         };
+@@ -445,6 +512,7 @@ export type Database = {
+           current_slide_number?: number;
+           completed?: boolean;
+           notes?: string;
++          current_phase_item_id?: string | null;
+           created_at?: string;
+           updated_at?: string;
+         };
+@@ -455,6 +523,7 @@ export type Database = {
+           current_slide_number?: number;
+           completed?: boolean;
+           notes?: string;
++          current_phase_item_id?: string | null;
+           created_at?: string;
+           updated_at?: string;
+         };
+
+diff --git a/docs/New Slide Builder Template Lesson Template/lesson-player-template-and-autoplay-work-order.md b/docs/New Slide Builder Template Lesson Template/lesson-player-template-and-autoplay-work-order.md
+new file mode 100644
+index 0000000..afdc566
+--- /dev/null
++++ b/docs/New Slide Builder Template Lesson Template/lesson-player-template-and-autoplay-work-order.md	
+@@ -0,0 +1,233 @@
++# Lesson Player Templates and Autoplay — Work Order
++
++**Status:** Product brief captured; implementation has not started  
++**Audience:** Product, design, and engineering  
++**Scope:** Lesson templates, creator workflow, learner playback, start screens, and autoplay settings
++
++## 1. Goal
++
++Make the lesson player more flexible by letting course creators choose how learning and practice are sequenced. Preserve the current slide-by-slide experience, add a lesson-wide learning phase followed by a practice phase, and give creators optional control over how slides advance.
++
++This document records the requested behavior and identifies decisions that should be settled before implementation. It does not authorize changes to lesson data or the application code.
++
++## 2. Template options
++
++### Template A — Learn And Practice (LAP)
++
++This is the current format. Each authored slide contains two tabs:
++
++1. **Learn** — the teaching content for that slide.
++2. **Practice** — practice directly connected to the teaching content on that slide.
++
++Learners can move between the two tabs on each slide. This format suits creators who want learners to practise each concept immediately after learning it.
++
++### Template B — Learn Then Practice (LTP)
++
++This is the proposed new format. It separates the lesson into two consecutive phases:
++
++1. **Learning phase:** all Learn slides appear first.
++2. **Practice phase:** all corresponding Practice slides appear afterward.
++
++For a lesson with ten Learn/Practice pairs, the learner sees ten learning slides followed by ten practice slides: twenty authored content slides in total. Each slide presents only its phase's content; there are no Learn and Practice tabs on these slides.
++
++The practice slides should retain a clear relationship to the relevant learning content. The intended initial ordering is the same sequence as the learning phase: Learn 1–10, then Practice 1–10.
++
++### Template C — Learn Only (LO)
++
++This format contains Learn slides only. Learners move through the learning sequence without Practice content. Autoplay is available for LO, using either fixed duration or narration duration.
++
++### Template D — Practice Only (PO)
++
++This format contains Practice slides only. Learners move through the practice sequence at their own pace. Autoplay is not available for PO.
++
++### How the templates share content rules
++
++LO inherits the **Learn** content and narration behavior used by LAP's Learn tabs and LTP's learning phase. Its autoplay behavior follows LTP's learning phase.
++
++PO inherits the **Practice** content, activity rendering, and learner-controlled progression used by LAP's Practice tabs and LTP's practice phase. It has no autoplay and no learning-to-practice transition screen.
++
++This keeps the same Learn content behaving consistently wherever it appears, and the same Practice content behaving consistently wherever it appears. The selected template controls which content is shown and in what sequence.
++
++## 3. Recommended creator workflow
++
++Use one lesson builder with a lesson-level **Template** setting, rather than maintaining two separate builders. The selected template changes how the existing Learn and Practice content is arranged and previewed. This keeps authoring familiar while allowing the player to present the lesson in either sequence.
++
++The creator workflow should be:
++
++1. Create or open a lesson in the existing builder.
++2. Choose **Learn And Practice (LAP)**, **Learn Then Practice (LTP)**, **Learn Only (LO)**, or **Practice Only (PO)**.
++3. The builder changes its authoring layout to match the selected template: paired Learn/Practice slides for LAP; separate ordered phases for LTP; Learn-only slides for LO; Practice-only slides for PO.
++4. For **Learn Then Practice (LTP)**, create and review the Learn and Practice phases independently. Slide linking is not required while creating an LTP lesson.
++5. Configure autoplay when it is available for the selected template. The player start screens are fixed and are not creator settings.
++6. Preview the learner experience, including phase transitions and autoplay, before saving or publishing through the existing workflow.
++
++The builder should make the selected template visible and explain its learner-facing sequence. A single builder is the recommended starting point. Reconsider separate builders only if the content models or editing workflows become materially different.
++
++### Converting an LTP lesson to LAP
++
++Creating an **LTP** lesson does not require the creator to link Practice slides to Learn slides. The creator can arrange the two phases freely and work in the format's natural flow.
++
++If the creator later changes that lesson to **LAP**, open a slide-linking modal before applying the new template. The creator can also open the same modal from the lesson settings to review or change links later.
++
++The modal should provide:
++
++- A compact, vertically scrollable Learn slide picker on the left and Practice slide picker on the right. Each side shows the selected slide's number and a small preview; selecting or scrolling to another item updates that preview.
++- A **Link** button between the two pickers. It is enabled after one Learn slide and one Practice slide are selected.
++- A visible linked/unlinked state and mapping progress, so the creator can see which Practice slides still need a Learn slide.
++- Start on the first unlinked Practice slide. After **Link**, advance to the next unlinked Practice slide and a suggested Learn slide; the creator can scroll either picker to choose a different match.
++- A simple way to change or remove a link, and a final review before applying the conversion.
++- Slide titles or clear labels alongside slide numbers. The small previews should be expandable so creators can inspect content that is hard to identify in a thumbnail.
++- Keyboard-accessible selection and linking controls; the interaction must not depend on dragging or touch scrolling alone. On narrow screens, stack the two pickers while keeping the selected pair visible.
++
++Use stable slide IDs for the saved links, not slide positions or numbers. A Practice slide can link to one Learn slide; a Learn slide can have multiple linked Practice slides or none. In LAP, multiple linked Practice slides appear together in that Learn slide's Practice tab, in their existing order. A Learn slide with no linked Practice content remains a Learn-only slide, with no empty Practice tab.
++
++Do not complete the conversion while any Practice slide is unlinked. This keeps all authored practice in the lesson and makes the creator resolve every placement instead of silently dropping content. For example, with ten Learn slides and five Practice slides, the creator links each of the five Practice slides to the intended Learn slide; the remaining Learn slides stay Learn-only. If all five are cumulative, the creator can link them to the final Learn slide.
++
++Since lessons may contain many slides, keep the mapping progress visible and allow creators to revisit an earlier link without losing unsaved selections. If the product later offers automatic link suggestions, show them as editable suggestions for creator review; never silently treat slide order or matching counts as proof of the correct relationship.
++
++Once the links are saved, later switches between LAP and LTP can reuse them without repeating the mapping step. Changing the template and saving the links should be one reviewable operation; canceling the modal leaves the lesson in its original template.
++
++### Converting a LAP lesson to LTP
++
++The reverse conversion should be direct because each existing LAP slide already contains its Learn and Practice content together. Reflow the Learn content into the learning phase and the Practice content into the practice phase, preserving their existing order and identifiers. Do not open the mapping modal for this direction.
++
++After a creator has linked an LTP lesson and converted it to LAP, retain those links. If the creator switches back to LTP, restore the ordered phases without asking them to link again. Reopen the mapping modal only when an LTP-to-LAP conversion has Practice slides with no saved links.
++
++### Conversion paths for LO and PO
++
++The conversion paths below separate confirmed rules from decisions still needed. When LAP/LTP changes to LO or PO, show only the selected content type but hide and retain the other content so a later switch can restore it.
++
++| From → To | Content that can carry over | Rule or decision point |
++|---|---|---|
++| LAP ↔ LTP | Both Learn and Practice content | Defined above; LTP → LAP requires linking each Practice slide to one Learn slide. |
++| LAP/LTP → LO | Learn content | Show Learn content; hide and retain Practice content so it can be restored if the creator switches back. |
++| LAP/LTP → PO | Practice content | Show Practice content; hide and retain Learn content so it can be restored if the creator switches back. |
++| LO → LAP/LTP | Learn content | Allow the creator into the target builder and provide Practice authoring. At publish, if Practice is still absent, offer LO publication or return to add Practice. |
++| PO → LAP/LTP | Practice content | Allow the creator into the target builder and provide Learn authoring. At publish, if Learn is still absent, offer PO publication or return to add Learn. |
++| LO ↔ PO | Source content is preserved but the target content type is absent | At publish, offer to publish under the source Only template or return and add the target content type before publishing under the selected template. |
++
++For any conversion, preserve source content and stable slide IDs unless the creator explicitly removes content. The target template should not silently discard the content it does not display.
++
++## 4. Learner experience
++
++### Fixed lesson start screen
++
++Every lesson begins with the same system-controlled start screen design, regardless of template. It is part of the player, not lesson content, and the creator cannot remove or edit its design.
++
++The screen shows the lesson title and includes a visual area with the same proportions as the lesson's slide area. A coral action button opens the first authored slide. Use **Start Learning** for LAP, LTP, and LO; use **Start Practicing** for PO. Autoplay begins only after this learner action.
++
++### Learn Then Practice (LTP) transition
++
++At the end of the final learning slide in **Learn Then Practice (LTP)**, show a second built-in player screen before the first practice slide. It uses the same general system-owned design and includes a coral **Start Practicing** button.
++
++The learner must select the button to enter practice. This transition screen is not a creator-authored slide. Practice content does not autoplay in either template; learners advance through practice manually.
++
++If a creator tries to publish an LAP or LTP lesson that contains Learn content but no Practice content, show a confirmation popup offering **Switch to LO and publish** or return to the selected combined template and **Add Practice**. If it contains Practice content but no Learn content, offer **Switch to PO and publish** or return and **Add Learn**. Switch and publish as LO or PO only after creator confirmation. If the creator chooses to add missing content, keep the selected LAP/LTP template and let them continue editing. Do not publish a lesson with neither Learn nor Practice content. Learners see no missing-content message; confirmed publication uses the appropriate LO or PO experience.
++
++### Progress and navigation
++
++The player should make the current phase and progress easy to understand. In **Learn Then Practice (LTP)**, learners should be able to tell when they have completed learning and entered practice. LO and PO have no phase-boundary screen. Progress should account consistently for authored slides; for a ten-Learn plus ten-Practice LTP lesson, the proposed total is 20 content slides, excluding built-in interstitials.
++
++Existing lesson navigation, resuming, and completion behavior should be reviewed so that adding built-in screens does not mark a lesson complete early, skip authored content, or break saved progress.
++
++## 5. Autoplay settings
++
++Autoplay is available in **LTP** learning slides and throughout **LO**. It is not available in **LAP** or **PO**. LAP remains learner-controlled: autoplay there would either skip the slide's Practice opportunity or switch tabs without knowing when the learner has finished practising. PO practice remains learner-controlled.
++
++When enabled for LTP or LO, the creator chooses one timing mode:
++
++- In LTP, autoplay advances through the learning phase only. The **Start Practicing** screen requires a learner click, and the practice phase stays manual.
++- In LO, autoplay advances through the Learn slides. After the final slide, the lesson completes normally.
++- While autoplay is running, learners can use Previous/Next, swipe, or slide navigation to move in either direction. The newly selected slide becomes the current autoplay position and its own narration/timing starts; autoplay continues forward from there.
++- Provide a visible Play/Pause control in the player's bottom navigation beside slide navigation. Pause stops both narration and slide timing while keeping the current slide. Resume continues narration and the remaining time on that slide. Manual slide changes while paused keep autoplay paused.
++
++### Fixed slide duration
++
++The creator sets a duration. The player advances automatically after that duration, whether or not the slide has narration. The requested initial transition is a simple right-to-left horizontal sweep.
++
++### Match narration duration
++
++The player uses the current slide's narration duration. When narration ends, the player advances to the next slide after a one-second delay. If narration is missing, use a **30-second fallback** so the lesson still advances. This fallback does not add another autoplay mode.
++
++In fixed-duration mode, never change slides before the narration finishes. The effective wait is the longer of the fixed duration and the narration duration. If there is no narration, use the fixed duration. In narration-duration mode, let the full narration finish, then wait one second before advancing.
++
++The creator should be able to preview the selected mode and timing.
++
++## 6. Motion and playback expectations
++
++- Start with a simple right-to-left slide transition; more transition styles can be developed later.
++- Keep the transition short and consistent so it does not obscure slide content.
++- Practice content is manual in all applicable templates and does not autoplay.
++- Do not let autoplay silently discard an unfinished learner response on any slide where timed advancement is enabled.
++- The Play/Pause control sits inline with Previous/Next and slide selection rather than floating over slide content. It is available only in an autoplay-enabled Learn phase.
++- While autoplay is running, manual Previous/Next, swipe, and slide selection remain available. Changing slides resets timing and starts the selected slide's narration when present; autoplay then continues forward from the selected slide.
++- Pause stops narration and timing without changing the current slide. Resume continues from the same narration position and the remaining slide time. Practice remains manual.
++- Respect reduced-motion preferences and keep manual navigation available.
++
++## 7. Settings summary
++
++| Setting | Scope | Requested options |
++|---|---|---|
++| Lesson template | Lesson | Learn And Practice (LAP); Learn Then Practice (LTP); Learn Only (LO); Practice Only (PO) |
++| Lesson start screen | Player behavior | Required, fixed system screen on every lesson; **Start Learning** for LAP/LTP/LO, **Start Practicing** for PO |
++| Autoplay | Lesson | On / Off; available for LTP learning slides and LO only; hidden for LAP and PO |
++| Autoplay timing | Lesson | Fixed slide duration; Match narration duration |
++| Fixed duration | Lesson | Creator-selected duration; valid range and default to be decided |
++| Slide transition | Player behavior | Initial default: right-to-left sweep |
++| Phase transition | Learn Then Practice (LTP) | Required system screen; learner selects **Start Practicing** |
++
++## 8. Confirmed decisions and remaining questions
++
++1. **Naming:** The selected template labels are **Learn And Practice (LAP)** for the current format and **Learn Then Practice (LTP)** for the proposed format.
++2. **Conversion direction:** Both LAP-to-LTP and LTP-to-LAP conversion are in scope. LAP-to-LTP reflows known Learn/Practice pairs directly; LTP-to-LAP opens the mapping modal when links are missing.
++3. **LTP-to-LAP mapping rules:** Creating an LTP lesson does not require links. One Learn slide may have multiple linked Practice slides or none; each Practice slide links to exactly one Learn slide before conversion completes. A Practice slide cannot link to multiple Learn slides. Links use stable slide IDs and remain available from lesson settings.
++4. **LAP behavior with no Practice:** A Learn slide with no linked practice remains Learn-only and has no empty Practice tab.
++5. **Missing content at publish:** For LAP/LTP with only Learn content, ask the creator to confirm publishing as LO or return to add Practice. For LAP/LTP with only Practice content, ask them to confirm publishing as PO or return to add Learn. Do not publish an empty lesson. The learner sees no missing-content notice.
++6. **30-second no-narration fallback:** Confirmed default when narration-duration mode is selected and a slide has no narration.
++7. **Duration controls:** Choose the fixed-duration minimum, maximum, default, and whether one duration applies to every slide.
++8. **Start screen visual details:** Confirm supporting text and background treatment. The screen is always present and not creator-editable.
++9. **Progress and resume:** Confirm how a learner resumes at a built-in screen or phase boundary.
++10. **Existing lessons:** Existing lessons default to LAP. Decide whether changing a lesson's template requires a preview or confirmation.
++11. **Only-template conversions:** When LAP/LTP changes to LO or PO, hide the content type that the target does not show but retain it so it can be restored by switching back. LO and PO can enter a combined-template builder as drafts and add the missing content. If the selected template has only one content type at publish time, ask the creator to publish under the matching Only template or return to add the missing type. The same confirmation applies to LO ↔ PO.
++12. **Availability:** Confirm whether these settings are available to all creators or restricted by existing creator permissions.
++
++## 9. Compatibility and safety requirements
++
++Implementation must preserve current lesson content, slide and activity identifiers, learner progress, media and narration URLs, creator permissions, and existing authorization checks. Template selection should affect presentation and sequence without unintentionally changing content ownership or publishing state.
++
++Keep the current slide-by-slide experience as the default for existing lessons unless a migration decision explicitly says otherwise. Any conversion or migration path should be reviewable, reversible where practical, and should not silently overwrite creator-authored content.
++
++## 10. Suggested delivery sequence
++
++1. Confirm the decisions in Section 8.
++2. Design the creator's template and playback settings, plus learner previews for both templates.
++3. Define the lesson sequence and settings data shape while preserving existing lesson and activity references.
++4. Implement the shared builder workflow and template-specific player sequence.
++5. Add built-in start and phase-transition screens.
++6. Add autoplay modes, narration timing, and the initial slide transition.
++7. Verify existing lessons, new lessons in both templates, progress/resume behavior, and interactive practice behavior before release.
++
++## 11. Acceptance criteria
++
++- A creator can select **Learn And Practice (LAP)**, **Learn Then Practice (LTP)**, **Learn Only (LO)**, or **Practice Only (PO)** in the lesson builder and preview its learner sequence.
++- The builder layout follows the selected template: paired slides for LAP, separate ordered phases for LTP, Learn-only slides for LO, and Practice-only slides for PO.
++- LO uses the same Learn content and narration behavior as LAP/LTP and follows LTP's Learn autoplay rules.
++- PO uses the same Practice activity rendering and manual progression as LAP/LTP Practice content; it has no autoplay or phase-transition screen.
++- Creating an LTP lesson does not require slide linking.
++- Switching LAP to LTP directly separates existing Learn and Practice content into the two phases; switching back reuses saved links.
++- Changing an LTP lesson to LAP opens a link modal with compact Learn and Practice previews, vertical selection, a central Link action, and visible mapping status; the same modal is available from lesson settings.
++- A Learn slide may have multiple linked Practice slides or none; each Practice slide must link to one Learn slide before conversion completes.
++- LAP groups each Learn slide's linked Practice slides in that slide's Practice tab and shows Learn-only slides without an empty Practice tab.
++- Canceling LTP-to-LAP mapping leaves the lesson and its content in the original LTP state; completing conversion does not discard any Practice slide.
++- The existing template continues to show Learn and Practice tabs per slide.
++- The new template presents all learning slides first and all corresponding practice slides afterward.
++- All four templates begin with the same fixed, system-controlled start screen design; creators cannot remove or edit it.
++- LTP presents a system-controlled **Start Practicing** screen at the phase boundary, and the learner must select it.
++- Autoplay is available for LTP learning slides and LO slides; the autoplay option is hidden for LAP and PO.
++- LO completes normally after its final Learn slide; PO practice slides remain manual.
++- Practice content does not autoplay in any template.
++- A LAP/LTP lesson with only Learn prompts the creator to switch to LO and publish or return to add Practice; one with only Practice prompts them to switch to PO and publish or return to add Learn. Both require confirmation; learners see no missing-content message.
++- When switching LO ↔ PO, the creator can publish in the source Only template or return to add the target content type; the system never publishes an empty target lesson.
++- Fixed-duration autoplay never interrupts narration: the slide remains until both the configured timer and any narration have finished. Narration-duration mode advances one second after narration ends, or after the 30-second fallback when narration is missing.
++- Autoplay and transitions do not silently lose learner work or break lesson progress and resume behavior.
++- Existing lesson content, identifiers, media references, permissions, and publishing state remain intact.
+
+diff --git a/docs/New Slide Builder Template Lesson Template/lesson-player-templates-implementation-plan.md b/docs/New Slide Builder Template Lesson Template/lesson-player-templates-implementation-plan.md
+new file mode 100644
+index 0000000..b5fccba
+--- /dev/null
++++ b/docs/New Slide Builder Template Lesson Template/lesson-player-templates-implementation-plan.md	
+@@ -0,0 +1,332 @@
++# Lesson Player Templates — Implementation Plan
++
++**Status:** Implementation in progress on `main`; local only, no push  
++**Companion brief:** [Lesson Player Templates and Autoplay — Work Order](./lesson-player-template-and-autoplay-work-order.md)  
++**Scope:** Creator authoring, four lesson templates, conversion and publishing rules, learner player sequence, progress, narration timing, and compatibility
++
++## 1. Purpose
++
++Turn the approved product work order into a repository-specific implementation sequence. This plan maps the requested behavior to BrenUp's current Next.js, Supabase, lesson builder, player, and progress code. Implementation is underway locally on `main`.
++
++The current lesson flow remains the compatibility baseline. Existing lessons must open as **Learn And Practice (LAP)**, and implementation must preserve course placement, access control, slide and activity records, learner attempts, notes, media, and publishing behavior.
++
++## 2. Product rules this plan implements
++
++| Template | Learner sequence | Autoplay |
++|---|---|---|
++| **LAP — Learn And Practice** | Each authored slide has Learn and Practice tabs. Learners choose when to move between them and between slides. | No autoplay setting. |
++| **LTP — Learn Then Practice** | All Learn slides, a system-owned Start Practicing screen, then all Practice slides. | Available for the Learn phase only. The phase boundary requires a learner click; Practice stays manual. |
++| **LO — Learn Only** | Learn slides only; normal lesson completion after the final slide. | Available throughout the Learn sequence. |
++| **PO — Practice Only** | Practice slides only; learners advance at their own pace. | No autoplay setting. |
++
++All four templates begin with the same system-owned start screen design, outside authored lesson content. It shows the lesson title and a slide-sized visual area. The button says **Start Learning** for LAP, LTP, and LO, and **Start Practicing** for PO. Creators cannot edit or remove this screen.
++
++Additional rules:
++
++- New lesson authoring layout follows the selected template. LTP has separate Learn and Practice lists; LO and PO expose only their respective content areas.
++- LTP creation does not require Learn-to-Practice links. One Practice slide maps to one Learn slide; a Learn slide may have multiple Practice slides or none.
++- LTP-to-LAP conversion opens the link modal when mappings are missing. Every Practice slide must be linked before conversion completes. The modal is also available from lesson settings.
++- LAP-to-LTP conversion uses the existing Learn/Practice pairs directly. Previously saved links are reused on later switches.
++- Switching LAP/LTP to LO/PO hides the other content type but preserves it. Switching back can restore it.
++- At publish, a combined lesson containing only Learn offers **Publish as LO** or **Return and add Practice**. A combined lesson containing only Practice offers **Publish as PO** or **Return and add Learn**. Both choices require creator confirmation. An empty lesson cannot publish. Learners see no missing-content message.
++- If an LTP lesson has no Practice, the same publish confirmation offers LO or a return to add Practice. Publishing as LO requires explicit confirmation.
++- Narration-duration autoplay advances one second after narration ends; when narration is missing, it uses the confirmed 30-second fallback. Fixed-duration autoplay waits for the longer of the configured duration and the narration duration, so it never cuts narration off.
++- During autoplay, learners can navigate backward or forward; the selected slide becomes the new autoplay position. An inline Play/Pause control sits beside player navigation. Pause stops narration and preserves the remaining slide time; Resume continues from the same point. Manual navigation while paused keeps autoplay paused.
++
++## 3. Current repository architecture
++
++### Creator path
++
++- `app/admin/lessons/new/page.tsx` creates a visual lesson shell through `createVisualLesson` in `app/admin/lessons/actions.ts`; the action creates a draft and an initial slide.
++- `app/admin/lessons/[id]/builder/page.tsx` checks lesson access, then loads lesson, slides, Learn blocks, Practice activities, and course/outcome data.
++- `components/LessonBuilderWorkspace.tsx` is the main builder. It has slide-level Learn/Practice preview modes, slide ordering, editing, preview, lesson settings, and publish controls.
++- `app/admin/lessons/actions.ts` contains slide/block/activity mutations, lesson setting updates, and publishing actions. Mutations call `requireLessonAccess`.
++
++### Learner path
++
++- `app/lessons/[lessonId]/page.tsx` enforces authentication, course placement and enrollment rules, sequential unlocking, and published-lesson access. It loads the lesson, slides, blocks, activities, progress, attempts, and narration.
++- `components/BuilderLessonPlayer.tsx` is the active lesson player. It renders the slide rail, Learn/Practice tabs, activities, notes, attempts, navigation, timer, and completion UI. `components/LessonPlayer.tsx` is not the component used by this route.
++- `app/api/lessons/[lessonId]/progress/route.ts` saves `current_slide_number`, completion, and notes after checking the authenticated user and `userCanOpenLesson`. On completion it updates course progress and assessment rollups.
++- `lesson_audio_files` is associated with slides by `slide_id`; the learner route resolves narration URLs and passes a `slideId → URL` map to `BuilderLessonPlayer`.
++
++### Current data model constraints
++
++- `lessons` has no template or autoplay columns today.
++- `slides` is ordered by `slide_number`. A slide can own both Learn blocks (`lesson_blocks.slide_id`) and Practice activities (`lesson_slide_activities.slide_id`). This is how LAP is currently represented.
++- `lesson_blocks` and `lesson_slide_activities` have stable row IDs and are used by assessment evidence and learner attempts. Do not recreate those records as a side effect of changing templates.
++- `lesson_progress` currently stores a slide number rather than a stable player step. That is insufficient to resume inside a split Learn/Practice phase sequence without an adapter or additive progress fields.
++- `BuilderLessonPlayer` is also reused by `components/whiteboard/LiveLessonStage.tsx` and instant live lessons. New standalone start screens and autoplay must not accidentally take control away from live-classroom navigation.
++
++## 4. Recommended architecture
++
++### 4.1 Store template and autoplay configuration on the lesson
++
++Add a migration with a checked `lesson_template` value (`LAP`, `LTP`, `LO`, `PO`) defaulting to `LAP`. The migration must backfill or default every existing lesson to LAP without touching its slide, activity, block, course, or progress rows.
++
++Store autoplay configuration on the lesson for templates that support it:
++
++- `autoplay_enabled` (default off)
++- `autoplay_mode` (`FIXED_DURATION` or `NARRATION_DURATION`)
++- `autoplay_duration_seconds` for fixed mode
++
++The 30-second missing-narration fallback is a product constant, not another mode or content row. Do not store start-screen settings: the start screens are mandatory, player-owned UI.
++
++Database checks and server validation must reject unsupported combinations: LAP and PO cannot have autoplay enabled; LTP autoplay applies to Learn only; LO autoplay applies to Learn slides.
++
++### 4.2 Add a stable phase-item layer
++
++Do not overload `slide_number` as both creator order and learner step identity. Add a small lesson phase-item table as an adapter between existing content slides and template-specific presentation. Each item should have a stable ID, `lesson_id`, `slide_id`, content role (`LEARN`, `PRACTICE`, or compatibility `BOTH`), and position within its phase.
++
++This layer supports both cases without duplicating content:
++
++- A current LAP slide can back a Learn item and a Practice item that both reference the same `slides.id`.
++- A new LTP lesson can use separate slides and phase items for each Learn and Practice entry.
++- LO and PO use only the matching item role.
++- The learner player derives ordered `PlayerStep` values from the phase items and template. System start and phase screens are step types in memory only, not database slides.
++
++Add a link table for Practice phase item → Learn phase item. Enforce one Practice item per link, allow many Practice items to point to the same Learn item, and validate that both items belong to the same lesson. Use stable phase-item IDs, never slide position or slide number, for the mapping.
++
++The first implementation task should be a short schema spike to validate this additive phase-item approach against slide insertion/reordering, narration attachment, and existing assessment relations before writing the final migration. If the spike finds that a phase-item table would duplicate too much existing structure, retain this stable-ID/phase-order contract and choose the smallest equivalent schema.
++
++### 4.3 Build one normalized player sequence
++
++Add a pure server/client-shared sequence resolver that accepts template, phase items, links, and source slides and returns a typed sequence, such as:
++
++- `START_SCREEN`
++- `LEARN_STEP`
++- `START_PRACTICING`
++- `PRACTICE_STEP`
++- `LESSON_COMPLETE`
++
++The resolver owns ordering and eligibility rules. Creator preview and learner playback must consume the same resolver so they cannot show different sequences.
++
++For LAP, a presentation step groups one Learn item with zero or more linked Practice items. For LTP, emit all Learn items, a start-practice step only when Practice exists, then Practice items in order. LO emits Learn items only. PO emits Practice items only. A lesson with neither content type cannot publish.
++
++### 4.4 Progress by stable player location
++
++Keep `lesson_progress.current_slide_number` for compatibility. Add fields sufficient to resume by stable content and phase, such as `current_phase_item_id` plus the current view/phase. On read:
++
++1. Prefer the new stable phase location when present.
++2. For older progress rows, resolve `current_slide_number` against the LAP sequence.
++3. If the saved item no longer exists, choose the nearest valid step and preserve completion/notes.
++
++Built-in start screens do not count as authored progress. LAP tab changes remain within the same slide and should not mark a new slide complete. Completion is saved only at the end of the resolved sequence. Course completion and assessment rollups continue to run through the existing progress endpoint.
++
++## 5. Detailed implementation sequence
++
++### Phase 0 — Lock repository-level contracts
++
++1. Record the existing behavior and call sites listed in Section 3.
++2. Search all consumers of `slides.slide_number`, `lesson_progress.current_slide_number`, and `BuilderLessonPlayer` before modifying their semantics.
++3. Confirm the new phase-item schema can coexist with `slides`, `lesson_blocks`, `lesson_slide_activities`, `lesson_audio_files`, learner attempts, and live-room slide selection.
++4. Keep the migration additive. Do not rewrite course placements, lesson IDs, quiz IDs, attempts, or media paths.
++
++**Exit condition:** The phase-item/link model and progress compatibility path are written down before the first migration is committed.
++
++### Phase 1 — Database and generated types
++
++1. Add `lesson_template` with default LAP and check constraint.
++2. Add autoplay fields and constraints for the supported modes.
++3. Create phase-item and Practice-to-Learn link tables with foreign keys, indexes, unique constraints, timestamps, and updated-at triggers where appropriate.
++4. Enable RLS. Admin/authorized creator writes must follow existing lesson-access rules; learner reads are limited to published lessons. Do not widen published content access.
++5. Add progress location fields while retaining `current_slide_number`.
++6. Backfill LAP phase items for existing non-deleted slides. For each legacy slide, derive Learn and Practice presence from existing blocks and activities; preserve empty sides and stable source IDs. Create an automatic link for legacy paired sides.
++7. Regenerate or update `types/database.types.ts` and verify migration ordering/idempotence.
++
++**Exit condition:** Existing lesson rows resolve to the same LAP sequence before and after the migration, with no child-row rewrite.
++
++### Phase 2 — Domain types, validation, and server actions
++
++1. Define shared template, phase, autoplay, and player-step types in the lesson domain layer.
++2. Implement the pure sequence resolver and template-content validators.
++3. Add authorized server actions for template/settings changes and link edits. Every mutation rechecks `requireLessonAccess` and verifies all referenced IDs belong to the same lesson.
++4. Save conversion template choice and mapping changes atomically. If the operation cannot be one transaction, design explicit rollback/retry behavior before release.
++5. Validate publication server-side, not only in the UI. Route every publish entry point—including the header action and `MetadataForm` status field—through the same validation path.
++6. Return structured publish outcomes for the creator confirmation dialog: publish current template, confirm LO/PO publication, or return to add missing content. Do not publish or send notifications before confirmation.
++7. Preserve the existing notification behavior after a successful status transition.
++
++**Exit condition:** Direct requests cannot bypass mapping, template compatibility, or publish-content rules.
++
++### Phase 3 — Creator template workflow
++
++1. Add a four-option template selector to the visual builder and new-lesson creation workflow. Existing lessons load as LAP.
++2. Keep a single `LessonBuilderWorkspace`, but switch the authoring layout by template:
++   - LAP: existing paired slide timeline and Learn/Practice tabs.
++   - LTP: independent ordered Learn and Practice phase lists.
++   - LO: Learn-only list and editor.
++   - PO: Practice-only list and editor.
++3. Keep editing on the existing content components: Learn blocks use `LessonBlockPreview` and block controls; Practice uses `InLessonActivitiesEditor` and existing activity actions.
++4. Add phase-specific add, reorder, duplicate, trash, restore, and preview operations. Ensure position changes do not mutate the mapping key.
++5. Add the autoplay panel only for LTP and LO. LAP and PO must not render an autoplay switch or timing controls.
++6. Add an explicit no-Practice notice for LTP. This is creator-only UI; it must never appear in learner content.
++7. Preview all four templates through the same player sequence resolver, including phase-boundary screens.
++
++**Exit condition:** A creator can create a draft in each template and preview the exact learner sequence without changing the published learner route.
++
++### Phase 4 — Conversion and mapping workflow
++
++1. LAP → LTP: preserve Learn/Practice source content and phase ordering; create/reuse phase items and seed links from the existing per-slide pairing. No mapping modal is required.
++2. LTP → LAP: if every Practice item already has a saved link, group it under its Learn item directly. If any link is missing, open the mapping modal before completing the template switch.
++3. Mapping modal layout:
++   - compact, scrollable Learn picker on the left and Practice picker on the right;
++   - visible title/number and small preview for each selected item, with an expand option;
++   - central **Link** action, enabled only when both items are selected;
++   - after linking, advance to the next unlinked Practice item and suggest a Learn item;
++   - show counts and linked/unlinked state; permit relink, unlink, undo, keyboard selection, and mobile stacked layout;
++   - all Practice items must be linked exactly once before conversion completes; a Learn item may have zero or multiple Practice items.
++4. Add the same mapping editor under lesson settings so existing mappings can be reviewed or corrected.
++5. LAP/LTP → LO/PO: switch the learner presentation to the selected content role; hide but retain the other role and any links.
++6. LO/PO → combined: open the selected builder as a draft and let the creator add the missing content. At publish, use the same symmetric content-type confirmation rules as LAP/LTP.
++7. LO ↔ PO: retain source content; if the selected target lacks its content type, do not publish an empty target. Offer publish in the source Only template or return to add target content.
++8. Canceling conversion or mapping leaves the previous template, saved links, and content unchanged.
++
++**Exit condition:** All conversions are reversible at the presentation level and never silently delete content.
++
++### Phase 5 — Learner start and phase screens
++
++1. Add a player-owned start screen before the first authored item in all four templates. It shows the lesson title and uses the slide-area proportions.
++2. Use the template-aware button label: Start Learning for LAP/LTP/LO; Start Practicing for PO.
++3. Add the second player-owned screen only at an LTP Learn→Practice boundary when Practice items exist. Require a learner click on **Start Practicing**.
++4. If publishing resolves to LO or PO, use that Only sequence and omit the LTP boundary screen.
++5. Do not give built-in screens database slide IDs, activity records, progress counts, or analytics as if they were creator content.
++6. Keep the fixed design system-owned and not editable in lesson settings.
++
++**Exit condition:** Built-in screens appear at the right boundaries and cannot be inserted, reordered, deleted, or edited by a creator.
++
++### Phase 6 — Player sequence and navigation
++
++1. Extend the `/lessons/[lessonId]` data loader to fetch template settings, phase items, links, and the stable progress location.
++2. Resolve a normalized player sequence on the server or through the shared resolver, then pass only learner-safe data to `BuilderLessonPlayer`.
++3. Keep the current slide renderer and activity renderer. Select Learn blocks or Practice activities based on the resolved step, and aggregate multiple Practice items under a LAP Learn step without changing activity IDs.
++4. Update next/previous, slide rail, mobile swipe, keyboard, deep-link (`slide`, `tab`, `activity`), retake, review, and completion controls to operate on player steps.
++5. Map old `?slide=` and saved slide-number links to the correct current sequence. For LAP, preserve the selected tab when possible; for LTP, resolve to the matching Learn or Practice phase item.
++6. On every step transition, save stable progress and continue to call the current course completion/assessment recalculation path only when the lesson is actually complete.
++7. Preserve score aggregation, attempt history, notes keyed by original slide IDs, activity draft state, and per-activity evidence.
++8. Add a player-context boundary: the new start screens and autoplay apply to the standalone lesson route. Keep live-classroom and instant-live teacher-controlled navigation on their existing path unless product explicitly expands scope.
++
++**Exit condition:** Existing LAP lessons resume at their saved location; new phase templates resume by stable phase-item ID.
++
++### Phase 7 — Autoplay engine
++
++1. Implement autoplay only for LTP Learn items and all LO items. Do not expose or run autoplay in LAP or PO.
++2. Start autoplay only after the learner selects the system start-screen button, satisfying the browser's user-gesture requirement for narration.
++3. Fixed mode: use the creator-selected duration, but never advance before active narration ends. Effective step duration is `max(configured duration, narration duration)`; with no narration, use configured duration.
++4. Narration mode: advance one second after the narration ends; when narration is absent, use the confirmed 30-second fallback.
++5. Handle narration loading, failed playback, tab visibility, manual pause/resume, manual next/previous, retake, and unmount cleanup without duplicate timers.
++6. Practice never auto-advances. The LTP phase boundary always pauses for **Start Practicing**.
++7. Use the requested right-to-left transition for automatic step changes; honor reduced-motion preferences and avoid remounting activity state unnecessarily.
++
++**Exit condition:** One timer/audio state machine owns advancement; no stale timer can move a learner after they pause, navigate manually, or leave the lesson.
++
++### Phase 8 — Publish validation and Only-template fallback
++
++1. Before publishing LAP/LTP, count Learn and Practice content by phase item, not by empty slide shell.
++2. If only Learn exists, show **Switch to LO and publish** or **Return and add Practice**. If only Practice exists, show **Switch to PO and publish** or **Return and add Learn**.
++3. If neither exists, block publish and direct the creator to add content.
++4. After explicit confirmation, update template and status as one operation, then send existing publish notifications.
++5. Preserve hidden content when switching to LO or PO; do not delete child rows or links.
++6. Ensure the learner route receives the final published Only template and never sees a missing-content notice.
++
++**Exit condition:** No publish route bypasses the confirmation or creates an empty public lesson.
++
++### Phase 9 — Compatibility and rollout
++
++1. Backfill old lessons to LAP and default autoplay off.
++2. Keep course-item IDs, positions, assessment weights, outcome mappings, sequential unlocking, and paid/free-preview checks unchanged.
++3. Preserve lesson, slide, activity, assessment, quiz, attempt, and media IDs/URLs. Keep existing AI lesson generation and draft/publish rules unchanged.
++4. Keep creator permission rules and fresh server authorization checks on all new actions.
++5. Keep live-classroom behavior stable through an explicit player context or adapter.
++6. Add a feature rollout switch if needed to stage the new authoring UI while existing published LAP lessons remain readable.
++7. Log template and conversion errors without writing learner private data or narration secrets.
++
++**Exit condition:** The new templates can be enabled for creators while the existing learner flow continues to resolve as LAP.
++
++## 6. File-level implementation map
++
++| Area | Likely files |
++|---|---|
++| New lesson selection and builder layout | `app/admin/lessons/new/page.tsx`, `app/admin/lessons/actions.ts`, `components/LessonBuilderWorkspace.tsx` |
++| Builder data loading | `app/admin/lessons/[id]/builder/page.tsx` |
++| Template/settings/conversion/publish actions | `app/admin/lessons/actions.ts` and a focused lesson-template domain module |
++| Learner data loading and course access | `app/lessons/[lessonId]/page.tsx` |
++| Sequence resolver and player UI | New `lib/lessonPlayerSequence.ts` (proposed), `components/BuilderLessonPlayer.tsx`, `components/LessonContentTabs.tsx` |
++| Narration timing | `components/BuilderLessonPlayer.tsx` and `NarrationPill` in the same component; `app/api/lessons/[lessonId]/narration/[slideId]/route.ts` only if metadata behavior needs adjustment |
++| Progress persistence | `app/api/lessons/[lessonId]/progress/route.ts`, `types/database.types.ts`, progress loading in the lesson route |
++| Database/RLS/types | New additive migration in `supabase/migrations/`, then `types/database.types.ts` |
++| Reusable creator modal | New focused component near `components/LessonBuilderWorkspace.tsx`; use the existing `BuilderModalLayer` |
++
++`components/LessonPlayer.tsx` is not on the current standalone lesson route; verify its remaining consumers before editing it. Avoid broad changes to shared renderer code that also serves live classroom.
++
++## 7. Data safety and authorization requirements
++
++- Never delete hidden Learn or Practice content during template selection.
++- Link by stable IDs and validate both endpoints belong to the same lesson.
++- Do not change course placements, published status, slide/activity IDs, assessment evidence, learner attempts, or media URLs as a side effect of previewing or canceling conversion.
++- New server actions must use `requireLessonAccess` (or the appropriate existing fresh check) before service-role writes.
++- New phase/link tables need RLS policies for creator/admin writes and published learner reads. Test policies with both draft and published lessons.
++- Keep `ai_instruction` and other creator-only activity fields out of learner payloads as the current lesson route does.
++- Do not write directly to production data as a migration substitute; migrations must be additive and reviewable.
++
++## 8. Verification plan for the eventual feature implementation
++
++No code checks are run for this planning document. When implementing the feature, verify the following through focused tests and the repository-required checks:
++
++### Sequence and conversion cases
++
++- Existing LAP with 1 Learn + 1 Practice pair still renders the same tabs and order.
++- LAP → LTP renders all Learn items, boundary screen, then Practice items; no creator mapping step is required.
++- LTP with ten Learn and five Practice items: links can target any Learn; multiple practices can share one Learn; every Practice is assigned before LAP conversion; unpaired Learn is allowed.
++- LTP → LAP cancel leaves template and links unchanged; complete conversion groups activities under mapped Learn slides.
++- LAP/LTP → LO/PO hides but retains the other content; switching back restores it.
++- Only Learn / only Practice publish dialogs have correct choices, require confirmation, and never show missing-content copy to learners.
++- LO ↔ PO cannot publish an empty target; original content remains available.
++- PO/LTP/LAP/LO sequence order and their autoplay availability match the product matrix.
++
++### Progress and learner state
++
++- Existing progress rows resolve from `current_slide_number`; new rows persist stable phase-item IDs.
++- Resume at Learn item, LTP phase boundary, Practice item, and completed state.
++- Retake/review, deep links, course sequence unlocking, and course completion still work.
++- Notes, attempts, scores, assessment evidence, and unsaved Practice responses remain attached to their original IDs.
++- Start and phase screens do not count as authored progress or trigger lesson completion.
++
++### Autoplay and media
++
++- LAP and PO have no autoplay control and never auto-advance.
++- LTP only auto-advances Learn; Practice requires learner navigation. LO auto-advances Learn.
++- Narration mode: narration end + one second; absent narration uses 30 seconds.
++- Fixed mode: short narration waits for fixed duration; longer narration finishes first; narration is never cut off.
++- Pause, manual navigation, tab hiding, failed media, and unmount clear/resume timers correctly.
++- Reduced-motion preferences disable or shorten the sweep without blocking navigation.
++
++### Security and required checks
++
++- Unauthorized creators cannot change template, links, autoplay, or publish state.
++- Draft lesson content remains unreadable to learners; published content and link rows are readable only under existing access rules.
++- Run `npm run typecheck`, `npm run lint`, and `npm run build` before accepting the implementation, as required by `AGENTS.md`.
++
++## 9. Risks and mitigations
++
++| Risk | Mitigation |
++|---|---|
++| Existing progress stores only slide numbers | Add stable player-step progress and keep a legacy fallback mapper. |
++| LTP's independent lists do not fit the current paired-slide shape | Add a phase-item layer rather than changing content block/activity identity. |
++| Mapping becomes invalid after reorder/delete | Map stable item IDs; on delete, require relink before LAP publish/conversion. |
++| Publish fallback is bypassed by another status form/action | Centralize validation in the server publishing path and route all UI controls through it. |
++| Autoplay timer races with narration or manual input | Use one cancellable state machine and `max(fixed, narration)` timing rule. |
++| Shared player changes disrupt live classes | Isolate standalone lesson behavior behind explicit player context and regression-check live consumers. |
++| Hidden content is accidentally lost | Template changes update visibility/sequence only; no child-row deletion. |
++
++## 10. Decisions to confirm during implementation review
++
++These do not block the product concept, but need concrete values before their UI or schema is finalized:
++
++1. Fixed-duration minimum, maximum, and default; whether the duration is lesson-wide or per Learn item.
++2. Final supporting copy and visual treatment for the fixed start screen.
++3. Exact resume behavior when a learner returns to a built-in screen or LTP boundary.
++4. Whether changing a published lesson's template requires a preview/confirmation before the change is saved.
++5. The scope of the start screen/autoplay in live-classroom playback; this plan keeps the standalone route as the initial scope.
++
++## 11. Implementation completion criteria
++
++The feature is ready for review when all four templates can be created, previewed, converted under the rules above, published through validated creator flows, and played with correct progress/resume behavior; existing LAP lessons and course access remain intact; required typecheck, lint, and build checks pass; and the final user-facing changes are documented.
+
+diff --git a/lib/lessonTemplates.ts b/lib/lessonTemplates.ts
+new file mode 100644
+index 0000000..c595eef
+--- /dev/null
++++ b/lib/lessonTemplates.ts
+@@ -0,0 +1,67 @@
++export const LESSON_TEMPLATES = ["LAP", "LTP", "LO", "PO"] as const;
++export type LessonTemplate = (typeof LESSON_TEMPLATES)[number];
++export type LessonPhase = "LEARN" | "PRACTICE";
++export type AutoplayMode = "FIXED_DURATION" | "NARRATION_DURATION";
++
++export type LessonPhaseItem = {
++  id: string;
++  lesson_id: string;
++  slide_id: string;
++  phase: LessonPhase;
++  position: number;
++};
++
++export type PracticeLearnLink = {
++  lesson_id: string;
++  practice_item_id: string;
++  learn_item_id: string;
++};
++
++export type LessonPlayerStep =
++  | { type: "START" }
++  | { type: "LEARN"; item: LessonPhaseItem }
++  | { type: "START_PRACTICING" }
++  | { type: "PRACTICE"; item: LessonPhaseItem }
++  | { type: "COMPLETE" };
++
++export function resolveLessonPlayerSteps(input: {
++  template: LessonTemplate;
++  phaseItems: LessonPhaseItem[];
++  links: PracticeLearnLink[];
++}): LessonPlayerStep[] {
++  const ordered = (phase: LessonPhase) => input.phaseItems
++    .filter((item) => item.phase === phase)
++    .sort((a, b) => a.position - b.position);
++  const learn = ordered("LEARN");
++  const practice = ordered("PRACTICE");
++
++  if (input.template === "LAP") {
++    // LAP continues to use its legacy per-slide renderer. These sequence
++    // markers let the builder preview share the same template contract.
++    return [{ type: "START" }, ...learn.map((item) => ({ type: "LEARN" as const, item })), { type: "COMPLETE" }];
++  }
++  if (input.template === "LO") {
++    return [{ type: "START" }, ...learn.map((item) => ({ type: "LEARN" as const, item })), { type: "COMPLETE" }];
++  }
++  if (input.template === "PO") {
++    return [{ type: "START" }, ...practice.map((item) => ({ type: "PRACTICE" as const, item })), { type: "COMPLETE" }];
++  }
++
++  return [
++    { type: "START" },
++    ...learn.map((item) => ({ type: "LEARN" as const, item })),
++    ...(practice.length ? [{ type: "START_PRACTICING" as const }] : []),
++    ...practice.map((item) => ({ type: "PRACTICE" as const, item })),
++    { type: "COMPLETE" },
++  ];
++}
++
++export function supportsAutoplay(template: LessonTemplate) {
++  return template === "LTP" || template === "LO";
++}
++
++export function getMissingPhase(template: LessonTemplate, counts: { learn: number; practice: number }): LessonTemplate | null {
++  if ((template === "LTP" || template === "LAP") && counts.learn > 0 && counts.practice === 0) return "LO";
++  if ((template === "LTP" || template === "LAP") && counts.practice > 0 && counts.learn === 0) return "PO";
++  return null;
++}
+
+diff --git a/supabase/migrations/20261111120000_lesson_player_templates.sql b/supabase/migrations/20261111120000_lesson_player_templates.sql
+new file mode 100644
+index 0000000..0c90b2b
+--- /dev/null
++++ b/supabase/migrations/20261111120000_lesson_player_templates.sql
+@@ -0,0 +1,157 @@
++-- Additive lesson-template support. Existing lesson/slides/activity identifiers
++-- stay untouched; every existing lesson remains LAP by default.
++
++alter table public.lessons
++  add column if not exists lesson_template text not null default 'LAP',
++  add column if not exists autoplay_enabled boolean not null default false,
++  add column if not exists autoplay_mode text not null default 'NARRATION_DURATION',
++  add column if not exists autoplay_duration_seconds integer not null default 30;
++
++alter table public.lessons drop constraint if exists lessons_lesson_template_check;
++alter table public.lessons add constraint lessons_lesson_template_check
++  check (lesson_template in ('LAP', 'LTP', 'LO', 'PO'));
++alter table public.lessons drop constraint if exists lessons_autoplay_mode_check;
++alter table public.lessons add constraint lessons_autoplay_mode_check
++  check (autoplay_mode in ('FIXED_DURATION', 'NARRATION_DURATION'));
++alter table public.lessons drop constraint if exists lessons_autoplay_duration_check;
++alter table public.lessons add constraint lessons_autoplay_duration_check
++  check (autoplay_duration_seconds between 5 and 600);
++alter table public.lessons drop constraint if exists lessons_template_autoplay_check;
++alter table public.lessons add constraint lessons_template_autoplay_check
++  check (lesson_template in ('LTP', 'LO') or autoplay_enabled = false);
++
++create table if not exists public.lesson_phase_items (
++  id uuid primary key default gen_random_uuid(),
++  lesson_id uuid not null references public.lessons(id) on delete cascade,
++  slide_id uuid not null references public.slides(id) on delete cascade,
++  phase text not null check (phase in ('LEARN', 'PRACTICE')),
++  position integer not null check (position > 0),
++  created_at timestamptz not null default now(),
++  updated_at timestamptz not null default now(),
++  unique (lesson_id, slide_id, phase),
++  unique (lesson_id, phase, position),
++  unique (id, lesson_id)
++);
++
++create index if not exists lesson_phase_items_lesson_phase_order_idx
++  on public.lesson_phase_items(lesson_id, phase, position);
++
++drop trigger if exists lesson_phase_items_touch_updated_at on public.lesson_phase_items;
++create trigger lesson_phase_items_touch_updated_at before update on public.lesson_phase_items
++for each row execute function public.touch_updated_at();
++
++create table if not exists public.lesson_practice_learn_links (
++  lesson_id uuid not null references public.lessons(id) on delete cascade,
++  practice_item_id uuid not null,
++  learn_item_id uuid not null,
++  created_at timestamptz not null default now(),
++  updated_at timestamptz not null default now(),
++  primary key (practice_item_id),
++  foreign key (practice_item_id, lesson_id)
++    references public.lesson_phase_items(id, lesson_id) on delete cascade,
++  foreign key (learn_item_id, lesson_id)
++    references public.lesson_phase_items(id, lesson_id) on delete cascade,
++  check (practice_item_id <> learn_item_id)
++);
++
++alter table public.lesson_progress
++  add column if not exists current_phase_item_id uuid null;
++alter table public.lesson_progress drop constraint if exists lesson_progress_current_phase_item_id_fkey;
++alter table public.lesson_progress add constraint lesson_progress_current_phase_item_id_fkey
++  foreign key (current_phase_item_id) references public.lesson_phase_items(id) on delete set null;
++
++create index if not exists lesson_practice_learn_links_learn_idx
++  on public.lesson_practice_learn_links(lesson_id, learn_item_id);
++
++create or replace function public.validate_lesson_practice_learn_link()
++returns trigger language plpgsql set search_path = public as $$
++declare
++  practice_phase text;
++  learn_phase text;
++begin
++  select phase into practice_phase from public.lesson_phase_items
++    where id = new.practice_item_id and lesson_id = new.lesson_id;
++  select phase into learn_phase from public.lesson_phase_items
++    where id = new.learn_item_id and lesson_id = new.lesson_id;
++  if practice_phase is distinct from 'PRACTICE' or learn_phase is distinct from 'LEARN' then
++    raise exception 'Practice links must connect a Practice item to a Learn item in the same lesson';
++  end if;
++  return new;
++end;
++$$;
++
++drop trigger if exists lesson_practice_learn_links_validate on public.lesson_practice_learn_links;
++create trigger lesson_practice_learn_links_validate before insert or update on public.lesson_practice_learn_links
++for each row execute function public.validate_lesson_practice_learn_link();
++
++drop trigger if exists lesson_practice_learn_links_touch_updated_at on public.lesson_practice_learn_links;
++create trigger lesson_practice_learn_links_touch_updated_at before update on public.lesson_practice_learn_links
++for each row execute function public.touch_updated_at();
++
++alter table public.lesson_phase_items enable row level security;
++alter table public.lesson_practice_learn_links enable row level security;
++
++drop policy if exists "Admins manage lesson phase items" on public.lesson_phase_items;
++create policy "Admins manage lesson phase items" on public.lesson_phase_items
++  for all using (public.is_admin()) with check (public.is_admin());
++drop policy if exists "Learners read published lesson phase items" on public.lesson_phase_items;
++create policy "Learners read published lesson phase items" on public.lesson_phase_items
++  for select using (exists (
++    select 1 from public.lessons
++    where lessons.id = lesson_phase_items.lesson_id and lessons.status = 'PUBLISHED'
++  ));
++
++drop policy if exists "Admins manage practice learn links" on public.lesson_practice_learn_links;
++create policy "Admins manage practice learn links" on public.lesson_practice_learn_links
++  for all using (public.is_admin()) with check (public.is_admin());
++drop policy if exists "Learners read published practice learn links" on public.lesson_practice_learn_links;
++create policy "Learners read published practice learn links" on public.lesson_practice_learn_links
++  for select using (exists (
++    select 1 from public.lessons
++    where lessons.id = lesson_practice_learn_links.lesson_id and lessons.status = 'PUBLISHED'
++  ));
++
++-- Backfill a presentation adapter for current visual slides. This does not
++-- rewrite any authored content or change legacy LAP rendering.
++with learn_rows as (
++  select s.id as slide_id, s.lesson_id,
++         row_number() over (partition by s.lesson_id order by s.slide_number) as position
++  from public.slides s
++  where s.deleted_at is null and exists (
++    select 1 from public.lesson_blocks b where b.slide_id = s.id
++  )
++), practice_rows as (
++  select s.id as slide_id, s.lesson_id,
++         row_number() over (partition by s.lesson_id order by s.slide_number) as position
++  from public.slides s
++  where s.deleted_at is null and exists (
++    select 1 from public.lesson_slide_activities a
++    where a.slide_id = s.id and a.deleted_at is null
++  )
++)
++insert into public.lesson_phase_items (lesson_id, slide_id, phase, position)
++select lesson_id, slide_id, 'LEARN', position from learn_rows
++on conflict (lesson_id, slide_id, phase) do nothing;
++
++with practice_rows as (
++  select s.id as slide_id, s.lesson_id,
++         row_number() over (partition by s.lesson_id order by s.slide_number) as position
++  from public.slides s
++  where s.deleted_at is null and exists (
++    select 1 from public.lesson_slide_activities a
++    where a.slide_id = s.id and a.deleted_at is null
++  )
++)
++insert into public.lesson_phase_items (lesson_id, slide_id, phase, position)
++select lesson_id, slide_id, 'PRACTICE', position from practice_rows
++on conflict (lesson_id, slide_id, phase) do nothing;
++
++insert into public.lesson_practice_learn_links (lesson_id, practice_item_id, learn_item_id)
++select practice.lesson_id, practice.id, learn.id
++from public.lesson_phase_items practice
++join public.lesson_phase_items learn
++  on learn.lesson_id = practice.lesson_id
++ and learn.slide_id = practice.slide_id
++ and learn.phase = 'LEARN'
++where practice.phase = 'PRACTICE'
++on conflict (practice_item_id) do nothing;
