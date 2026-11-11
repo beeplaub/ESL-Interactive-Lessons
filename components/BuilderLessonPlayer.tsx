@@ -111,13 +111,16 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
       const slideRect = mobileSlide.getBoundingClientRect();
       mobileRail.scrollTo({ left: mobileRail.scrollLeft + slideRect.left - railRect.left, behavior: "auto" });
     }
-    const desktopRail = desktopGateRailRef.current;
-    const desktopSlide = desktopRail?.querySelector<HTMLElement>(`[data-gate-slide-index="${targetIndex}"]`);
-    if (desktopRail && desktopSlide) {
+    const desktopFrame = window.requestAnimationFrame(() => {
+      const desktopRail = desktopGateRailRef.current;
+      if (!desktopRail?.getClientRects().length) return;
+      const desktopSlide = desktopRail.querySelector<HTMLElement>(`[data-gate-slide-index="${targetIndex}"]`);
+      if (!desktopSlide) return;
       const railRect = desktopRail.getBoundingClientRect();
       const slideRect = desktopSlide.getBoundingClientRect();
       desktopRail.scrollTo({ top: desktopRail.scrollTop + slideRect.top - railRect.top, behavior: "auto" });
-    }
+    });
+    return () => window.cancelAnimationFrame(desktopFrame);
   }, [phase, pinnedGatePhase, practiceStart]);
   const rail = <>
     {slides.map((item, index) => <div key={`${item.title}-${index}`} className="flex shrink-0 items-center gap-1">
