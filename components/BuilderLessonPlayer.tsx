@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import type { TouchEvent } from "react";
+import { Fragment, type TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Languages, List, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, Timer, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints, lessonActivityScore } from "@/components/LessonActivityPanel";
@@ -81,14 +81,15 @@ function PhaseGateMarker({ phase, onClick, compact = false }: { phase: "LEARN" |
   const label = phase === "LEARN" ? "L" : "P";
   const title = phase === "LEARN" ? "Open Start Learning" : "Open Start Practicing";
   const color = phase === "LEARN" ? "bg-[var(--br-chart-primary)]" : "bg-[var(--br-chart-secondary)]";
-  const className = `grid shrink-0 place-items-center rounded-full ${color} font-black text-on-dark ${compact ? "size-8 text-[11px] min-[1180px]:size-7 min-[1180px]:text-[10px]" : "size-7 text-[10px]"}`;
+  const className = `grid shrink-0 place-items-center rounded-full ${color} font-black text-on-dark ${compact ? "sticky left-0 z-20 size-8 text-[11px] shadow-sm min-[1180px]:static min-[1180px]:size-7 min-[1180px]:text-[10px]" : "size-7 text-[10px]"}`;
   return onClick
     ? <button type="button" onClick={onClick} aria-label={title} title={title} className={`${className} transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-brand)]`}>{label}</button>
     : <span aria-label={title} title={title} className={className}>{label}</span>;
 }
 
-export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, autoplayAvailable = false, autoplayPaused = false, unlockedPhases = [], onToggleAutoplay, onSelectGate, onSelectSlide, onStart }: {
+export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, backHref, autoplayAvailable = false, autoplayPaused = false, unlockedPhases = [], onToggleAutoplay, onSelectGate, onSelectSlide, onStart }: {
   title: string; phase: "START" | "PRACTICE"; buttonLabel: string; imageUrl?: string | null; slides: GateRailSlide[];
+  backHref?: string | null;
   autoplayAvailable?: boolean; autoplayPaused?: boolean; unlockedPhases?: Array<"LEARN" | "PRACTICE">; onToggleAutoplay?: () => void;
   onSelectGate?: (phase: "LEARN" | "PRACTICE") => void; onSelectSlide?: (index: number) => void; onStart: () => void;
 }) {
@@ -107,15 +108,14 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
     </div>)}
   </>;
   const autoButton = autoplayAvailable ? <button type="button" onClick={onToggleAutoplay} className="flex min-h-10 w-10 shrink-0 flex-col items-center justify-center rounded-2xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-[var(--br-shadow)] transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Enable autoplay after starting" : "Disable autoplay after starting"} title={autoplayPaused ? "Enable autoplay after starting" : "Disable autoplay after starting"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null;
-  const counter = phase === "START" ? 0 : slides.filter((item) => item.player_phase === "LEARN").length;
   const slideMap = <div ref={mobileGateRailRef} className="flex min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: "pan-x pan-y" }}>{rail}</div>;
 
   return <main className="mx-auto max-w-7xl overflow-x-hidden px-1 py-3 sm:px-4 sm:py-5 min-[1180px]:px-0">
     <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
       <aside className="hidden min-[1180px]:block"><div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1">{autoButton}<div className="flex max-h-[calc(100dvh-2.5rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]"><button type="button" onClick={() => desktopGateRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button><nav ref={desktopGateRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{slides.map((item, index) => { const itemPhase = item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN"); const itemUnlocked = unlockedPhases.includes(itemPhase); return <div key={`${item.title}-rail-${index}`} className="flex flex-col items-center gap-1 py-0.5">{showLearnMarker && index === (learnStart >= 0 ? learnStart : 0) ? <PhaseGateMarker phase="LEARN" onClick={() => onSelectGate?.("LEARN")} /> : null}{showPracticeMarker && index === practiceStart ? <PhaseGateMarker phase="PRACTICE" onClick={() => onSelectGate?.("PRACTICE")} /> : null}<button type="button" disabled={!onSelectSlide || !itemUnlocked} onClick={() => onSelectSlide?.(index)} aria-label={`Slide ${index + 1}: ${item.title}`} className={`grid size-7 place-items-center rounded-full border bg-[var(--br-canvas-elevated)] text-[10px] font-extrabold text-[var(--br-text-muted)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"} ${itemUnlocked ? "" : "opacity-60"}`}>{index + 1}</button></div>; })}</nav><button type="button" onClick={() => desktopGateRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button></div></div></aside>
       <section className="min-w-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
-        <header className="mb-4 rounded-[18px] bg-[var(--br-brand)] px-4 py-3 text-white">
-          <div className="flex items-center justify-between gap-2"><p className="text-xs uppercase tracking-wide text-white/55">Slide {counter} of {slides.length}</p></div>
+        <header className="mb-2 rounded-[18px] bg-[var(--br-brand)] px-4 py-3 text-white sm:mb-3">
+          <div className="flex items-center justify-between gap-2">{backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"><ArrowLeft size={15} /></Link> : <span />}</div>
           <h1 className="mt-1 text-[22px] font-extrabold">{title}</h1>
           <p className="mt-1 text-sm text-white/60">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
         </header>
@@ -922,11 +922,11 @@ export function BuilderLessonPlayer({
     const mobileTrack = mobileSlideMapRef.current;
     const mobileActive = mobileTrack?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
     if (mobileTrack && mobileActive) {
-      const left = mobileActive.offsetLeft - mobileTrack.offsetLeft;
-      if (left < mobileTrack.scrollLeft) mobileTrack.scrollTo({ left, behavior: "smooth" });
-      else if (left + mobileActive.offsetWidth > mobileTrack.scrollLeft + mobileTrack.clientWidth) {
-        mobileTrack.scrollTo({ left: left + mobileActive.offsetWidth - mobileTrack.clientWidth, behavior: "smooth" });
-      }
+      const trackRect = mobileTrack.getBoundingClientRect();
+      const activeRect = mobileActive.getBoundingClientRect();
+      const activeCenter = activeRect.left + activeRect.width / 2;
+      const trackCenter = trackRect.left + mobileTrack.clientWidth / 2;
+      mobileTrack.scrollTo({ left: mobileTrack.scrollLeft + activeCenter - trackCenter, behavior: "smooth" });
     }
     const desktopTrack = desktopSlideRailRef.current;
     const desktopActive = desktopTrack?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
@@ -1075,62 +1075,18 @@ export function BuilderLessonPlayer({
 
   if (standaloneTemplate && !hasStarted) {
     const choosingPractice = entryGatePhase === "PRACTICE";
-    return <SystemLessonGate title={lesson.title} phase={choosingPractice ? "PRACTICE" : "START"} buttonLabel={choosingPractice ? "Start Practicing" : "Start Learning"} imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} autoplayAvailable={!choosingPractice && supportsAutoplay(template) && Boolean(lesson.autoplay_enabled)} autoplayPaused={autoplayPaused} unlockedPhases={unlockedPhases} onToggleAutoplay={() => setAutoplayPaused((value) => !value)} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startEntryGate} />;
+    return <SystemLessonGate title={lesson.title} phase={choosingPractice ? "PRACTICE" : "START"} buttonLabel={choosingPractice ? "Start Practicing" : "Start Learning"} imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} backHref={instantClass ? null : backHref} autoplayAvailable={!choosingPractice && supportsAutoplay(template) && Boolean(lesson.autoplay_enabled)} autoplayPaused={autoplayPaused} unlockedPhases={unlockedPhases} onToggleAutoplay={() => setAutoplayPaused((value) => !value)} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startEntryGate} />;
   }
   if (standaloneTemplate && showLearnGate) {
-    return <SystemLessonGate title={lesson.title} phase="START" buttonLabel="Start Learning" imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} autoplayAvailable={supportsAutoplay(template) && Boolean(lesson.autoplay_enabled)} autoplayPaused={autoplayPaused} unlockedPhases={unlockedPhases} onToggleAutoplay={() => setAutoplayPaused((value) => !value)} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startLearnPhase} />;
+    return <SystemLessonGate title={lesson.title} phase="START" buttonLabel="Start Learning" imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} backHref={instantClass ? null : backHref} autoplayAvailable={supportsAutoplay(template) && Boolean(lesson.autoplay_enabled)} autoplayPaused={autoplayPaused} unlockedPhases={unlockedPhases} onToggleAutoplay={() => setAutoplayPaused((value) => !value)} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startLearnPhase} />;
   }
   if (standaloneTemplate && showPracticeGate) {
-    return <SystemLessonGate title={lesson.title} phase="PRACTICE" buttonLabel="Start Practicing" imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} unlockedPhases={unlockedPhases} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startPracticePhase} />;
+    return <SystemLessonGate title={lesson.title} phase="PRACTICE" buttonLabel="Start Practicing" imageUrl={courseFeatureImageUrl} slides={slides.map((item) => ({ title: item.title, player_phase: item.player_phase }))} backHref={instantClass ? null : backHref} unlockedPhases={unlockedPhases} onSelectGate={selectGate} onSelectSlide={selectGateSlide} onStart={startPracticePhase} />;
   }
 
   return (
     <main ref={lessonViewportRef} className="mx-auto max-w-7xl overflow-x-hidden px-1 sm:px-4 min-[1180px]:px-0">
       {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
-      {/* ── Header ── */}
-      <div className="mb-3 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 shadow-[var(--br-shadow)]">
-        <div className="flex flex-wrap items-center gap-3">
-          {!instantClass ? <Link href={backHref} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-chart-primary)]" aria-label="Back to courses">
-            <ArrowLeft size={15} />
-          </Link> : null}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight sm:text-lg">{lesson.title}</h1>
-              {liveSession ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${isLiveTeacher ? "bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]" : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"}`}>{isLiveTeacher ? "TEACHER VIEW" : "LIVE"}</span> : null}
-              <span className="rounded-full bg-[var(--br-surface-muted)] px-2 py-0.5 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{lesson.level}</span>
-              {lesson.topic ? <span className="truncate text-xs font-semibold text-[var(--br-text-muted)]">{lesson.topic}</span> : null}
-            </div>
-            <div className="mt-1.5 flex items-center gap-2">
-              <div className="grid h-1.5 flex-1 auto-cols-fr grid-flow-col gap-1">
-                {slides.map((item, slideIndex) => (
-                  <span
-                    key={item.phase_item_id ?? item.id}
-                    className={`rounded-full transition-colors ${slideIndex <= index ? "bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-success)]" : "bg-[var(--br-surface-strong)]"}`}
-                  />
-                ))}
-              </div>
-              <span className="shrink-0 text-[11px] font-bold text-[var(--br-text-muted)]">{progressPercent}%</span>
-            </div>
-          </div>
-          {completed && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-moss/10 px-2.5 py-1 text-xs font-semibold text-moss">
-              <CheckCircle2 size={15} /> Completed
-            </span>
-          )}
-          {lesson.timer_minutes ? (
-            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${timerUrgent ? "bg-[var(--br-danger-soft)] text-[var(--br-danger)]" : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"}`}>
-              {completed ? `${lesson.timer_minutes} min timer` : formatTime(remainingSeconds ?? lesson.timer_minutes * 60)}
-            </span>
-          ) : null}
-          {liveTimerSeconds !== null ? <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${liveTimerSeconds <= 60 ? "bg-[var(--br-danger-soft)] text-[var(--br-danger)]" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`}>Class {formatTime(liveTimerSeconds)}</span> : null}
-        </div>
-        {totalLessonMarks ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
-            <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1">Lesson score {earnedLessonMarks}/{totalLessonMarks}</span>
-            <span className="rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 font-extrabold text-[var(--br-chart-secondary)]">{lessonGrade}</span>
-          </div>
-        ) : null}
-      </div>
       {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={liveNavigationLocked} /> : null}
 
       <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
@@ -1218,10 +1174,10 @@ export function BuilderLessonPlayer({
         <div className="relative">
           <section key={slide.phase_item_id ?? slide.id} className={`rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3 ${autoplayActive ? "animate-lesson-sweep" : ""}`}>
             {/* Slide header */}
-            <div className={`mb-4 rounded-[18px] px-4 py-3 text-white ${template === "LAP" ? "bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] text-on-dark" : template === "LTP" || slide.player_phase !== "PRACTICE" ? "bg-[var(--br-brand)]" : "bg-[var(--br-chart-secondary)]"}`}>
-              {/* Line 1 — slide counter (left) + narration pill (right) */}
+            <div className={`mb-2 rounded-[18px] px-4 py-3 text-white sm:mb-3 ${template === "LAP" ? "bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] text-on-dark" : template === "LTP" || slide.player_phase !== "PRACTICE" ? "bg-[var(--br-brand)]" : "bg-[var(--br-chart-secondary)]"}`}>
+              {/* Line 1 — back navigation (left) + narration pill (right) */}
               <div className="flex items-center justify-between gap-2">
-                {!practiceModuleMode ? <p className="text-xs uppercase tracking-wide text-white/55">Slide {index + 1} of {slides.length}</p> : <span />}
+                {!instantClass ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"><ArrowLeft size={15} /></Link> : <span />}
                 {narrationVisible && narrationUrl && (
                   <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} onEnded={() => setNarrationEnded(true)} autoplayControlled={autoplayConfigured} />
                 )}
@@ -1249,11 +1205,11 @@ export function BuilderLessonPlayer({
               {autoplayConfigured ? <button type="button" onClick={() => setAutoplayPaused((value) => !value)} className="flex h-9 w-10 shrink-0 flex-col items-center justify-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-sm transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"} title={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null}
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>
               <div ref={mobileSlideMapRef} aria-label="Slide map; swipe to browse slide numbers and tap a number to open that slide" className="flex min-w-0 flex-1 gap-2 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: "pan-x pan-y" }}>
-                {slides.map((item, slideIndex) => <div key={item.phase_item_id ?? item.id} className="flex shrink-0 items-center gap-1">
+                {slides.map((item, slideIndex) => <Fragment key={item.phase_item_id ?? item.id}>
                   {showLearnRailMarker && slideIndex === learnRailStart ? <PhaseGateMarker phase="LEARN" onClick={openLearnGate} compact /> : null}
                   {showPracticeRailMarker && slideIndex === practiceRailStart ? <PhaseGateMarker phase="PRACTICE" onClick={openPracticeGate} compact /> : null}
                   <button type="button" data-slide-index={slideIndex} disabled={(isLiveStudent && liveNavigationLocked) || !canOpenSlide(item)} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-8 shrink-0 place-items-center rounded-full border text-[11px] font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${slideIndex === index ? item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)] bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : `bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"}`}`}>{slideIndex + 1}</button>
-                </div>)}
+                </Fragment>)}
               </div>
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button>
             </div> : null}
@@ -1411,7 +1367,7 @@ export function BuilderLessonPlayer({
             type="button"
             onClick={() => move(1)}
                   disabled={isLiveStudent && liveNavigationLocked}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[var(--br-chart-primary)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] transition hover:brightness-110 disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
           >
             Next <ArrowRight size={14} className="shrink-0" />
           </button>

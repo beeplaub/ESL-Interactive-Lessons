@@ -70,6 +70,7 @@ export async function LearnerAppShell({
   contentClassName = "flex flex-col gap-5",
   breadcrumbs,
   desktopChromeLeading,
+  compactDesktopChrome = false,
   showRightSidebar = true,
   showChrome = true,
 }: {
@@ -78,6 +79,7 @@ export async function LearnerAppShell({
   contentClassName?: string;
   breadcrumbs?: BreadcrumbItem[];
   desktopChromeLeading?: React.ReactNode;
+  compactDesktopChrome?: boolean;
   showRightSidebar?: boolean;
   showChrome?: boolean;
   showFooter?: boolean;
@@ -142,6 +144,7 @@ export async function LearnerAppShell({
             <DesktopLearnerChrome
               breadcrumbs={breadcrumbs ?? defaultBreadcrumbs[active]}
               leading={desktopChromeLeading}
+              compactSpacing={compactDesktopChrome}
               notifications={notifications}
               userName={name}
               initials={initials}
@@ -304,6 +307,7 @@ async function buildNotifications(admin: ReturnType<typeof createAdminClient>, u
 function DesktopLearnerChrome({
   breadcrumbs,
   leading,
+  compactSpacing,
   notifications,
   userName,
   initials,
@@ -314,6 +318,7 @@ function DesktopLearnerChrome({
 }: {
   breadcrumbs: BreadcrumbItem[];
   leading?: React.ReactNode;
+  compactSpacing?: boolean;
   notifications: NotificationItem[];
   userName: string;
   initials: string;
@@ -323,7 +328,7 @@ function DesktopLearnerChrome({
   isStaffUser?: boolean;
 }) {
   return (
-    <header className="mb-4 hidden items-center justify-between gap-4 min-[1180px]:flex">
+    <header className={`${compactSpacing ? "mb-2" : "mb-4"} hidden items-center justify-between gap-4 min-[1180px]:flex`}>
       {leading ?? (
         <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--br-text-muted)]" aria-label="Breadcrumb">
           <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] shadow-[var(--br-shadow)]">

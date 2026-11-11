@@ -291,6 +291,7 @@ export default async function LessonPage({
     <LearnerAppShell
       active="courses"
       contentClassName="block -mx-3 min-[1180px]:mx-0"
+      compactDesktopChrome
       showRightSidebar={false}
       showFooter={false}
       breadcrumbs={
