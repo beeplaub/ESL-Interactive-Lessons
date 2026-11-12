@@ -259,7 +259,12 @@ export async function submitCourseOrder(
         .maybeSingle(),
     ]);
 
-    if (enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED" || openOrder?.status === "CONFIRMED") {
+    const enrollmentIsActive = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
+    const enrollmentWasCancelled = enrollment?.status === "CANCELLED";
+    // A cancelled enrollment starts a fresh approval cycle. Keep old confirmed
+    // orders as history, but do not let one block a new payment submission.
+    const confirmedOrderStillGrantsAccess = openOrder?.status === "CONFIRMED" && !enrollmentWasCancelled;
+    if (enrollmentIsActive || confirmedOrderStillGrantsAccess) {
       return { success: false, error: "You are already enrolled in this course." };
     }
     if (openOrder?.status === "PENDING") {

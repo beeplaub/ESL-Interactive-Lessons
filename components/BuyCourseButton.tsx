@@ -76,7 +76,7 @@ export function BuyCourseButton({
         onClick={openModal}
         className="br-button-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold"
       >
-        Enroll ·{" "}
+        {activeOrder?.status === "REJECTED" ? "Try Again · " : "Enroll · "}
         {hasDiscount && (
           <span className="line-through opacity-60 mr-0.5">৳{originalPriceBdt}</span>
         )}
