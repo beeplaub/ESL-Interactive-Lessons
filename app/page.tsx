@@ -15,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { MarketingCourseCard } from "@/components/MarketingCourseCard";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
+import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
 
 export const metadata: Metadata = {
   title: "BrenUp | Free ESL Quizzes, CEFR Level Test and English Courses",
@@ -46,13 +47,7 @@ export default async function HomePage() {
     .limit(9);
   const courseIds = (featuredCourses ?? []).map((course) => course.id);
   const instructorMap = await getCourseInstructorMap(courseIds);
-  const { data: featuredCourseItems } = courseIds.length
-    ? await admin.from("course_items").select("course_id").in("course_id", courseIds)
-    : { data: [] };
-  const lessonCountByCourse = new Map<string, number>();
-  for (const item of featuredCourseItems ?? []) {
-    lessonCountByCourse.set(item.course_id, (lessonCountByCourse.get(item.course_id) ?? 0) + 1);
-  }
+  const courseStatsById = await getCourseDisplayStats(admin, courseIds);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[var(--br-canvas-elevated)] text-[var(--br-dark-card)]">
@@ -132,7 +127,7 @@ export default async function HomePage() {
             <div><h2 className="text-4xl font-bold tracking-tight text-[var(--br-text)]">Featured Courses</h2><p className="mt-2 text-[var(--br-text-muted)]">Curated paths from our top linguistic experts.</p></div>
             <Link href="/courses" className="inline-flex items-center gap-2 font-bold text-[var(--br-brand-strong)] transition hover:gap-3">View all courses <ChevronRight className="size-5" /></Link>
           </div>
-          {featuredCourses?.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{featuredCourses.map((course, index) => <MarketingCourseCard key={course.id} course={course} lessonCount={lessonCountByCourse.get(course.id) ?? 0} tone={index} instructors={instructorMap.get(course.id)} />)}</div> : <div className="rounded-[20px] border border-dashed border-[var(--br-border)] bg-surface px-6 py-12 text-center text-[var(--br-text-muted)]"><p className="font-semibold text-[var(--br-text)]">No published courses yet</p><p className="mt-2 text-sm">Courses will appear here as soon as they are published.</p></div>}
+          {featuredCourses?.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{featuredCourses.map((course, index) => <MarketingCourseCard key={course.id} course={course} stats={courseStatsById.get(course.id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }} tone={index} instructors={instructorMap.get(course.id)} />)}</div> : <div className="rounded-[20px] border border-dashed border-[var(--br-border)] bg-surface px-6 py-12 text-center text-[var(--br-text-muted)]"><p className="font-semibold text-[var(--br-text)]">No published courses yet</p><p className="mt-2 max-w-md text-sm leading-6 text-[var(--br-text-muted)]">Courses will appear here as soon as they are published.</p></div>}
         </div>
       </section>
 

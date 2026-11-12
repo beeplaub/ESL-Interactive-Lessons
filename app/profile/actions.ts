@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { isStaff, requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSignedR2UploadUrl, getR2ObjectMetadata } from "@/lib/storage/mediaStorage";
+import { parseProfileSocialLinks, SOCIAL_PLATFORM_INFO, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/profileSocialLinks";
 
 const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 const AVATAR_TYPES = {
@@ -13,11 +14,47 @@ const AVATAR_TYPES = {
 } as const;
 type AvatarContentType = keyof typeof AVATAR_TYPES;
 
-export async function updateProfile(formData: FormData) {
+export async function saveProfileSocialLink(platformInput: string, rawValue: string) {
   const { user } = await requireUser();
+  if (!SOCIAL_PLATFORMS.includes(platformInput as SocialPlatform)) {
+    return { success: false, error: "Choose a valid social platform." };
+  }
+  const platform = platformInput as SocialPlatform;
+  let normalizedUrl = "";
+  if (rawValue.trim()) {
+    const candidate = /^https?:\/\//i.test(rawValue.trim()) ? rawValue.trim() : `https://${rawValue.trim()}`;
+    let parsed: URL;
+    try { parsed = new URL(candidate); } catch { return { success: false, error: "Enter a valid profile link." }; }
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    const isAllowedHost = SOCIAL_PLATFORM_INFO[platform].hosts.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+    if (!isAllowedHost || !["https:", "http:"].includes(parsed.protocol)) {
+      return { success: false, error: `Enter a ${SOCIAL_PLATFORM_INFO[platform].label} link.` };
+    }
+    normalizedUrl = parsed.toString();
+  }
+
+  const admin = createAdminClient();
+  const { data: profile, error: readError } = await admin.from("profiles").select("social_links").eq("id", user.id).maybeSingle();
+  if (readError || !profile) return { success: false, error: "Could not load your profile. Please try again." };
+  const links = parseProfileSocialLinks(profile.social_links);
+  if (normalizedUrl) links[platform] = normalizedUrl;
+  else delete links[platform];
+  const { error: saveError } = await admin.from("profiles").update({ social_links: links }).eq("id", user.id);
+  if (saveError) return { success: false, error: "Could not save this link. Please try again." };
+
+  revalidatePath("/profile");
+  revalidatePath("/admin/account");
+  revalidatePath("/courses");
+  revalidatePath("/courses/[id]", "page");
+  return { success: true, url: normalizedUrl };
+}
+
+export async function updateProfile(formData: FormData) {
+  const { user, profile } = await requireUser();
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
+  const label = String(formData.get("label") ?? "").trim().slice(0, 60);
   const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
   const admin = createAdminClient();
   const { error } = await admin
@@ -27,6 +64,7 @@ export async function updateProfile(formData: FormData) {
       last_name: lastName || null,
       full_name: fullName,
       bio: bio || null,
+      ...(isStaff(profile?.role) ? { label: label || null } : {}),
     })
     .eq("id", user.id);
   if (error) console.error("updateProfile error:", error.message);
@@ -39,6 +77,10 @@ export async function updateProfile(formData: FormData) {
       );
   revalidatePath("/profile");
   revalidatePath("/account");
+  revalidatePath("/admin/account");
+  revalidatePath("/courses");
+  revalidatePath("/courses/[id]", "page");
+  revalidatePath("/");
 }
 
 export async function updateAvatarUrl(avatarUrl: string) {

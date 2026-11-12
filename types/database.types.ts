@@ -22,6 +22,9 @@ export type Database = {
           full_name: string | null;
           first_name: string | null;
           last_name: string | null;
+          label: string | null;
+          bio: string | null;
+          social_links: Json;
           avatar_url: string | null;
           role: "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
           cefr_level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
@@ -33,6 +36,9 @@ export type Database = {
           full_name?: string | null;
           first_name?: string | null;
           last_name?: string | null;
+          label?: string | null;
+          bio?: string | null;
+          social_links?: Json;
           avatar_url?: string | null;
           role?: "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
           cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
@@ -43,6 +49,9 @@ export type Database = {
           full_name?: string | null;
           first_name?: string | null;
           last_name?: string | null;
+          label?: string | null;
+          bio?: string | null;
+          social_links?: Json;
           avatar_url?: string | null;
           role?: "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
           cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
@@ -132,6 +141,7 @@ export type Database = {
           source_type?: "RECORDED" | "UPLOADED" | "LINK";
           external_url?: string | null;
           linked_slide_number: number | null;
+          duration_seconds: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
           transcript?: string | null;
@@ -151,6 +161,7 @@ export type Database = {
           source_type?: "RECORDED" | "UPLOADED" | "LINK";
           external_url?: string | null;
           linked_slide_number?: number | null;
+          duration_seconds?: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
           transcript?: string | null;
@@ -170,6 +181,7 @@ export type Database = {
           source_type?: "RECORDED" | "UPLOADED" | "LINK";
           external_url?: string | null;
           linked_slide_number?: number | null;
+          duration_seconds?: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
           transcript?: string | null;

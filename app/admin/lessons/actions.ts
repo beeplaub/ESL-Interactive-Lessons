@@ -1486,6 +1486,8 @@ export async function duplicateLesson(lessonId: string) {
         storage_provider: af.storage_provider ?? "supabase",
         storage_bucket: af.storage_bucket ?? "lesson-audio",
         public_url: af.public_url ?? null,
+        external_url: af.external_url ?? null,
+        source_type: af.source_type ?? "RECORDED",
         linked_slide_number: af.linked_slide_number,
       }))
     );

@@ -16,9 +16,11 @@ import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AvatarUploader } from "@/components/AvatarUploader";
 import { ProfileForm } from "@/components/ProfileForm";
+import { ProfileSocialLinks } from "@/components/ProfileSocialLinks";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { levelGuidance, type CefrLevel } from "@/lib/levelTestBank";
 import { signOut } from "@/app/auth/actions";
+import { isStaff } from "@/lib/auth";
 
 export default async function ProfilePage() {
   const { user, profile } = await requireUser();
@@ -99,6 +101,7 @@ export default async function ProfilePage() {
               <p className="mt-1 break-words text-sm font-semibold text-[var(--br-text-muted)]">
                 {user.email}
               </p>
+              <ProfileSocialLinks initialLinks={profile?.social_links} />
               <form
                 action={signOut}
                 className="mt-5 border-t border-[var(--br-surface-strong)] pt-4"
@@ -168,6 +171,8 @@ export default async function ProfilePage() {
                 email={user.email ?? ""}
                 firstName={profile?.first_name ?? ""}
                 lastName={profile?.last_name ?? ""}
+                label={profile?.label ?? ""}
+                allowLabel={isStaff(profile?.role)}
                 bio={profile?.bio ?? ""}
               />
             </section>

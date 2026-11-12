@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { updateProfile } from "@/app/profile/actions";
 
@@ -19,14 +20,19 @@ export function ProfileForm({
   email,
   firstName,
   lastName,
+  label = "",
+  allowLabel = false,
   bio = "",
 }: {
   email: string;
   firstName: string;
   lastName: string;
+  label?: string;
+  allowLabel?: boolean;
   bio?: string;
 }) {
   const [state, formAction, isPending] = useActionState(action, null);
+  const [labelValue, setLabelValue] = useState(label);
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -48,6 +54,24 @@ export function ProfileForm({
           />
         </label>
       </div>
+
+      {allowLabel ? (
+        <label className="text-sm font-extrabold text-[var(--br-text)]">
+          Label <span className="font-semibold text-[var(--br-text-muted)]">(optional)</span>
+          <input
+            name="label"
+            value={labelValue}
+            maxLength={60}
+            onChange={(event) => setLabelValue(event.target.value)}
+            placeholder="e.g. 10+ years of teaching experience"
+            aria-describedby="profile-label-hint"
+            className="mt-2 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-surface"
+          />
+          <span id="profile-label-hint" className={`mt-1 block text-xs font-semibold ${labelValue.trim().length > 40 ? "text-[var(--br-danger)]" : "text-[var(--br-text-muted)]"}`}>
+            Keep it concise so it fits on one line on mobile. {labelValue.trim().length}/40 characters
+          </span>
+        </label>
+      ) : null}
 
       <label className="text-sm font-extrabold text-[var(--br-text)]">
         Short bio{" "}

@@ -1,9 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseProfileSocialLinks, type ProfileSocialLinks } from "@/lib/profileSocialLinks";
 
 export type CourseInstructor = {
   id: string;
   name: string;
   avatarUrl: string | null;
+  label: string | null;
+  bio: string | null;
+  socialLinks: ProfileSocialLinks;
   role: "COURSE_ADMIN" | "INSTRUCTOR" | "ASSISTANT";
   isPrimary: boolean;
 };
@@ -22,9 +26,29 @@ export async function getCourseInstructorMap(courseIds: string[]) {
     .order("display_order", { ascending: true });
 
   const userIds = Array.from(new Set((rows ?? []).map((row) => row.user_id)));
-  const { data: profiles } = userIds.length
-    ? await admin.from("profiles").select("id,full_name,first_name,last_name,avatar_url").in("id", userIds)
-    : { data: [] };
+  let profiles: Array<{ id: string; full_name: string | null; first_name: string | null; last_name: string | null; avatar_url: string | null; label?: string | null; bio?: string | null; social_links?: unknown }> = [];
+  if (userIds.length) {
+    const withInstructorDetails = await admin.from("profiles")
+      .select("id,full_name,first_name,last_name,avatar_url,label,bio,social_links")
+      .in("id", userIds);
+    if (withInstructorDetails.error) {
+      const withoutSocialLinks = await admin.from("profiles")
+        .select("id,full_name,first_name,last_name,avatar_url,label,bio")
+        .in("id", userIds);
+      if (withoutSocialLinks.error) {
+        // Keep names and photos available until the additive label migration
+        // has been applied in this environment.
+        const withoutLabel = await admin.from("profiles")
+          .select("id,full_name,first_name,last_name,avatar_url")
+          .in("id", userIds);
+        profiles = withoutLabel.data ?? [];
+      } else {
+        profiles = withoutSocialLinks.data ?? [];
+      }
+    } else {
+      profiles = withInstructorDetails.data ?? [];
+    }
+  }
   const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
 
   for (const row of rows ?? []) {
@@ -37,6 +61,9 @@ export async function getCourseInstructorMap(courseIds: string[]) {
       id: row.user_id,
       name,
       avatarUrl: profile.avatar_url ?? null,
+      label: profile.label?.trim() || null,
+      bio: profile.bio?.trim() || null,
+      socialLinks: parseProfileSocialLinks(profile.social_links),
       role: row.staff_role as CourseInstructor["role"],
       isPrimary: Boolean(row.is_primary),
     };

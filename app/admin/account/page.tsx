@@ -3,6 +3,7 @@ import { requireStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AvatarUploader } from "@/components/AvatarUploader";
 import { ProfileForm } from "@/components/ProfileForm";
+import { ProfileSocialLinks } from "@/components/ProfileSocialLinks";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 
 // This is the ADMIN/TEACHER equivalent of /profile. It reuses the exact same
@@ -35,6 +36,7 @@ export default async function StaffAccountPage() {
             <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
             <h2 className="mt-5 text-lg font-extrabold text-ink">{displayName}</h2>
             <p className="mt-1 break-words text-sm font-semibold text-slate-500">{user.email}</p>
+            <ProfileSocialLinks initialLinks={profile?.social_links} />
             <span className="mt-3 inline-flex items-center rounded-full bg-violetglow/10 px-3 py-1 text-xs font-bold text-violetglow">{roleLabel}</span>
           </div>
         </aside>
@@ -50,7 +52,7 @@ export default async function StaffAccountPage() {
                 <p className="text-xs font-semibold text-slate-500">Update the name shown across the admin area.</p>
               </div>
             </div>
-            <ProfileForm email={user.email ?? ""} firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
+            <ProfileForm email={user.email ?? ""} firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} label={profile?.label ?? ""} allowLabel bio={profile?.bio ?? ""} />
           </section>
 
           <section className="br-card rounded-20 p-5 sm:p-6">

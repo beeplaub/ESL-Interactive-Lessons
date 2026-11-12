@@ -25,6 +25,7 @@ import { LevelTestScoreCard } from "@/components/LevelTestScoreCard";
 import { PendingAttemptSaver } from "@/components/PendingAttemptSaver";
 import { MarketingCourseCard } from "@/components/MarketingCourseCard";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
+import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
 
 const levelNames: Record<string, string> = {
   A1: "Beginner",
@@ -62,12 +63,9 @@ export default async function AccountPage() {
   const enrolledCourseIds = activeCourseEnrollments.map((item) => item.course_id);
   const instructorMap = await getCourseInstructorMap(enrolledCourseIds);
   const { data: enrolledCourseItems } = enrolledCourseIds.length
-    ? await adminSupabase.from("course_items").select("course_id").in("course_id", enrolledCourseIds)
-    : { data: [] as { course_id: string }[] };
-  const enrolledLessonCountByCourse = new Map<string, number>();
-  for (const item of enrolledCourseItems ?? []) {
-    enrolledLessonCountByCourse.set(item.course_id, (enrolledLessonCountByCourse.get(item.course_id) ?? 0) + 1);
-  }
+    ? await adminSupabase.from("course_items").select("course_id,item_type,lesson_id").in("course_id", enrolledCourseIds)
+    : { data: [] as Array<{ course_id: string; item_type: string; lesson_id: string | null }> };
+  const enrolledCourseStats = await getCourseDisplayStats(adminSupabase, enrolledCourseIds, enrolledCourseItems ?? []);
   const trackedLessonIds = (lessonProgress ?? []).map((item) => item.lesson_id).filter(Boolean);
   const { data: matchingCourseItems } = trackedLessonIds.length && enrolledCourseIds.length
     ? await adminSupabase
@@ -167,7 +165,7 @@ export default async function AccountPage() {
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {activeCourseEnrollments.map((enrollment, index) => {
                 const course = Array.isArray(enrollment.courses) ? enrollment.courses[0] : enrollment.courses;
-                return course ? <MarketingCourseCard key={enrollment.id} course={course} lessonCount={enrolledLessonCountByCourse.get(enrollment.course_id) ?? 0} tone={index} instructors={instructorMap.get(enrollment.course_id)} /> : null;
+                return course ? <MarketingCourseCard key={enrollment.id} course={course} stats={enrolledCourseStats.get(enrollment.course_id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }} tone={index} instructors={instructorMap.get(enrollment.course_id)} /> : null;
               })}
               {!activeCourseEnrollments.length ? <EmptyMini text="Your enrolled courses will appear here." href="/courses" label="Browse courses" /> : null}
             </div>

@@ -1,18 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  BookOpen,
   CheckCircle2,
   ChevronDown,
   Clock3,
   Eye,
-  GraduationCap,
-  Layers,
   LockKeyhole,
   Play,
   PlayCircle,
-  ShieldCheck,
-  Star
 } from "lucide-react";
 import { BuyCourseButton, GuestBuyCourseButton, SignInToEnrollButton } from "@/components/BuyCourseButton";
 import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
@@ -23,6 +18,9 @@ import { enrollInCourse, markCourseItemComplete } from "@/app/courses/actions";
 import { getFreshProfile, isStaff } from "@/lib/auth";
 import { CourseInstructorByline } from "@/components/CourseInstructorByline";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
+import { CourseDisplayStats } from "@/components/CourseDisplayStats";
+import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
+import { ProfileSocialIconLinks } from "@/components/ProfileSocialLinks";
 
 // Keep the assessment card implementation available for a later relaunch.
 const ENABLE_COURSE_ASSESSMENT_CARD = false;
@@ -137,6 +135,7 @@ export default async function CourseLandingPage({
     : null;
   const courseInstructorMap = await getCourseInstructorMap([course.id]);
   const courseInstructors = courseInstructorMap.get(course.id);
+  const primaryInstructor = courseInstructors?.find((item) => item.isPrimary) ?? courseInstructors?.[0] ?? null;
 
   const rawItems = (items ?? []) as CourseItemView[];
   const sectionsList = sections ?? [];
@@ -153,6 +152,8 @@ export default async function CourseLandingPage({
   orderedCourseItems.push(...unsectionedItems);
 
   const courseItems = orderedCourseItems;
+  const courseStatsById = await getCourseDisplayStats(admin, [course.id], courseItems as never[]);
+  const courseStats = courseStatsById.get(course.id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 };
   const isEnrolled = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
   const isCourseManager = Boolean(user && isStaff(profile?.role) && (
     course.owner_id === user.id || course.created_by === user.id || profile?.role === "ADMIN"
@@ -170,8 +171,6 @@ export default async function CourseLandingPage({
   const completedItems = progress?.completed_items ?? completedIds.size;
   const progressPercent = Math.max(0, Math.min(100, progress?.progress_percent ?? (totalItems ? Math.round((completedItems / totalItems) * 100) : 0)));
   const imageUrl = resolveImage(course.cover_image_path || course.thumbnail_path) || demoImage;
-  const sectionCount = sections?.length ?? 0;
-  const totalMinutes = course.estimated_completion_minutes || course.duration_minutes || courseItems.length * 12;
   const circumference = 2 * Math.PI * 42;
   const dashOffset = circumference - (progressPercent / 100) * circumference;
   const isPaidCourse = course.price_bdt !== null && course.price_bdt > 0;
@@ -206,13 +205,7 @@ export default async function CourseLandingPage({
           <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--br-dark-card)] sm:text-[30px] md:text-[38px]">{course.title}</h1>
           {course.subtitle ? <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[var(--br-text-muted)] md:text-base">{course.subtitle}</p> : null}
           <div className="mt-4"><CourseInstructorByline instructors={courseInstructors} /></div>
-          <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[var(--br-text-muted)]">
-            <Meta icon={BookOpen} label={`${totalItems} items`} />
-            <Meta icon={Layers} label={`${sectionCount} modules`} />
-            <Meta icon={Clock3} label={`${Math.max(1, Math.round(totalMinutes / 60))}h total`} />
-            <Meta icon={ShieldCheck} label="Certificate path" />
-            <Meta icon={Star} label="4.8 rating" star />
-          </div>
+          <div className="mt-5"><CourseDisplayStats stats={courseStats} /></div>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             {user ? (
               isEnrolled ? (
@@ -444,18 +437,28 @@ export default async function CourseLandingPage({
   );
 
   const supportPanel = (
-    <Panel title="Course Support">
-      <div className="flex items-center gap-4">
-        <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark">
-          <GraduationCap className="size-8" />
+    <section className="br-learner-card overflow-hidden border-[color-mix(in_srgb,var(--br-chart-primary)_18%,var(--br-border))] bg-surface p-5 shadow-[var(--br-shadow)]">
+      <div className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3">
+        {primaryInstructor?.avatarUrl ? (
+          <span className="grid size-24 shrink-0 place-items-center rounded-full bg-[var(--br-chart-primary)] p-1 shadow-md">
+            {/* eslint-disable-next-line @next/next/no-img-element -- Instructor avatars can be public R2 or Supabase URLs. */}
+            <img src={primaryInstructor.avatarUrl} alt="" className="size-full rounded-full object-cover ring-2 ring-[var(--br-surface)]" />
+          </span>
+        ) : (
+          <span className="grid size-24 shrink-0 place-items-center rounded-full bg-[var(--br-brand-soft)] text-xl font-extrabold text-[var(--br-brand)] ring-2 ring-[var(--br-chart-primary)] shadow-md">
+            {primaryInstructor ? getInitials(primaryInstructor.name) : "BU"}
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="break-words text-lg font-extrabold text-[var(--br-text)]">{primaryInstructor?.name ?? "Instructor details coming soon"}</p>
+          {primaryInstructor ? <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[var(--br-brand-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--br-brand)]"><span className="size-1.5 rounded-full bg-[var(--br-chart-primary)]" />Instructor</p> : null}
         </div>
-        <div>
-          <p className="font-extrabold">BrenUp Learning Team</p>
-          <p className="mt-1 text-sm leading-5 text-[var(--br-text-muted)]">Interactive English practice, progress tracking, and guided study paths.</p>
-          <p className="mt-2 text-sm font-bold text-[var(--br-achievement)]">★ 4.9 learner rating</p>
+        <div className="col-span-2 min-w-0 border-t border-[var(--br-border)]/70 pt-3">
+          {primaryInstructor?.bio ? <p className="text-sm leading-6 text-[var(--br-text-muted)]">{primaryInstructor.bio}</p> : null}
+          {primaryInstructor ? <ProfileSocialIconLinks initialLinks={primaryInstructor.socialLinks} className={primaryInstructor.bio ? "mt-3" : ""} /> : null}
         </div>
       </div>
-    </Panel>
+    </section>
   );
 
 
@@ -472,7 +475,7 @@ export default async function CourseLandingPage({
     </div>
   ) : null;
 
-  const curriculumSubtitle = `${sectionCount} modules · ${totalItems} items · ${Math.max(1, Math.round(totalMinutes / 60))}h total`;
+  const curriculumSubtitle = `${courseStats.moduleCount} modules · ${courseStats.lessonCount} lessons`;
 
   const curriculumCard = (
     <CourseCurriculumTabs
@@ -600,6 +603,10 @@ function resolveImage(value?: string | null) {
   return value.startsWith("/") ? value : `/${value}`;
 }
 
+function getInitials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "BU";
+}
+
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="br-learner-card p-5">
@@ -619,10 +626,6 @@ function AssessmentMetric({ label, value }: { label: string; value: number }) {
       <div className="h-1.5 overflow-hidden rounded-full bg-[var(--br-surface-strong)]"><span className="block h-full rounded-full bg-[var(--br-chart-primary)]" style={{ width: `${safeValue}%` }} /></div>
     </div>
   );
-}
-
-function Meta({ icon: Icon, label, star }: { icon: import("lucide-react").LucideIcon; label: string; star?: boolean }) {
-  return <span className="inline-flex items-center gap-1.5"><Icon className={`size-4 ${star ? "fill-[var(--br-achievement)] text-[var(--br-achievement)]" : "text-[var(--br-text-muted)]"}`} /> {label}</span>;
 }
 
 function Legend({ dot, label, value }: { dot: string; label: string; value: React.ReactNode }) {

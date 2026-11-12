@@ -3,7 +3,6 @@ import {
   ArrowRight,
   BookOpen,
   ChevronRight,
-  Clock3,
   Sparkles,
 } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
@@ -14,6 +13,8 @@ import { createClient } from "@/lib/supabase/server";
 import { CEFR_LEVELS, expandLevelToBands, type CefrLevel } from "@/lib/levels";
 import { CourseInstructorByline } from "@/components/CourseInstructorByline";
 import { getCourseInstructorMap, type CourseInstructor } from "@/lib/courseInstructors";
+import { CourseDisplayStats } from "@/components/CourseDisplayStats";
+import { getCourseDisplayStats, type CourseDisplayStats as CourseDisplayStatsData } from "@/lib/courseDisplayStats";
 
 /** Accessible tooltip text for each CEFR band pill (not shown in the pill label itself). */
 const LEVEL_DESCRIPTORS: Record<CefrLevel, string> = {
@@ -57,6 +58,7 @@ export default async function CoursesPage({
   // learners who already have an active/completed enrollment.
   const allCourses = (courses ?? []).filter((course) => course.visibility !== "PRIVATE" || ["ACTIVE", "COMPLETED"].includes(enrolled.get(course.id) ?? ""));
   const instructorMap = await getCourseInstructorMap(allCourses.map((course) => course.id));
+  const courseStatsById = await getCourseDisplayStats(admin, allCourses.map((course) => course.id));
   const progressByCourse = new Map((progressRows ?? []).map((item) => [item.course_id, item]));
   const popularityByCourse = new Map<string, number>();
   for (const row of popularityRows ?? []) {
@@ -198,6 +200,7 @@ export default async function CoursesPage({
                     progress={progress?.progress_percent ?? 0}
                     completedItems={progress?.completed_items ?? 0}
                     totalItems={progress?.total_items ?? 0}
+                    stats={courseStatsById.get(course.id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }}
                     tone={index}
                     instructors={instructorMap.get(course.id)}
                   />
@@ -216,6 +219,7 @@ function CourseCard({
   progress,
   completedItems,
   totalItems,
+  stats,
   tone,
   instructors
 }: {
@@ -224,6 +228,7 @@ function CourseCard({
   progress: number;
   completedItems: number;
   totalItems: number;
+  stats: CourseDisplayStatsData;
   tone: number;
   instructors?: CourseInstructor[];
 }) {
@@ -253,11 +258,11 @@ function CourseCard({
         <p className="line-clamp-2 min-h-[40px] text-[13px] leading-5 text-[var(--br-text-muted)]">{course.subtitle || "A guided BrenUp course with lessons, practice, and progress tracking."}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {course.topic ? <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)]">{course.topic}</span> : null}
-          {course.estimated_completion_minutes ? <span className="inline-flex items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)]"><Clock3 className="size-3" /> {course.estimated_completion_minutes} min</span> : null}
         </div>
+        <div className="mt-3"><CourseDisplayStats stats={stats} compact /></div>
         <div className="mt-4">
           <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--br-text-muted)]">
-            <span>{totalItems ? `${completedItems}/${totalItems} items` : status ? "Started" : "Preview path"}</span>
+            <span>{totalItems ? `${completedItems}/${totalItems} completed` : status ? "Started" : "Preview path"}</span>
             <span>{progress}%</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-[var(--br-canvas-elevated)]">
