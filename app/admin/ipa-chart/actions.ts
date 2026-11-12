@@ -8,6 +8,7 @@ import { IPA_CHARTS } from "@/lib/ipa/chart";
 import { VOICEOVER_PACES, VOICEOVER_STYLES } from "@/lib/ai/voiceoverCatalog";
 import { IPA_WORD_EXPANSION_BATCH } from "@/lib/ipa/word-expansion";
 import { parseIpaSyllableAnalysis } from "@/lib/ipa/syllable-analysis";
+import { IPA_VOWEL_CONTRAST_PAIRS, IPA_VOWEL_CONTRAST_WORDS } from "@/lib/ipa/vowel-contrast-expansion";
 import type { IpaAccent } from "@/lib/ipa/chart";
 
 function requireParseableIpa(ipa: string, spelling: string) {
@@ -140,6 +141,157 @@ export async function importIpaChartExpansionSection(batchIndex: number) {
   revalidatePath("/ipa-chart");
   revalidatePath("/admin/ipa-chart");
   return { section: batch[0].section, added, alreadyActive, archived, failed };
+}
+
+export async function importIpaVowelContrastExpansion() {
+  const { user } = await requireAdmin();
+  const words = IPA_VOWEL_CONTRAST_WORDS;
+  const pairs = IPA_VOWEL_CONTRAST_PAIRS;
+  if (words.length !== 185 || pairs.length !== 99 || pairs.some(pair => pair.sourcePairNumber === 25)) {
+    throw new Error("The reviewed vowel-contrast inventory is incomplete or contains the removed pair.");
+  }
+
+  const bySpelling = new Map(words.map(word => [word.spelling.toLocaleLowerCase("en-US"), word]));
+  if (bySpelling.size !== words.length) throw new Error("The vowel-contrast inventory contains duplicate spellings.");
+  for (const word of words) {
+    const plainMarkup = word.spellingMarkup.replace(/[\[\]]/g, "");
+    if (plainMarkup.toLocaleLowerCase("en-US") !== word.spelling.toLocaleLowerCase("en-US")) throw new Error(`The highlighted spelling for ${word.spelling} is invalid.`);
+    if (!word.sourceUrl.startsWith("https://dictionary.cambridge.org/")) throw new Error(`The Cambridge source link for ${word.spelling} is missing.`);
+    if (!IPA_CHARTS.uk.some(sound => sound.id === word.ukSoundId) || !IPA_CHARTS.us.some(sound => sound.id === word.usSoundId)) throw new Error(`The target vowel for ${word.spelling} is not in both accent charts.`);
+    requireParseableIpa(word.ukIpa, word.spelling);
+    requireParseableIpa(word.usIpa, word.spelling);
+    const ukAnalysis = parseIpaSyllableAnalysis(word.ukIpa);
+    const usAnalysis = parseIpaSyllableAnalysis(word.usIpa);
+    if (ukAnalysis.variants.some(variant => variant.syllableCount === null || word.targetSyllableIndex >= variant.syllableCount)
+      || usAnalysis.variants.some(variant => variant.syllableCount === null || word.targetSyllableIndex >= variant.syllableCount)) {
+      throw new Error(`The target syllable index for ${word.spelling} does not fit its IPA.`);
+    }
+  }
+  for (const pair of pairs) {
+    if (!bySpelling.has(pair.left.toLocaleLowerCase("en-US")) || !bySpelling.has(pair.right.toLocaleLowerCase("en-US"))) throw new Error(`Pair ${pair.sourcePairNumber} refers to a word outside the reviewed catalog.`);
+  }
+
+  const admin = createAdminClient();
+  const normalizedSpellings = words.map(word => word.spelling.toLocaleLowerCase("en-US"));
+  const { data: existingWords, error: wordsReadError } = await admin.from("ipa_chart_words")
+    .select("id,spelling,normalized_spelling,is_active")
+    .in("normalized_spelling", normalizedSpellings);
+  if (wordsReadError) throw new Error("The live word catalog could not be checked for duplicates.");
+
+  const existingBySpelling = new Map((existingWords ?? []).map(row => [row.normalized_spelling, row]));
+  const missing = words.filter(word => !existingBySpelling.has(word.spelling.toLocaleLowerCase("en-US")));
+  const newRows = new Map<string, string>();
+  for (let start = 0; start < missing.length; start += 50) {
+    const batch = missing.slice(start, start + 50);
+    const { data, error } = await admin.from("ipa_chart_words").insert(batch.map(word => ({
+      spelling: word.spelling,
+      normalized_spelling: word.spelling.toLocaleLowerCase("en-US"),
+      is_active: false,
+      created_by: user.id,
+    }))).select("id,normalized_spelling");
+    if (error || !data) throw new Error("New word rows could not be staged safely. Any rows already staged remain hidden and the import can be retried.");
+    for (const row of data) newRows.set(row.normalized_spelling, row.id);
+  }
+
+  const wordIds = new Map<string, string>();
+  for (const row of existingWords ?? []) wordIds.set(row.normalized_spelling, row.id);
+  for (const [spelling, id] of newRows) wordIds.set(spelling, id);
+  const wordIdList = [...wordIds.values()];
+
+  const { data: existingPronunciations, error: pronunciationsReadError } = await admin.from("ipa_chart_word_pronunciations")
+    .select("id,word_id,accent,sound_id,ipa,is_default")
+    .in("word_id", wordIdList);
+  if (pronunciationsReadError) throw new Error("Existing accent pronunciations could not be checked before import.");
+
+  const pronunciationByKey = new Map((existingPronunciations ?? []).map(row => [`${row.word_id}:${row.accent}:${row.sound_id}`, row]));
+  const hasDefaultByAccent = new Set((existingPronunciations ?? []).filter(row => row.is_default).map(row => `${row.word_id}:${row.accent}`));
+  const pronunciationRows: Array<Record<string, string | number | boolean | null>> = [];
+  for (const word of words) {
+    const wordId = wordIds.get(word.spelling.toLocaleLowerCase("en-US"));
+    if (!wordId) throw new Error(`The word row for ${word.spelling} was not found after staging.`);
+    for (const accent of ["uk", "us"] as const) {
+      const soundId = accent === "uk" ? word.ukSoundId : word.usSoundId;
+      const ipa = accent === "uk" ? word.ukIpa : word.usIpa;
+      const key = `${wordId}:${accent}:${soundId}`;
+      const existing = pronunciationByKey.get(key);
+      if (existing && existing.ipa !== ipa) throw new Error(`${word.spelling} already has a different ${accent.toUpperCase()} IPA for /${IPA_CHARTS[accent].find(sound => sound.id === soundId)?.symbol}/. The import stopped before pair links were changed.`);
+      const existingDefault = existing?.is_default ?? hasDefaultByAccent.has(`${wordId}:${accent}`);
+      pronunciationRows.push({
+        word_id: wordId,
+        accent,
+        sound_id: soundId,
+        ipa,
+        spelling_markup: word.spellingMarkup,
+        source_url: word.sourceUrl,
+        part_of_speech: word.partOfSpeech ?? null,
+        target_syllable_index: word.targetSyllableIndex,
+        sort_order: 5000 + (pairs.find(pair => pair.left.toLocaleLowerCase("en-US") === word.spelling.toLocaleLowerCase("en-US") || pair.right.toLocaleLowerCase("en-US") === word.spelling.toLocaleLowerCase("en-US"))?.sourcePairNumber ?? 0),
+        is_default: existingDefault || !hasDefaultByAccent.has(`${wordId}:${accent}`),
+      });
+      if (existing?.is_default || !hasDefaultByAccent.has(`${wordId}:${accent}`)) hasDefaultByAccent.add(`${wordId}:${accent}`);
+    }
+  }
+
+  for (let start = 0; start < pronunciationRows.length; start += 100) {
+    const { error } = await admin.from("ipa_chart_word_pronunciations").upsert(pronunciationRows.slice(start, start + 100), { onConflict: "word_id,accent,sound_id" });
+    if (error) throw new Error("Accent pronunciations could not be saved. Staged new words remain hidden; retrying the import is safe.");
+  }
+
+  const pairRows = pairs.map(pair => ({
+    pair_key: `${pair.left.toLocaleLowerCase("en-US")}|${pair.right.toLocaleLowerCase("en-US")}`,
+    source_pair_number: pair.sourcePairNumber,
+    sort_order: pair.sourcePairNumber,
+    is_active: false,
+  }));
+  for (let start = 0; start < pairRows.length; start += 100) {
+    const { error } = await admin.from("ipa_chart_vowel_contrast_pairs").upsert(pairRows.slice(start, start + 100), { onConflict: "pair_key" });
+    if (error) throw new Error("Curated pair records could not be saved. Staged new words remain hidden; retrying the import is safe.");
+  }
+
+  const pairKeys = pairRows.map(row => row.pair_key);
+  const { data: storedPairs, error: pairsReadError } = await admin.from("ipa_chart_vowel_contrast_pairs")
+    .select("id,pair_key")
+    .in("pair_key", pairKeys);
+  if (pairsReadError || !storedPairs || storedPairs.length !== pairs.length) throw new Error("The saved pair records could not be verified.");
+  const pairIdByKey = new Map(storedPairs.map(row => [row.pair_key, row.id]));
+  const { data: storedPronunciations, error: storedPronunciationsError } = await admin.from("ipa_chart_word_pronunciations")
+    .select("id,word_id,accent,sound_id")
+    .in("word_id", wordIdList);
+  if (storedPronunciationsError || !storedPronunciations) throw new Error("Saved accent pronunciations could not be resolved to pair links.");
+  const pronunciationIdByKey = new Map(storedPronunciations.map(row => [`${row.word_id}:${row.accent}:${row.sound_id}`, row.id]));
+
+  const pairPronunciationRows: Array<{ pair_id: string; accent: "uk" | "us"; left_pronunciation_id: string; right_pronunciation_id: string }> = [];
+  let accentPairsSkipped = 0;
+  for (const pair of pairs) {
+    const pairId = pairIdByKey.get(`${pair.left.toLocaleLowerCase("en-US")}|${pair.right.toLocaleLowerCase("en-US")}`);
+    if (!pairId) throw new Error(`The pair link for source item ${pair.sourcePairNumber} is missing.`);
+    const leftWord = bySpelling.get(pair.left.toLocaleLowerCase("en-US"))!;
+    const rightWord = bySpelling.get(pair.right.toLocaleLowerCase("en-US"))!;
+    for (const accent of ["uk", "us"] as const) {
+      const leftSoundId = accent === "uk" ? leftWord.ukSoundId : leftWord.usSoundId;
+      const rightSoundId = accent === "uk" ? rightWord.ukSoundId : rightWord.usSoundId;
+      if (leftSoundId === rightSoundId) { accentPairsSkipped += 1; continue; }
+      const leftWordId = wordIds.get(pair.left.toLocaleLowerCase("en-US"));
+      const rightWordId = wordIds.get(pair.right.toLocaleLowerCase("en-US"));
+      const leftPronunciationId = leftWordId ? pronunciationIdByKey.get(`${leftWordId}:${accent}:${leftSoundId}`) : undefined;
+      const rightPronunciationId = rightWordId ? pronunciationIdByKey.get(`${rightWordId}:${accent}:${rightSoundId}`) : undefined;
+      if (!leftPronunciationId || !rightPronunciationId) throw new Error(`Accent-specific pronunciation links for pair ${pair.sourcePairNumber} are incomplete.`);
+      pairPronunciationRows.push({ pair_id: pairId, accent, left_pronunciation_id: leftPronunciationId, right_pronunciation_id: rightPronunciationId });
+    }
+  }
+  for (let start = 0; start < pairPronunciationRows.length; start += 100) {
+    const { error } = await admin.from("ipa_chart_vowel_contrast_pair_pronunciations").upsert(pairPronunciationRows.slice(start, start + 100), { onConflict: "pair_id,accent" });
+    if (error) throw new Error("Accent-specific curated pair links could not be saved. Retry the import to finish linking them.");
+  }
+
+  const { error: activatePairsError } = await admin.from("ipa_chart_vowel_contrast_pairs").update({ is_active: true }).in("pair_key", pairKeys);
+  if (activatePairsError) throw new Error("The pair links are saved but could not be activated.");
+  const { error: activateWordsError } = await admin.from("ipa_chart_words").update({ is_active: true }).in("normalized_spelling", normalizedSpellings);
+  if (activateWordsError) throw new Error("The pair links are active but the chart words could not be activated.");
+
+  revalidatePath("/ipa-chart");
+  revalidatePath("/admin/ipa-chart");
+  return { words: words.length, newWords: missing.length, pairs: pairs.length, accentPairLinks: pairPronunciationRows.length, accentPairsSkipped };
 }
 
 export async function archiveIpaChartWord(wordId: string) {
