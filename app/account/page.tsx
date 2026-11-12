@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import {
   Award,
   Book,
@@ -18,7 +17,6 @@ import {
   TrendingUp,
   Type,
 } from "lucide-react";
-import { switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getLatestLevelTestSummary, type LevelTestSummary } from "@/lib/levelTestSummary";
@@ -39,8 +37,6 @@ const levelNames: Record<string, string> = {
 
 export default async function AccountPage() {
   const { user, profile } = await requireUser();
-  const cookieStore = await cookies();
-  const isAdminLearnerView = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
   const adminSupabase = createAdminClient();
 
   const [
@@ -152,15 +148,6 @@ export default async function AccountPage() {
       <PendingAttemptSaver />
       <div className="flex min-w-0 gap-5">
         <section className="flex min-w-0 flex-1 flex-col gap-5">
-          {isAdminLearnerView ? (
-            <form action={switchToAdminView} className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="font-semibold">You are viewing as a Learner</span>
-                <button className="rounded-xl bg-amber-900 px-3 py-2 text-xs font-bold text-on-dark">Switch to Admin</button>
-              </div>
-            </form>
-          ) : null}
-
           <div className="min-[1180px]:hidden">
             <h2 className="text-xl font-bold">Hello, {firstName}! 👋</h2>
             <p className="mt-0.5 text-[13px] text-[var(--br-text-muted)]">Let&apos;s continue your English journey.</p>
