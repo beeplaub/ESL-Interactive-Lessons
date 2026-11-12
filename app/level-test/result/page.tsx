@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Award, BarChart3, BookOpen, CheckCircle2, Clock3, RotateCcw, Sparkles, Target } from "lucide-react";
+import { ArrowRight, Award, BarChart3, BookOpen, CheckCircle2, Clock3, Target } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
-import { LearnerPageHero } from "@/components/LearnerPageHero";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 import { notFound, redirect } from "next/navigation";
 import { levelGuidance, type CefrLevel } from "@/lib/levelTestBank";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -43,13 +43,10 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
       ]}
     >
       <section className="max-w-5xl">
-        <LearnerPageHero
-          eyebrow="Level test complete"
-          eyebrowIcon={Sparkles}
-          title={`${level} · ${resultName}`}
-          description={guidance.summary}
-          aside={<div className="grid size-28 place-items-center rounded-full border-[7px] border-white/10 bg-white/10 text-center shadow-inner"><div><div className="text-2xl font-black">{percentage}%</div><div className="mt-1 text-[10px] font-bold text-white/60">weighted score</div></div></div>}
-        />
+        <LearnerResumeHero eyebrow="LEVEL TEST COMPLETE" headingLevel="h1" title={`${level} · ${resultName}`} description={`${guidance.summary} Your score: ${percentage}%.`}>
+          <Link href="/level-test/test" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">Retake Level Test <ArrowRight className="size-4" /></Link>
+          <Link href="/level-test" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Back to level test <ArrowRight className="size-4" /></Link>
+        </LearnerResumeHero>
 
         <section className="mt-5 grid gap-4 md:grid-cols-3">
           <ResultMetric icon={CheckCircle2} value={`${result.raw_score}/${total}`} label="Correct answers" tone="green" />
@@ -77,7 +74,6 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
           </div>
         </section>
 
-        <div className="mt-5 text-center"><Link href="/level-test/test" className="inline-flex items-center gap-2 rounded-[13px] bg-surface px-5 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-sm"><RotateCcw className="size-4" /> Take a fresh test</Link></div>
       </section>
     </LearnerAppShell>
   );

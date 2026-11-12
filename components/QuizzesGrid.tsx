@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, ClipboardList, Clock3, Filter, Gamepad2, RotateCcw, Search, X, Zap } from "lucide-react";
 import { useState, useMemo } from "react";
 import { WishlistButton } from "@/components/WishlistButton";
+import { GlassDropdown } from "@/components/GlassDropdown";
 
 type Quiz = {
   id: string;
@@ -144,38 +145,42 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           </div>
 
           {topics.length > 0 && (
-            <select
+            <GlassDropdown
               value={selectedTopic}
-              onChange={(e) => setSelectedTopic(e.target.value)}
-              className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
-            >
-              <option value="">All topics</option>
-              {topics.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+              ariaLabel="Filter quizzes by topic"
+              triggerClassName="h-12 w-full rounded-[16px] bg-[var(--br-canvas-elevated)]"
+              options={[
+                { value: "", label: "All topics" },
+                ...topics.map((topic) => ({ value: topic, label: topic })),
+              ]}
+              onChange={setSelectedTopic}
+            />
           )}
 
-          <select
+          <GlassDropdown
             value={timerFilter}
-            onChange={(e) => setTimerFilter(e.target.value as "all" | "timer" | "no-timer")}
-            className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
-          >
-            <option value="all">Timer: all</option>
-            <option value="timer">With timer</option>
-            <option value="no-timer">No timer</option>
-          </select>
+            ariaLabel="Filter quizzes by timer"
+            triggerClassName="h-12 w-full rounded-[16px] bg-[var(--br-canvas-elevated)]"
+            options={[
+              { value: "all", label: "Timer: all" },
+              { value: "timer", label: "With timer" },
+              { value: "no-timer", label: "No timer" },
+            ]}
+            onChange={(value) => setTimerFilter(value as "all" | "timer" | "no-timer")}
+          />
 
-          <select
+          <GlassDropdown
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
-          >
-            <option value="newest">Sort: Newest</option>
-            <option value="az">Sort: A–Z</option>
-            <option value="level-asc">Sort: Level ↑</option>
-            <option value="level-desc">Sort: Level ↓</option>
-          </select>
+            ariaLabel="Sort quizzes"
+            triggerClassName="h-12 w-full rounded-[16px] bg-[var(--br-canvas-elevated)]"
+            options={[
+              { value: "newest", label: "Sort: Newest" },
+              { value: "az", label: "Sort: A–Z" },
+              { value: "level-asc", label: "Sort: Level ↑" },
+              { value: "level-desc", label: "Sort: Level ↓" },
+            ]}
+            onChange={(value) => setSortBy(value as SortOption)}
+          />
 
         </div>
 

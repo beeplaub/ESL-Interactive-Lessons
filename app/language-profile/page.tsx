@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ArrowRight, CheckCircle2, Sparkles, Target, TrendingUp } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
-import { LearnerPageHero } from "@/components/LearnerPageHero";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizeSkillEvidence, summarizeTargetEvidence } from "@/lib/obeReports";
@@ -111,7 +111,11 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
 
   return (
     <LearnerAppShell active="language-profile" showRightSidebar>
-      <LearnerPageHero eyebrow="Language profile" eyebrowIcon={Sparkles} title="Your English evidence map" description="See your overall Can-Do growth, then open a course to explore the evidence behind it." aside={<div className="grid w-full min-w-0 grid-cols-3 gap-2 text-center sm:min-w-[340px]"><Stat label="Evidence" value={String(responses?.length ?? 0)} /><Stat label="Can-Dos" value={`${achievedCount}/${allCanDos.length}`} /><Stat label="Current" value={totalPossible ? pct(overall) : "—"} /></div>} />
+      <LearnerResumeHero eyebrow="YOUR LANGUAGE PROFILE" headingLevel="h1" title="See how your English is growing." description="Explore your Can-Do progress and the quiz and course evidence behind it.">
+        <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">Take a quiz <ArrowRight className="size-4" /></Link>
+        <Link href="/courses" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Browse courses <ArrowRight className="size-4" /></Link>
+      </LearnerResumeHero>
+      <div className="grid min-w-0 grid-cols-3 gap-2 text-center sm:gap-3"><Stat label="Evidence" value={String(responses?.length ?? 0)} /><Stat label="Can-Dos" value={`${achievedCount}/${allCanDos.length}`} /><Stat label="Current" value={totalPossible ? pct(overall) : "—"} /></div>
 
       <section className="br-learner-card min-w-0 overflow-hidden p-4 sm:p-5">
         <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -169,6 +173,6 @@ function ProfileBar({ label, value }: { label: string; value: number }) {
   return <div><div className="mb-1 flex justify-between text-xs font-semibold text-[var(--br-text-muted)]"><span>{label}</span><span>{Math.round(safe)}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-[var(--br-surface-strong)]"><span className="block h-full rounded-full bg-[var(--br-chart-primary)]" style={{ width: `${safe}%` }} /></div></div>;
 }
 
-function Stat({ label, value }: { label: string; value: string }) { return <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2 py-3 backdrop-blur sm:px-3"><div className="truncate text-xl font-black sm:text-2xl">{value}</div><div className="text-[10px] font-bold uppercase tracking-wide text-white/60">{label}</div></div>; }
+function Stat({ label, value }: { label: string; value: string }) { return <div className="br-learner-card min-w-0 p-3 text-left sm:p-4"><div className="truncate text-xl font-black text-[var(--br-dark-card)] sm:text-2xl">{value}</div><div className="text-[10px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]">{label}</div></div>; }
 function StatDark({ label, value }: { label: string; value: string }) { return <div><p className="text-[10px] font-black uppercase tracking-wide text-[var(--br-text-muted)]">{label}</p><p className="mt-1 break-words text-lg font-black text-[var(--br-dark-card)]">{value}</p></div>; }
 function EmptyLine({ text }: { text: string }) { return <p className="rounded-2xl bg-[var(--br-canvas-elevated)] px-4 py-5 text-sm font-medium text-[var(--br-text-muted)]">{text}</p>; }

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Award, Crown, Gamepad2, Medal, Sparkles, Trophy, Users, Zap, Flame, Star, Crown as CrownIcon, Diamond, ShieldAlert, Award as AwardIcon } from "lucide-react";
+import { ArrowRight, Award, Crown, Gamepad2, Medal, Sparkles, Trophy, Users, Zap, Flame, Star, Crown as CrownIcon, Diamond, ShieldAlert, Award as AwardIcon } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
-import { LearnerPageHero } from "@/components/LearnerPageHero";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getQuizBadge, getNextQuizBadge, quizBadges } from "@/lib/quizBadges";
@@ -127,25 +127,13 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
     notStartedCourses = Math.max(0, enrolledCourseIds.size - completedCourses - inProgressCourses);
   }
 
-  const toLegendPercent = Math.min(100, Math.round((currentUserPoints / 6000) * 100));
-
   return (
     <LearnerAppShell active="leaderboard" showRightSidebar>
       <div className="max-w-[1440px] mx-auto space-y-6">
-        <LearnerPageHero
-          eyebrow="Quiz points arena"
-          eyebrowIcon={Sparkles}
-          title="Leaderboard"
-          description="Complete quizzes, earn points, and climb from Bronze to Legend. Accuracy and consistency both matter in the arena of mastery."
-          aside={<div className="relative z-10 flex items-center justify-center shrink-0"><div className="relative w-28 h-28"><svg className="w-full h-full transform -rotate-90"><circle className="text-white/10" cx="56" cy="56" fill="transparent" r="48" stroke="currentColor" strokeWidth="7" /><circle className="text-[var(--br-achievement)] drop-shadow-[var(--br-shadow)] transition-all duration-1000" cx="56" cy="56" fill="transparent" r="48" stroke="currentColor" strokeDasharray="302" strokeDashoffset={302 - (302 * toLegendPercent) / 100} strokeLinecap="round" strokeWidth="7" /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-2xl font-extrabold text-on-dark">{toLegendPercent}%</span><span className="text-[9px] uppercase font-bold text-white/60 tracking-widest mt-0.5">To Legend</span></div></div></div>}
-        >
-              <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl bg-surface px-4 py-2.5 text-sm font-bold text-[var(--br-brand)] shadow-md hover:bg-white/90">
-                <Gamepad2 className="size-5" /> Play a quiz
-              </Link>
-              <Link href="/account" className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-on-dark hover:bg-white/20">
-                My progress
-              </Link>
-        </LearnerPageHero>
+        <LearnerResumeHero eyebrow="QUIZ LEADERBOARD" headingLevel="h1" title="Play quizzes. Climb the leaderboard." description="Earn points with every quiz and see how you rank.">
+          <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">Play a quiz <ArrowRight className="size-4" /></Link>
+          <Link href="/account" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">My progress <ArrowRight className="size-4" /></Link>
+        </LearnerResumeHero>
 
         {/* STATS QUICK VIEW */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -3,18 +3,16 @@ import {
   ArrowRight,
   BookOpen,
   ChevronRight,
-  Sparkles,
 } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
-import { LearnerPageHero } from "@/components/LearnerPageHero";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
+import { MarketingCourseCard } from "@/components/MarketingCourseCard";
 import { CourseFilterControls } from "@/components/CourseFilterControls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CEFR_LEVELS, expandLevelToBands, type CefrLevel } from "@/lib/levels";
-import { CourseInstructorByline } from "@/components/CourseInstructorByline";
-import { getCourseInstructorMap, type CourseInstructor } from "@/lib/courseInstructors";
-import { CourseDisplayStats } from "@/components/CourseDisplayStats";
-import { getCourseDisplayStats, type CourseDisplayStats as CourseDisplayStatsData } from "@/lib/courseDisplayStats";
+import { getCourseInstructorMap } from "@/lib/courseInstructors";
+import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
 
 /** Accessible tooltip text for each CEFR band pill (not shown in the pill label itself). */
 const LEVEL_DESCRIPTORS: Record<CefrLevel, string> = {
@@ -37,10 +35,9 @@ export default async function CoursesPage({
     data: { user }
   } = await supabase.auth.getUser();
 
-  const [{ data: courses }, { data: enrollments }, { data: progressRows }, { data: popularityRows }] = await Promise.all([
+  const [{ data: courses }, { data: enrollments }, { data: popularityRows }] = await Promise.all([
     admin.from("courses").select("*").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }),
     user ? admin.from("course_enrollments").select("course_id,status").eq("user_id", user.id) : Promise.resolve({ data: [] }),
-    user ? admin.from("course_progress").select("course_id,progress_percent,total_items,completed_items").eq("user_id", user.id) : Promise.resolve({ data: [] }),
     admin.from("course_enrollments").select("course_id")
   ]);
 
@@ -59,7 +56,6 @@ export default async function CoursesPage({
   const allCourses = (courses ?? []).filter((course) => course.visibility !== "PRIVATE" || ["ACTIVE", "COMPLETED"].includes(enrolled.get(course.id) ?? ""));
   const instructorMap = await getCourseInstructorMap(allCourses.map((course) => course.id));
   const courseStatsById = await getCourseDisplayStats(admin, allCourses.map((course) => course.id));
-  const progressByCourse = new Map((progressRows ?? []).map((item) => [item.course_id, item]));
   const popularityByCourse = new Map<string, number>();
   for (const row of popularityRows ?? []) {
     popularityByCourse.set(row.course_id, (popularityByCourse.get(row.course_id) ?? 0) + 1);
@@ -80,17 +76,7 @@ export default async function CoursesPage({
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  const featured = allCourses[0] ?? null;
   const levelPills = CEFR_LEVELS;
-  const topicMap = new Map<string, number>();
-  for (const course of allCourses) {
-    if (!course.topic) continue;
-    topicMap.set(course.topic, (topicMap.get(course.topic) ?? 0) + 1);
-  }
-  const topicCounts: { topic: string; count: number }[] = [];
-  topicMap.forEach((count, topic) => topicCounts.push({ topic, count }));
-  topicCounts.sort((a, b) => b.count - a.count);
-
   function levelHref(level: string) {
     const sp = new URLSearchParams();
     if (level) sp.set("level", level);
@@ -104,30 +90,27 @@ export default async function CoursesPage({
   return (
     <LearnerAppShell active="courses" showRightSidebar>
         <section className="flex min-w-0 flex-col gap-5">
-          <section>
-            <LearnerPageHero
-              eyebrow="BrenUp guided learning"
-              eyebrowIcon={Sparkles}
-              title="Build fluency through focused course paths."
-              description="Courses combine lessons, quizzes, level practice, and progress tracking into a cleaner learning journey."
-            >
-                  <Link href={featured ? `/courses/${featured.id}` : "/level-test"} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-on-dark shadow-[var(--br-shadow)]">
-                    {featured ? "Explore newest course" : "Take level test"} <ArrowRight className="size-4" />
-                  </Link>
-                  <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-on-dark">
-                    Try a quiz first
-                  </Link>
-            </LearnerPageHero>
+          <LearnerResumeHero
+            eyebrow="INTERACTIVE COURSES"
+            headingLevel="h1"
+            title="Experience the finest English courses."
+            description="The only platform in Bangladesh with outcome-based AI-assisted interactive lessons."
+          >
+            <Link href="#course-library" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">
+              Browse courses <ArrowRight className="size-4" />
+            </Link>
+            <Link href="/level-test" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">
+              Find your level <ArrowRight className="size-4" />
+            </Link>
+          </LearnerResumeHero>
 
-          </section>
-
-          <section className="flex items-center gap-3 overflow-x-auto pb-0.5">
-            <div className="flex shrink-0 items-center gap-1.5">
+          <section id="course-library" className="relative z-30 flex flex-col items-stretch gap-2 pb-0.5 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
               <Link
                 href={levelHref("")}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                   !activeLevel
-                    ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark"
+                    ? "bg-[var(--br-chart-primary)] text-on-dark"
                     : "border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-primary)]/40"
                 }`}
               >
@@ -140,7 +123,7 @@ export default async function CoursesPage({
                   title={LEVEL_DESCRIPTORS[band]}
                   className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                     activeLevel === band
-                      ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark"
+                      ? "bg-[var(--br-chart-primary)] text-on-dark"
                       : "border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-primary)]/40"
                   }`}
                 >
@@ -148,12 +131,11 @@ export default async function CoursesPage({
                 </Link>
               ))}
             </div>
-            <div className="ml-auto shrink-0">
+            <div className="relative z-50 w-full sm:ml-auto sm:w-auto sm:shrink-0">
               <CourseFilterControls
                 level={activeLevel}
                 q={searchQuery}
                 sort={sort}
-                topics={topicCounts}
                 selectedTopics={selectedTopics}
               />
             </div>
@@ -188,113 +170,18 @@ export default async function CoursesPage({
               <Link href="/courses" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[var(--br-chart-primary)] hover:underline">Clear filters <ChevronRight className="size-4" /></Link>
             </section>
           ) : (
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {sortedCourses.map((course, index) => {
-                const status = enrolled.get(course.id);
-                const progress = progressByCourse.get(course.id);
-                return (
-                  <CourseCard
-                    key={course.id}
-                    course={course}
-                    status={status}
-                    progress={progress?.progress_percent ?? 0}
-                    completedItems={progress?.completed_items ?? 0}
-                    totalItems={progress?.total_items ?? 0}
-                    stats={courseStatsById.get(course.id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }}
-                    tone={index}
-                    instructors={instructorMap.get(course.id)}
-                  />
-                );
-              })}
+            <section className="grid gap-4 md:grid-cols-2">
+              {sortedCourses.map((course) => (
+                <MarketingCourseCard
+                  key={course.id}
+                  course={course}
+                  stats={courseStatsById.get(course.id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }}
+                  instructors={instructorMap.get(course.id)}
+                />
+              ))}
             </section>
           )}
         </section>
     </LearnerAppShell>
   );
-}
-
-function CourseCard({
-  course,
-  status,
-  progress,
-  completedItems,
-  totalItems,
-  stats,
-  tone,
-  instructors
-}: {
-  course: { id: string; title: string; subtitle?: string | null; topic?: string | null; level?: string | null; estimated_completion_minutes?: number | null; thumbnail_path?: string | null; cover_image_path?: string | null; price_bdt?: number | null; original_price_bdt?: number | null };
-  status?: string;
-  progress: number;
-  completedItems: number;
-  totalItems: number;
-  stats: CourseDisplayStatsData;
-  tone: number;
-  instructors?: CourseInstructor[];
-}) {
-  const tones = [
-    "from-[var(--br-action)] to-[var(--br-action)]",
-    "from-[var(--br-info)] to-[var(--br-info)]",
-    "from-[var(--br-brand-strong)] to-[var(--br-brand-strong)]",
-    "from-[var(--br-brand-strong)] to-[var(--br-brand-strong)]",
-    "from-[var(--br-success)] to-[var(--br-chart-secondary)]",
-    "from-[var(--br-achievement)] to-[var(--br-action-strong)]"
-  ];
-  const level = course.level ?? "Course";
-  const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);
-  return (
-    <Link href={`/courses/${course.id}`} className="group overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)] transition hover:scale-[1.012] hover:shadow-[var(--br-shadow)]">
-      <div className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${tones[tone % tones.length]}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
-        {imageUrl ? <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
-        {imageUrl ? <div className="absolute inset-0 bg-black/25" /> : null}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.28),transparent_32%),radial-gradient(circle_at_85%_80%,rgba(255,255,255,.16),transparent_28%)]" />
-        <span className="absolute left-3 top-3 rounded-md bg-[var(--br-chart-primary)] px-2 py-1 text-[10px] font-bold text-on-dark">{level}</span>
-        {status ? <span className="absolute right-3 top-3 rounded-md bg-white/90 px-2 py-1 text-[10px] font-bold text-[var(--br-chart-primary)]">{status === "COMPLETED" ? "Completed" : "Enrolled"}</span> : null}
-      </div>
-      <div className="p-4">
-        <div className="mb-1 line-clamp-2 text-base font-bold leading-snug">{course.title}</div>
-        <div className="mt-2"><CourseInstructorByline instructors={instructors} compact /></div>
-        <p className="line-clamp-2 min-h-[40px] text-[13px] leading-5 text-[var(--br-text-muted)]">{course.subtitle || "A guided BrenUp course with lessons, practice, and progress tracking."}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {course.topic ? <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)]">{course.topic}</span> : null}
-        </div>
-        <div className="mt-3"><CourseDisplayStats stats={stats} compact /></div>
-        <div className="mt-4">
-          <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--br-text-muted)]">
-            <span>{totalItems ? `${completedItems}/${totalItems} completed` : status ? "Started" : "Preview path"}</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--br-canvas-elevated)]">
-            <div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)]" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-        <div className="mt-4 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 text-sm font-bold text-[var(--br-chart-primary)]">
-            {status ? "Continue course" : "View course"} <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
-          </span>
-          <div className="text-right">
-            {course.price_bdt != null && course.price_bdt > 0 ? (
-              <div className="flex items-center gap-1.5 justify-end">
-                {course.original_price_bdt ? (
-                  <span className="text-xs text-[var(--br-text-muted)] line-through">৳{course.original_price_bdt}</span>
-                ) : null}
-                <span className="text-sm font-extrabold text-slate-900 bg-surface-strong rounded-lg px-2 py-0.5">৳{course.price_bdt}</span>
-              </div>
-            ) : course.price_bdt === 0 ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 rounded-lg px-2 py-0.5">Free</span>
-            ) : (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--br-text-muted)] bg-[var(--br-surface-muted)] rounded-lg px-2 py-0.5">Price not set</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function resolveCourseImage(value?: string | null) {
-  if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return value;
-  return value.startsWith("/") ? value : `/${value}`;
 }

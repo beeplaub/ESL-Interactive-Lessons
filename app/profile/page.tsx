@@ -1,17 +1,15 @@
 import Link from "next/link";
 import {
+  ArrowRight,
   BadgeCheck,
-  ChevronRight,
   KeyRound,
   Mail,
   ShieldCheck,
-  Sparkles,
-  Trophy,
   UserRound,
   LogOut,
 } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
-import { LearnerPageHero } from "@/components/LearnerPageHero";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AvatarUploader } from "@/components/AvatarUploader";
@@ -43,37 +41,24 @@ export default async function ProfilePage() {
     "U";
   const level = profile?.cefr_level as CefrLevel | null;
   const missingName = !profile?.first_name?.trim();
-  const providerLabel =
-    provider === "google" ? "Google account" : "Email account";
-
   return (
     <LearnerAppShell active="profile" showRightSidebar>
       <section className="grid gap-5">
-        <LearnerPageHero
-          eyebrow="Your BrenUp profile"
-          eyebrowIcon={Sparkles}
+        <LearnerResumeHero
+          eyebrow="YOUR BRENUP PROFILE"
+          headingLevel="h1"
           title={displayName}
-          description="Keep your learning identity, CEFR level, avatar, and account security tidy in one place."
-          aside={
-            <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
-              <ProfileMetric
-                icon={BadgeCheck}
-                value={level ?? "--"}
-                label={level ? levelGuidance[level].name : "Level pending"}
-              />
-              <ProfileMetric
-                icon={ShieldCheck}
-                value={providerLabel}
-                label="Sign-in method"
-              />
-              <ProfileMetric
-                icon={Trophy}
-                value="Active"
-                label="Learning status"
-              />
-            </div>
-          }
-        />
+          description="Manage your profile, English level, and account security in one place."
+        >
+          <Link href="/level-test" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">
+            {level ? "Retake level test" : "Take level test"} <ArrowRight className="size-4" />
+          </Link>
+          <form action={signOut} className="flex min-w-0 flex-1 sm:flex-none">
+            <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">
+              <LogOut className="size-4" /> Sign out
+            </button>
+          </form>
+        </LearnerResumeHero>
 
         {missingName ? (
           <div className="flex items-start gap-3 rounded-[20px] border border-[var(--br-success-soft)] bg-[var(--br-success-soft)] p-4 shadow-[var(--br-shadow)]">
@@ -102,17 +87,6 @@ export default async function ProfilePage() {
                 {user.email}
               </p>
               <ProfileSocialLinks initialLinks={profile?.social_links} />
-              <form
-                action={signOut}
-                className="mt-5 border-t border-[var(--br-surface-strong)] pt-4"
-              >
-                <button
-                  type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-100/70 transition"
-                >
-                  <LogOut size={16} /> Sign out
-                </button>
-              </form>
             </div>
 
             <div className="br-learner-card p-5">
@@ -144,13 +118,6 @@ export default async function ProfilePage() {
                   You have not taken the level test yet.
                 </p>
               )}
-              <Link
-                href="/level-test"
-                className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-bold text-on-dark"
-              >
-                {level ? "Retake level test" : "Take level test"}{" "}
-                <ChevronRight className="size-4" />
-              </Link>
             </div>
           </aside>
 
@@ -229,23 +196,5 @@ export default async function ProfilePage() {
         </section>
       </section>
     </LearnerAppShell>
-  );
-}
-
-function ProfileMetric({
-  icon: Icon,
-  value,
-  label,
-}: {
-  icon: import("lucide-react").LucideIcon;
-  value: string;
-  label: string;
-}) {
-  return (
-    <div className="rounded-[18px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-      <Icon className="size-5 text-[var(--br-info)]" />
-      <div className="mt-3 truncate text-lg font-black">{value}</div>
-      <div className="mt-1 text-[11px] font-bold text-white/55">{label}</div>
-    </div>
   );
 }

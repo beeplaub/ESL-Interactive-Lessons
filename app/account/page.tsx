@@ -24,6 +24,7 @@ import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { LevelTestScoreCard } from "@/components/LevelTestScoreCard";
 import { PendingAttemptSaver } from "@/components/PendingAttemptSaver";
 import { MarketingCourseCard } from "@/components/MarketingCourseCard";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
 import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
 
@@ -47,7 +48,7 @@ export default async function AccountPage() {
     { data: certificates },
   ] = await Promise.all([
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    adminSupabase.from("course_enrollments").select("*, courses(id,title,level,topic,status,deleted_at,thumbnail_path,cover_image_path,duration_minutes,estimated_completion_minutes)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
+    adminSupabase.from("course_enrollments").select("*, courses(id,title,level,topic,status,deleted_at,thumbnail_path,cover_image_path,price_bdt,duration_minutes,estimated_completion_minutes)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
     adminSupabase.from("course_progress").select("*").eq("user_id", user.id),
     adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false }),
   ]);
@@ -163,9 +164,9 @@ export default async function AccountPage() {
           <section>
             <SectionHeader title="Enrolled Courses" href="/courses" />
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {activeCourseEnrollments.map((enrollment, index) => {
+              {activeCourseEnrollments.map((enrollment) => {
                 const course = Array.isArray(enrollment.courses) ? enrollment.courses[0] : enrollment.courses;
-                return course ? <MarketingCourseCard key={enrollment.id} course={course} stats={enrolledCourseStats.get(enrollment.course_id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }} tone={index} instructors={instructorMap.get(enrollment.course_id)} /> : null;
+                return course ? <MarketingCourseCard key={enrollment.id} course={course} stats={enrolledCourseStats.get(enrollment.course_id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }} instructors={instructorMap.get(enrollment.course_id)} /> : null;
               })}
               {!activeCourseEnrollments.length ? <EmptyMini text="Your enrolled courses will appear here." href="/courses" label="Browse courses" /> : null}
             </div>
@@ -224,7 +225,22 @@ function SectionHeader({ title, href, small }: { title: string; href: string; sm
 
 function ResumeLearningCard({ item, currentLevel, reviewHref }: { item?: { href: string; title: string; meta: string; progress: number }; currentLevel: string; reviewHref?: string }) {
   const href = item?.href || "/courses";
-  return <section className="relative overflow-hidden rounded-[20px] bg-[var(--br-dark-card)] p-6 text-on-dark shadow-[var(--br-shadow)] md:p-9"><div className="absolute -right-12 -top-14 size-64 rounded-full border-[28px] border-white/5"/><div className="relative z-10 max-w-2xl"><span className="inline-flex rounded-full bg-[var(--br-action)] px-3 py-1 text-[11px] font-bold tracking-[.12em]">RESUME LEARNING</span><h2 className="mt-4 text-2xl font-bold tracking-tight md:text-[28px]">{item?.title || "Choose your next learning path"}</h2><p className="mt-2 flex items-center gap-2 text-sm text-[var(--br-text-muted)]"><Play className="size-4 text-[var(--br-action-strong)]" /> {item?.meta || `Start a ${currentLevel} course or quiz when you are ready.`}</p><div className="mt-6 flex flex-wrap gap-3"><Link href={href} className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">{item ? "Resume" : "Browse courses"}<ChevronRight className="size-4" /></Link><Link href={reviewHref || "/quizzes"} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">{reviewHref ? "Review previous" : "Quick quiz"}</Link></div></div><div className="absolute bottom-0 left-0 h-1 bg-white/10"><div className="h-full bg-[var(--br-action)]" style={{ width: `${item?.progress ?? 0}%` }} /></div></section>;
+  return (
+    <LearnerResumeHero
+      eyebrow="RESUME LEARNING"
+      title={item?.title || "Choose your next learning path"}
+      description={<><Play className="size-4 text-[var(--br-action-strong)]" /> {item?.meta || `Start a ${currentLevel} course or quiz when you are ready.`}</>}
+      descriptionClassName="mt-2 flex items-center gap-2 text-sm text-[var(--br-text-muted)]"
+      progress={item?.progress ?? 0}
+    >
+      <Link href={href} className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">
+        {item ? "Resume" : "Browse courses"}<ChevronRight className="size-4" />
+      </Link>
+      <Link href={reviewHref || "/quizzes"} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">
+        {reviewHref ? "Review previous" : "Quick quiz"}
+      </Link>
+    </LearnerResumeHero>
+  );
 }
 
 function ScheduleGrid({ assignments, liveClasses, tasks }: { assignments: Array<{ due_at: string | null }>; liveClasses: Array<{ scheduled_at: string | null }>; tasks: Array<{ due_at: string | null }> }) { const marked = new Set([...assignments.map(x=>x.due_at), ...liveClasses.map(x=>x.scheduled_at), ...tasks.map(x=>x.due_at)].filter(Boolean).map(x=>new Date(x!).getDate())); const now=new Date(); return <><div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[var(--br-text-muted)]">{"MTWTFSS".split("").map((d,i)=><span key={i}>{d}</span>)}</div><div className="mt-2 grid grid-cols-7 gap-1">{Array.from({length:35},(_,i)=>{const day=i-2; const active=day===now.getDate(); return <div key={i} className={`relative grid aspect-square place-items-center rounded-lg text-xs ${active?"bg-[var(--br-action)] font-bold text-on-dark":day>0&&day<=31?"text-[var(--br-dark-card)]":"text-[var(--br-text-muted)]"}`}>{day>0&&day<=31?day:""}{marked.has(day)&&!active?<span className="absolute bottom-1 size-1 rounded-full bg-[var(--br-brand)]"/>:null}</div>})}</div></> }

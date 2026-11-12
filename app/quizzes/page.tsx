@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { QuizzesGrid } from "@/components/QuizzesGrid";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
-import { LearnerPageHero } from "@/components/LearnerPageHero";
-import { Gamepad2, Sparkles } from "lucide-react";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
+import { ArrowRight, Gamepad2 } from "lucide-react";
 
 export default async function QuizzesPage() {
   const supabase = await createClient();
@@ -60,14 +61,19 @@ export default async function QuizzesPage() {
 
   return (
     <LearnerAppShell active="quizzes" showRightSidebar>
-      <section>
-        <LearnerPageHero
-          eyebrow="Free quiz arena"
-          eyebrowIcon={Sparkles}
-          title="Choose a quiz, answer one question at a time, and climb."
-          description="Practice grammar, vocabulary, reading, and functional English with instant feedback, optional timers, saved scores, and leaderboard points."
-        />
-      </section>
+      <LearnerResumeHero
+        eyebrow="FREE QUIZZES"
+        headingLevel="h1"
+        title="Play quizzes. Climb the leaderboard."
+        description="Practice English anytime, anywhere."
+      >
+        <Link href="#quiz-library" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">
+          Browse quizzes <ArrowRight className="size-4" />
+        </Link>
+        <Link href="/leaderboard" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">
+          Leaderboard <ArrowRight className="size-4" />
+        </Link>
+      </LearnerResumeHero>
 
       <section id="quiz-library" className="mt-6">
         {(quizzes?.length ?? 0) > 0 ? (

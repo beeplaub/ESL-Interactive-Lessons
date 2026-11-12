@@ -39,7 +39,7 @@ export default async function HomePage() {
 
   const { data: featuredCourses } = await admin
     .from("courses")
-    .select("id,title,level,thumbnail_path,cover_image_path,duration_minutes,estimated_completion_minutes,created_at")
+    .select("id,title,level,thumbnail_path,cover_image_path,price_bdt,duration_minutes,estimated_completion_minutes,created_at")
     .eq("status", "PUBLISHED")
     .eq("visibility", "PUBLIC")
     .is("deleted_at", null)
@@ -127,7 +127,7 @@ export default async function HomePage() {
             <div><h2 className="text-4xl font-bold tracking-tight text-[var(--br-text)]">Featured Courses</h2><p className="mt-2 text-[var(--br-text-muted)]">Curated paths from our top linguistic experts.</p></div>
             <Link href="/courses" className="inline-flex items-center gap-2 font-bold text-[var(--br-brand-strong)] transition hover:gap-3">View all courses <ChevronRight className="size-5" /></Link>
           </div>
-          {featuredCourses?.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{featuredCourses.map((course, index) => <MarketingCourseCard key={course.id} course={course} stats={courseStatsById.get(course.id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }} tone={index} instructors={instructorMap.get(course.id)} />)}</div> : <div className="rounded-[20px] border border-dashed border-[var(--br-border)] bg-surface px-6 py-12 text-center text-[var(--br-text-muted)]"><p className="font-semibold text-[var(--br-text)]">No published courses yet</p><p className="mt-2 max-w-md text-sm leading-6 text-[var(--br-text-muted)]">Courses will appear here as soon as they are published.</p></div>}
+          {featuredCourses?.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{featuredCourses.map((course) => <MarketingCourseCard key={course.id} course={course} stats={courseStatsById.get(course.id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }} instructors={instructorMap.get(course.id)} />)}</div> : <div className="rounded-[20px] border border-dashed border-[var(--br-border)] bg-surface px-6 py-12 text-center text-[var(--br-text-muted)]"><p className="font-semibold text-[var(--br-text)]">No published courses yet</p><p className="mt-2 max-w-md text-sm leading-6 text-[var(--br-text-muted)]">Courses will appear here as soon as they are published.</p></div>}
         </div>
       </section>
 

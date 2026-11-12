@@ -9,9 +9,9 @@ import {
   GraduationCap,
   HelpCircle,
   Home,
-  ClipboardList,
-  Zap,
-  Award, CalendarDays, Newspaper,
+  ClipboardCheck,
+  ListTodo,
+  Trophy, BadgeCheck, ChartNoAxesColumnIncreasing, CalendarDays, Newspaper,
   Radio, Target, Orbit, MessagesSquare, Sparkles, AudioLines, Gamepad2
 } from "lucide-react";
 import type { ActiveItem } from "@/components/LearnerAppShell";
@@ -32,6 +32,7 @@ export function LearnerSidebar({
   active,
   currentLevel,
   showAiTutor,
+  showAdminOnlyLearnerLinks = false,
   initialCollapsed = false,
   levelProgressPercent = null,
   schoolBrand = null,
@@ -39,6 +40,7 @@ export function LearnerSidebar({
   active: ActiveItem;
   currentLevel: string | null;
   showAiTutor: boolean;
+  showAdminOnlyLearnerLinks?: boolean;
   initialCollapsed?: boolean;
   levelProgressPercent?: number | null;
   schoolBrand?: { name: string; logoUrl: string | null; accentColor: string | null } | null;
@@ -64,15 +66,15 @@ export function LearnerSidebar({
       ...(showAiTutor ? [{ href: "/ai-tutor", label: "AI Tutor", icon: Sparkles, key: "ai-tutor" }] : []),
       { href: "/ipa-chart", label: "IPA Chart", icon: AudioLines, key: "ipa-chart" },
       { href: "/games", label: "Games", icon: Gamepad2, key: "games" },
-      { href: "/community", label: "Community", icon: MessagesSquare, key: "community" },
-      { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
-      { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
-      { href: "/calendar", label: "Calendar", icon: CalendarDays, key: "calendar" },
+      ...(showAdminOnlyLearnerLinks ? [{ href: "/community", label: "Community", icon: MessagesSquare, key: "community" }] : []),
+      { href: "/assignments", label: "Assignments", icon: ClipboardCheck, key: "assignments" },
+      { href: "/tasks", label: "Tasks", icon: ListTodo, key: "tasks" },
+      ...(showAdminOnlyLearnerLinks ? [{ href: "/calendar", label: "Calendar", icon: CalendarDays, key: "calendar" }] : []),
     ]},
     { label: "Progress", items: [
-      { href: "/achievements", label: "Achievements", icon: Award, key: "achievements" },
-      { href: "/certificates", label: "Certificates", icon: Award, key: "certificates" },
-      { href: "/leaderboard", label: "Leaderboard", icon: Award, key: "leaderboard" },
+      { href: "/achievements", label: "Achievements", icon: Trophy, key: "achievements" },
+      { href: "/certificates", label: "Certificates", icon: BadgeCheck, key: "certificates" },
+      { href: "/leaderboard", label: "Leaderboard", icon: ChartNoAxesColumnIncreasing, key: "leaderboard" },
       { href: "/level-test", label: "Level Test", icon: Target, key: "level-test" },
       { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
     ]},

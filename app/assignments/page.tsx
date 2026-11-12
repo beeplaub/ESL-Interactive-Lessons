@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Clock3, GraduationCap, LockKeyhole, Target } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Clock3, GraduationCap, LockKeyhole, Target } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 import { TaskPlanner, type PracticeTask } from "@/components/TaskPlanner";
 
 type Assignment = {
@@ -77,21 +78,12 @@ export default async function AssignmentsPage() {
 
   return (
     <LearnerAppShell active="assignments">
-      <section className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[var(--br-shadow)] sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60"><ClipboardList className="size-4" /> Learning plan</div>
-            <h1 className="mt-2 text-2xl font-extrabold sm:text-[28px]">Your assignments</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">Keep class work, due dates, and your progress together in one calm place.</p>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-right backdrop-blur">
-            <p className="text-2xl font-extrabold">{assignments.length}</p>
-            <p className="text-xs font-semibold text-white/65">assigned items</p>
-          </div>
-        </div>
-      </section>
+      <LearnerResumeHero eyebrow="YOUR ASSIGNMENTS" headingLevel="h1" title="Keep your learning on track." description={`${assignments.length} class assignment${assignments.length === 1 ? "" : "s"} · Find your work, due dates, and progress in one place.`}>
+        <Link href="#class-work" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">View assignments <ArrowRight className="size-4" /></Link>
+        <Link href="/tasks" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Open tasks <ArrowRight className="size-4" /></Link>
+      </LearnerResumeHero>
 
-      <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
+      <section id="class-work" className="scroll-mt-6 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-extrabold text-[var(--br-dark-card)]">Class work</h2>

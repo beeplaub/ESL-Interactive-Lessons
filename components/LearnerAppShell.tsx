@@ -5,15 +5,20 @@ import {
   BarChart2,
   Bell,
   BookOpen,
+  CalendarDays,
   ClipboardList,
+  ClipboardCheck,
   ChevronRight,
   GraduationCap,
   HelpCircle,
   Home,
   LogOut,
   Menu,
+  MessagesSquare,
   Target,
   Trophy,
+  BadgeCheck,
+  ChartNoAxesColumnIncreasing,
   User,
   Radio,
   Newspaper,
@@ -120,6 +125,7 @@ export async function LearnerAppShell({
   const initials = name.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || "BU";
   const currentLevel = profile?.cefr_level || null;
   const isStaffUser = isStaff(profile?.role);
+  const showAdminOnlyLearnerLinks = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
   const notifications = await buildNotifications(admin, user?.id ?? null, currentLevel);
   const rightSidebarData = showRightSidebar ? await buildRightSidebarData(admin, user?.id ?? null, currentLevel) : null;
   const levelProgressPercent = user ? (await getLatestLevelTestSummary(admin, user.id))?.weightedPercent ?? null : null;
@@ -136,9 +142,10 @@ export async function LearnerAppShell({
         currentLevel={currentLevel}
         notifications={notifications}
         isStaffUser={isStaffUser}
+        showAdminOnlyLearnerLinks={showAdminOnlyLearnerLinks}
       />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
-        <LearnerSidebar active={active} currentLevel={currentLevel} showAiTutor={isStaffUser} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} schoolBrand={schoolBrand} />
+        <LearnerSidebar active={active} currentLevel={currentLevel} showAiTutor={isStaffUser} showAdminOnlyLearnerLinks={showAdminOnlyLearnerLinks} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} schoolBrand={schoolBrand} />
         <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
           {showChrome ? (
             <DesktopLearnerChrome
@@ -468,7 +475,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
 }
 
 function RightRailCard({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[var(--br-shadow)]">{children}</div>;
+  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_6px_18px_rgba(35,31,68,0.07),0_1px_3px_rgba(35,31,68,0.05)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[var(--br-chart-primary)]/20 hover:shadow-[0_12px_28px_rgba(35,31,68,0.11)]">{children}</div>;
 }
 
 function ProgressLegend({ dot, label, value }: { dot: string; label: string; value: string }) {
@@ -506,6 +513,7 @@ function MobileTopbar({
   currentLevel,
   notifications,
   isStaffUser,
+  showAdminOnlyLearnerLinks,
 }: {
   active: ActiveItem;
   initials: string;
@@ -514,6 +522,7 @@ function MobileTopbar({
   currentLevel: string | null;
   notifications: NotificationItem[];
   isStaffUser?: boolean;
+  showAdminOnlyLearnerLinks?: boolean;
 }) {
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-[var(--br-dark-card)] px-3 min-[1180px]:hidden">
@@ -537,7 +546,7 @@ function MobileTopbar({
           aria-label={currentLevel ? `Your level: ${currentLevel}` : "Take level test"}
           className="flex h-9 items-center gap-1 rounded-[10px] border border-white/15 bg-white/10 px-2 text-[11px] font-bold text-on-dark"
         >
-          <Target className="size-[15px] text-[var(--br-brand)]" />
+          <Target className="size-[15px] text-white" />
           {currentLevel ? <span>{currentLevel}</span> : null}
         </Link>
         <NotificationsDropdown initialNotifications={notifications} mode="mobile" />
@@ -556,12 +565,14 @@ function MobileTopbar({
               {isStaffUser ? <MobileDrawerLink href="/ai-tutor" label="AI Tutor" icon={Sparkles} active={active === "ai-tutor"} /> : null}
               <MobileDrawerLink href="/ipa-chart" label="IPA Chart" icon={AudioLines} active={active === "ipa-chart"} />
               <MobileDrawerLink href="/games" label="Games" icon={Gamepad2} active={active === "games"} />
+              {showAdminOnlyLearnerLinks ? <MobileDrawerLink href="/community" label="Community" icon={MessagesSquare} active={active === "community"} /> : null}
               <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />
-              <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />
-              <MobileDrawerLink href="/certificates" label="Certificates" icon={Award} active={active === "certificates"} />
+              <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardCheck} active={active === "assignments"} />
+              {showAdminOnlyLearnerLinks ? <MobileDrawerLink href="/calendar" label="Calendar" icon={CalendarDays} active={active === "calendar"} /> : null}
+              <MobileDrawerLink href="/certificates" label="Certificates" icon={BadgeCheck} active={active === "certificates"} />
               <MobileDrawerLink href="/level-test" label="Level Test" icon={Target} active={active === "level-test"} />
               <MobileDrawerLink href="/language-profile" label="Language Profile" icon={BarChart2} active={active === "language-profile"} />
-              <MobileDrawerLink href="/leaderboard" label="Leaderboard" icon={Trophy} active={active === "leaderboard"} />
+              <MobileDrawerLink href="/leaderboard" label="Leaderboard" icon={ChartNoAxesColumnIncreasing} active={active === "leaderboard"} />
               <MobileDrawerLink href={isLoggedIn ? "/profile" : "/login"} label={isLoggedIn ? "Profile" : "My Account"} icon={User} active={active === "profile"} />
               {isLoggedIn ? (
                 <form action={signOut} className="mt-1 border-t border-white/10 pt-2">

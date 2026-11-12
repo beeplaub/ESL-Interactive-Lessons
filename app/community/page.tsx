@@ -31,7 +31,7 @@ export default async function CommunityPage() {
 
   return (
     <LearnerAppShell active="community" showRightSidebar={false} contentClassName="flex flex-col gap-5">
-      <CommunityWorkspace circles={(circles ?? []) as never[]} posts={(posts ?? []) as never[]} replies={(replies ?? []) as never[]} media={(media ?? []) as never[]} activities={(activities ?? []) as never[]} profiles={(profiles ?? []) as never[]} unreadCommunity={unreadCommunity ?? 0} />
+      <div id="community-space" className="scroll-mt-6"><CommunityWorkspace circles={(circles ?? []) as never[]} posts={(posts ?? []) as never[]} replies={(replies ?? []) as never[]} media={(media ?? []) as never[]} activities={(activities ?? []) as never[]} profiles={(profiles ?? []) as never[]} unreadCommunity={unreadCommunity ?? 0} /></div>
     </LearnerAppShell>
   );
 }

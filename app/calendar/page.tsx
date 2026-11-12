@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, ClipboardList } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronRight, ClipboardList } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 
 type CalendarEntry = { id: string; title: string; dueAt: string; kind: "ASSIGNMENT" | "TASK"; href: string; className?: string | null };
 function joinedClassName(value: unknown) {
@@ -26,12 +27,11 @@ export default async function CalendarPage() {
   for (const entry of entries) { const key = new Date(entry.dueAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }); groups.set(key, [...(groups.get(key) ?? []), entry]); }
   return (
     <LearnerAppShell active="calendar">
-      <section className="rounded-[22px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[var(--br-shadow)]">
-        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.16em] text-white/60"><CalendarDays size={16} />Learning calendar</p>
-        <h1 className="mt-2 text-2xl font-extrabold">What&apos;s coming up</h1>
-        <p className="mt-2 text-sm text-white/70">Every course assignment and practice task with a due date, in one calm timeline.</p>
-      </section>
-      <section className="rounded-[20px] border border-[var(--br-border)] bg-[var(--br-surface)] p-4 shadow-[var(--br-shadow)] sm:p-5">
+      <LearnerResumeHero eyebrow="YOUR SCHEDULE" headingLevel="h1" title="See what&apos;s coming up." description="Track course assignments and practice tasks with due dates, all in one place.">
+        <Link href="#calendar-schedule" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">View schedule <ArrowRight className="size-4" /></Link>
+        <Link href="/assignments" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Open assignments <ArrowRight className="size-4" /></Link>
+      </LearnerResumeHero>
+      <section id="calendar-schedule" className="scroll-mt-6 rounded-[20px] border border-[var(--br-border)] bg-[var(--br-surface)] p-4 shadow-[var(--br-shadow)] sm:p-5">
         {[...groups.entries()].map(([date, rows]) => (
           <div key={date} className="mb-6 last:mb-0">
             <h2 className="mb-3 text-sm font-extrabold text-[var(--br-text)]">{date}</h2>
