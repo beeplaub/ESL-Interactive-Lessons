@@ -2,6 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes cefr-orbit-turn {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes cefr-orbit-marker-return {
+  0%, 1.5% { background-color: var(--br-chart-primary); color: white; transform: translateX(-50%) scale(1.12); }
+  5%, 96% { background-color: var(--br-surface); color: var(--br-text); transform: translateX(-50%) scale(1); }
+  98.5%, 100% { background-color: var(--br-chart-primary); color: white; transform: translateX(-50%) scale(1.12); }
+}
+
+@keyframes cefr-orbit-core-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+
+.cefr-level-orbit-marker-track {
+  animation: cefr-orbit-turn 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.cefr-level-orbit-marker-counter {
+  animation: cefr-orbit-marker-return 4s linear infinite;
+}
+
+.cefr-level-orbit-core {
+  animation: cefr-orbit-core-pulse 2.2s ease-in-out infinite;
+}
+
+.cefr-level-orbit-text,
+.cefr-level-orbit-label {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cefr-level-orbit-marker-track,
+  .cefr-level-orbit-marker-counter,
+  .cefr-level-orbit-core {
+    animation: none;
+  }
+}
+
 /* Notification composer controls need a clear resting boundary as well as a
    visible keyboard/mouse focus state. */
 #notification-composer .field {
