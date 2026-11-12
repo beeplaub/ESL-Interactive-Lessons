@@ -77,7 +77,7 @@ export default async function AssignmentsPage() {
   }
 
   return (
-    <LearnerAppShell active="assignments">
+    <LearnerAppShell active="assignments" compactMobileTopSpacing>
       <LearnerResumeHero eyebrow="YOUR ASSIGNMENTS" headingLevel="h1" title="Keep your learning on track." description={`${assignments.length} class assignment${assignments.length === 1 ? "" : "s"} · Find your work, due dates, and progress in one place.`}>
         <Link href="#class-work" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">View assignments <ArrowRight className="size-4" /></Link>
         <Link href="/tasks" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Open tasks <ArrowRight className="size-4" /></Link>
