@@ -76,7 +76,6 @@ export async function LearnerAppShell({
   breadcrumbs,
   desktopChromeLeading,
   compactDesktopChrome = false,
-  compactMobileTopSpacing = false,
   showRightSidebar = true,
   showChrome = true,
 }: {
@@ -86,7 +85,6 @@ export async function LearnerAppShell({
   breadcrumbs?: BreadcrumbItem[];
   desktopChromeLeading?: React.ReactNode;
   compactDesktopChrome?: boolean;
-  compactMobileTopSpacing?: boolean;
   showRightSidebar?: boolean;
   showChrome?: boolean;
   showFooter?: boolean;
@@ -148,7 +146,7 @@ export async function LearnerAppShell({
       />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
         <LearnerSidebar active={active} currentLevel={currentLevel} showAiTutor={isStaffUser} showAdminOnlyLearnerLinks={showAdminOnlyLearnerLinks} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} schoolBrand={schoolBrand} />
-        <section className={`min-w-0 flex-1 ${compactMobileTopSpacing ? "pt-[48px]" : "pt-[60px]"} min-[1180px]:pt-0 ${contentClassName}`}>
+        <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
           {showChrome ? (
             <DesktopLearnerChrome
               breadcrumbs={breadcrumbs ?? defaultBreadcrumbs[active]}

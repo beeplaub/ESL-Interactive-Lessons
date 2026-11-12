@@ -30,7 +30,7 @@ export default async function CommunityPage() {
   const { data: profiles } = authorIds.length ? await createAdminClient().from("profiles").select("id,full_name,first_name,last_name,avatar_url").in("id", authorIds) : { data: [] };
 
   return (
-    <LearnerAppShell active="community" showRightSidebar={false} compactMobileTopSpacing contentClassName="flex flex-col gap-5">
+    <LearnerAppShell active="community" showRightSidebar={false} contentClassName="flex flex-col gap-5">
       <div id="community-space" className="scroll-mt-6"><CommunityWorkspace circles={(circles ?? []) as never[]} posts={(posts ?? []) as never[]} replies={(replies ?? []) as never[]} media={(media ?? []) as never[]} activities={(activities ?? []) as never[]} profiles={(profiles ?? []) as never[]} unreadCommunity={unreadCommunity ?? 0} /></div>
     </LearnerAppShell>
   );

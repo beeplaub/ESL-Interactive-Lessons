@@ -15,7 +15,7 @@ export default async function CertificatesPage() {
     .order("issued_at", { ascending: false });
 
   return (
-    <LearnerAppShell active="certificates" compactMobileTopSpacing>
+    <LearnerAppShell active="certificates">
       <LearnerResumeHero eyebrow="YOUR CERTIFICATES" headingLevel="h1" title="Celebrate what you&apos;ve achieved." description={`${certificates?.length ?? 0} certificate${certificates?.length === 1 ? "" : "s"} earned · Your completed course records are all here.`}>
         <Link href="#course-credentials" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">View certificates <ArrowRight className="size-4" /></Link>
         <Link href="/courses" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Browse courses <ArrowRight className="size-4" /></Link>

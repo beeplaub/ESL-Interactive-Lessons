@@ -26,7 +26,7 @@ export default async function CalendarPage() {
   const groups = new Map<string, CalendarEntry[]>();
   for (const entry of entries) { const key = new Date(entry.dueAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }); groups.set(key, [...(groups.get(key) ?? []), entry]); }
   return (
-    <LearnerAppShell active="calendar" compactMobileTopSpacing>
+    <LearnerAppShell active="calendar">
       <LearnerResumeHero eyebrow="YOUR SCHEDULE" headingLevel="h1" title="See what&apos;s coming up." description="Track course assignments and practice tasks with due dates, all in one place.">
         <Link href="#calendar-schedule" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">View schedule <ArrowRight className="size-4" /></Link>
         <Link href="/assignments" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Open assignments <ArrowRight className="size-4" /></Link>

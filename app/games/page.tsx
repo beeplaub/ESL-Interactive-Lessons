@@ -33,7 +33,7 @@ export default async function GamesPage() {
   await requireUser();
 
   return (
-    <LearnerAppShell active="games" showRightSidebar={false} compactMobileTopSpacing>
+    <LearnerAppShell active="games" showRightSidebar={false}>
         <LearnerResumeHero eyebrow="ENGLISH GAMES" headingLevel="h1" title="Practice English by playing." description="Choose a game, build your skills, and enjoy the challenge.">
           <Link href="#game-library" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">Browse games <ArrowRight className="size-4" /></Link>
           <Link href="/ipa-quest" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Play Echo Vault <ArrowRight className="size-4" /></Link>

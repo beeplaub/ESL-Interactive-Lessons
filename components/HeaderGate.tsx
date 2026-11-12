@@ -7,6 +7,19 @@ export function HeaderGate({ children }: { children: React.ReactNode }) {
   if (
     pathname === "/level-test/test" ||
     pathname === "/account" ||
+    pathname.startsWith("/activities") ||
+    pathname.startsWith("/achievements") ||
+    pathname.startsWith("/ai-tutor") ||
+    pathname.startsWith("/assignments") ||
+    pathname.startsWith("/calendar") ||
+    pathname.startsWith("/certificates") ||
+    pathname.startsWith("/community") ||
+    pathname.startsWith("/games") ||
+    pathname.startsWith("/live-classes") ||
+    pathname.startsWith("/notifications") ||
+    pathname.startsWith("/tasks") ||
+    pathname.startsWith("/wordverse") ||
+    pathname.startsWith("/ipa-quest") ||
     pathname.includes("/print") ||
     pathname.startsWith("/courses") ||
     pathname.startsWith("/quizzes") ||
