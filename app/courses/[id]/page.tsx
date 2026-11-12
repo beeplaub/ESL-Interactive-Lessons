@@ -162,7 +162,7 @@ export default async function CourseLandingPage({
 
   const continueItem = isEnrolled ? (courseItems.find((item) => !completedIds.has(item.id)) ?? courseItems[0] ?? null) : null;
   const continueLabel = continueItem
-    ? continueItem.lessons?.title ?? continueItem.quizzes?.title ?? continueItem.title ?? continueItem.item_type.replaceAll("_", " ")
+    ? continueItem.title?.trim() || continueItem.lessons?.title || continueItem.quizzes?.title || continueItem.item_type.replaceAll("_", " ")
     : null;
   const continueHref = continueItem ? getItemHref(continueItem, course.id) : null;
 
@@ -538,7 +538,7 @@ export default async function CourseLandingPage({
 }
 
 function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { courseId: string; item: CourseItemView; itemIndex: number; isComplete: boolean; unlocked: boolean }) {
-  const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
+  const label = item.title?.trim() || item.lessons?.title || item.quizzes?.title || item.item_type.replaceAll("_", " ");
   const href = getItemHref(item, courseId);
   const published = isCourseItemPublished(item);
   const isManuallyCompleted = (item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK") && !isComplete;
