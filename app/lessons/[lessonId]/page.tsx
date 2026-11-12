@@ -36,6 +36,7 @@ export default async function LessonPage({
   // or sequential unlocking.
   let courseId: string | null = null;
   let resolvedCourseItemId: string | null = null;
+  let courseItemTitle: string | null = null;
   let courseTitle: string | null = null;
   let courseFeatureImageUrl: string | null = null;
   let lessonFeatureImageUrl: string | null = null;
@@ -50,6 +51,7 @@ export default async function LessonPage({
     if (cItem?.lesson_id === lessonId) {
       courseId = cItem.course_id;
       resolvedCourseItemId = courseItem;
+      courseItemTitle = cItem.title?.trim() || null;
       isFreePreview = Boolean(cItem.is_free_preview);
     } else {
       notFound();
@@ -57,7 +59,7 @@ export default async function LessonPage({
   } else {
     const { data: placements } = await admin
       .from("course_items")
-      .select("id,course_id,is_free_preview")
+      .select("id,course_id,is_free_preview,title")
       .eq("lesson_id", lessonId)
       .order("position", { ascending: true });
 
@@ -78,6 +80,7 @@ export default async function LessonPage({
       if (accessiblePlacement) {
         courseId = accessiblePlacement.course_id;
         resolvedCourseItemId = accessiblePlacement.id;
+        courseItemTitle = accessiblePlacement.title?.trim() || null;
         isFreePreview = Boolean(accessiblePlacement.is_free_preview);
       } else {
         redirect(`/courses/${placements[0].course_id}`);
@@ -205,6 +208,7 @@ export default async function LessonPage({
   ]);
 
   if (!lesson) notFound();
+  const displayLesson = courseItemTitle ? { ...lesson, title: courseItemTitle } : lesson;
 
   const lessonImage = lesson.cover_image_path || lesson.thumbnail_path;
   lessonFeatureImageUrl = lessonImage
@@ -306,17 +310,17 @@ export default async function LessonPage({
               { label: "Home", href: "/account" },
               { label: "Courses", href: "/courses" },
               { label: courseTitle, href: `/courses/${courseId}` },
-              { label: lesson.title },
+              { label: displayLesson.title },
             ]
           : [
               { label: "Home", href: "/account" },
               { label: "Courses", href: "/courses" },
-              { label: lesson.title },
+              { label: displayLesson.title },
             ]
       }
     >
       <BuilderLessonPlayer
-        lesson={lesson}
+        lesson={displayLesson}
         slides={slides ?? []}
         phaseItems={phaseItems ?? []}
         practiceLinks={practiceLinks ?? []}
