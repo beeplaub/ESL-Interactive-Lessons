@@ -452,9 +452,9 @@ export default async function CourseLandingPage({
     <section className="br-learner-card overflow-hidden border-[color-mix(in_srgb,var(--br-chart-primary)_18%,var(--br-border))] bg-surface p-5 shadow-[var(--br-shadow)]">
       <div className="grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3">
         {primaryInstructor?.avatarUrl ? (
-          <span className="grid size-24 aspect-square shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--br-chart-primary)] p-1 shadow-md">
+          <span className="block size-24 shrink-0 overflow-hidden rounded-full border-2 border-[var(--br-chart-primary)] bg-[var(--br-surface)] shadow-md">
             {/* eslint-disable-next-line @next/next/no-img-element -- Instructor avatars can be public R2 or Supabase URLs. */}
-            <img src={primaryInstructor.avatarUrl} alt="" className="block size-full rounded-full object-cover ring-2 ring-[var(--br-surface)]" />
+            <img src={primaryInstructor.avatarUrl} alt="" className="block size-full rounded-full object-cover" />
           </span>
         ) : (
           <span className="grid size-24 shrink-0 place-items-center rounded-full bg-[var(--br-brand-soft)] text-xl font-extrabold text-[var(--br-brand)] ring-2 ring-[var(--br-chart-primary)] shadow-md">
@@ -463,7 +463,7 @@ export default async function CourseLandingPage({
         )}
         <div className="min-w-0">
           <p className="break-words text-lg font-extrabold text-[var(--br-text)]">{primaryInstructor?.name ?? "Instructor details coming soon"}</p>
-          {primaryInstructor ? <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[var(--br-brand-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--br-brand)]"><span className="size-1.5 rounded-full bg-[var(--br-chart-primary)]" />Instructor</p> : null}
+          {primaryInstructor ? <p className="mt-1 inline-flex items-center rounded-full border border-[var(--br-surface-strong)] bg-white px-2.5 py-1 text-xs font-bold text-[var(--br-chart-primary)]">Instructor</p> : null}
         </div>
         <div className="col-span-2 min-w-0 border-t border-[var(--br-border)]/70 pt-3">
           <div className="min-h-6">
