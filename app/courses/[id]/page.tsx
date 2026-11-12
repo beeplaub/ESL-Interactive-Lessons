@@ -9,7 +9,8 @@ import {
   Play,
   PlayCircle,
 } from "lucide-react";
-import { BuyCourseButton, GuestBuyCourseButton, SignInToEnrollButton } from "@/components/BuyCourseButton";
+import { AutoEnrollCourse } from "@/components/AutoEnrollCourse";
+import { BuyCourseButton, GuestCourseEnrollButton } from "@/components/BuyCourseButton";
 import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -58,6 +59,14 @@ function isCourseItemPublished(item: CourseItemView) {
   return true;
 }
 
+function CoursePriceMissingNotice() {
+  return (
+    <span role="status" className="inline-flex cursor-not-allowed items-center justify-center rounded-[12px] border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)]">
+      Price unavailable
+    </span>
+  );
+}
+
 function CourseDescription({ text }: { text: string }) {
   const paragraphs = text.split(/\n\s*\n/);
   return <div className="space-y-3 text-sm leading-6 text-[var(--br-text-muted)]">
@@ -88,9 +97,9 @@ export default async function CourseLandingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ checkout?: string }>;
+  searchParams: Promise<{ checkout?: string; enroll?: string }>;
 }) {
-  const [{ id }, { checkout }] = await Promise.all([params, searchParams]);
+  const [{ id }, { checkout, enroll }] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -174,6 +183,7 @@ export default async function CourseLandingPage({
   const circumference = 2 * Math.PI * 42;
   const dashOffset = circumference - (progressPercent / 100) * circumference;
   const isPaidCourse = course.price_bdt !== null && course.price_bdt > 0;
+  const isFreeCourse = course.price_bdt === 0;
   const { data: assessmentOutcomes } = assessmentResult?.id
     ? await admin.from("course_outcome_assessment_results").select("course_outcome_id,attainment_percent,coverage_percent,attained").eq("course_assessment_result_id", assessmentResult.id).order("attainment_percent", { ascending: false })
     : { data: [] };
@@ -228,23 +238,25 @@ export default async function CourseLandingPage({
                   activeOrder={activeOrder}
                   autoOpen={checkout === "1"}
                 />
-              ) : (
-                <form action={enrollInCourse.bind(null, course.id)}>
-                  <button className="br-button-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold">
-                    <Play className="size-4 fill-white" /> Enroll free
-                  </button>
-                </form>
-              )
+              ) : isFreeCourse ? (
+                enroll === "1" ? <AutoEnrollCourse courseId={course.id} /> : (
+                  <form action={enrollInCourse.bind(null, course.id)}>
+                    <button className="br-button-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold">
+                      Enroll · Free
+                    </button>
+                  </form>
+                )
+              ) : <CoursePriceMissingNotice />
             ) : (
               isPaidCourse ? (
-                <GuestBuyCourseButton
+                <GuestCourseEnrollButton
                   courseId={course.id}
                   priceBdt={course.price_bdt!}
                   originalPriceBdt={course.original_price_bdt}
                 />
-              ) : (
-                <SignInToEnrollButton />
-              )
+              ) : isFreeCourse ? (
+                <GuestCourseEnrollButton courseId={course.id} priceBdt={0} />
+              ) : <CoursePriceMissingNotice />
             )}
             <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[var(--br-border)] bg-surface px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-[var(--br-shadow)]">
               View curriculum

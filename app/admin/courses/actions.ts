@@ -439,7 +439,11 @@ export async function duplicateCourse(courseId: string, options: DuplicateCourse
 export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") {
   await requireCourseAccess(courseId, "publish_content");
   const admin = createAdminClient();
-  const { data: existingCourse } = await admin.from("courses").select("title,status").eq("id", courseId).maybeSingle();
+  const { data: existingCourse } = await admin.from("courses").select("title,status,price_bdt").eq("id", courseId).maybeSingle();
+  if (!existingCourse) throw new Error("Course not found.");
+  if (status === "PUBLISHED" && existingCourse.price_bdt == null) {
+    throw new Error("Set a course price before publishing. Enter 0 for a free course.");
+  }
   const { error } = await admin
     .from("courses")
     .update({ status, updated_at: new Date().toISOString() })
@@ -458,32 +462,56 @@ export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLI
 export async function updateCourseMetadata(courseId: string, formData: FormData) {
   await requireCourseAccess(courseId, "edit_course_details");
   const admin = createAdminClient();
-  
-  const priceVal = formData.get("priceBdt");
-  const origPriceVal = formData.get("originalPriceBdt");
 
-  const { error } = await (admin as any)
-    .from("courses")
-    .update({
-      title: String(formData.get("title") || "").trim(),
-      subtitle: String(formData.get("subtitle") || "").trim() || null,
-      topic: String(formData.get("topic") || "").trim() || null,
-      category: String(formData.get("category") || "").trim() || null,
-      level: String(formData.get("level") || ALL_LEVELS_LABEL),
-      description: String(formData.get("description") || "").trim() || null,
-      thumbnail_path: String(formData.get("thumbnailPath") || "").trim() || null,
-      cover_image_path: String(formData.get("coverImagePath") || "").trim() || null,
-      estimated_completion_minutes: Number(formData.get("estimatedCompletionMinutes") || "") || null,
-      duration_minutes: Number(formData.get("durationMinutes") || "") || null,
-      organization_id: String(formData.get("organizationId") || "") || null,
-      price_bdt: priceVal && priceVal !== "" ? Number(priceVal) : null,
-      original_price_bdt: origPriceVal && origPriceVal !== "" ? Number(origPriceVal) : null,
-      payment_instructions: String(formData.get("paymentInstructions") || "").trim() || null,
-      offer_practice_addon: String(formData.get("offerPracticeAddon") || "") === "true",
-      visibility: String(formData.get("visibility") || "PUBLIC") === "PRIVATE" ? "PRIVATE" : "PUBLIC",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", courseId);
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const setText = (formKey: string, column: string, emptyValue: string | null = null) => {
+    if (!formData.has(formKey)) return;
+    const value = String(formData.get(formKey) ?? "").trim();
+    updates[column] = value || emptyValue;
+  };
+  const setMinutes = (formKey: string, column: string) => {
+    if (!formData.has(formKey)) return;
+    const value = String(formData.get(formKey) ?? "").trim();
+    if (!value) {
+      updates[column] = null;
+      return;
+    }
+    const minutes = Number(value);
+    if (!Number.isSafeInteger(minutes) || minutes < 0) throw new Error("Duration must be a whole number of minutes.");
+    updates[column] = minutes;
+  };
+  const setPrice = (formKey: string, column: string, required: boolean) => {
+    if (!formData.has(formKey)) return;
+    const value = String(formData.get(formKey) ?? "").trim();
+    if (!value) {
+      if (required) throw new Error("Enter a course price. Enter 0 for a free course.");
+      updates[column] = null;
+      return;
+    }
+    const price = Number(value);
+    if (!Number.isSafeInteger(price) || price < 0) throw new Error("Course prices must be whole amounts of BDT and cannot be negative.");
+    updates[column] = price;
+  };
+
+  setText("title", "title", "");
+  if (updates.title === "") throw new Error("Course title is required.");
+  setText("subtitle", "subtitle");
+  setText("topic", "topic");
+  setText("category", "category");
+  if (formData.has("level")) updates.level = String(formData.get("level") || ALL_LEVELS_LABEL);
+  setText("description", "description");
+  setText("thumbnailPath", "thumbnail_path");
+  setText("coverImagePath", "cover_image_path");
+  setMinutes("estimatedCompletionMinutes", "estimated_completion_minutes");
+  setMinutes("durationMinutes", "duration_minutes");
+  if (formData.has("organizationId")) updates.organization_id = String(formData.get("organizationId") || "") || null;
+  setPrice("priceBdt", "price_bdt", true);
+  setPrice("originalPriceBdt", "original_price_bdt", false);
+  setText("paymentInstructions", "payment_instructions");
+  if (formData.has("offerPracticeAddon")) updates.offer_practice_addon = formData.get("offerPracticeAddon") === "true";
+  if (formData.has("visibility")) updates.visibility = String(formData.get("visibility")) === "PRIVATE" ? "PRIVATE" : "PUBLIC";
+
+  const { error } = await (admin as any).from("courses").update(updates).eq("id", courseId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/courses");
   revalidatePath(`/admin/courses/${courseId}/builder`);

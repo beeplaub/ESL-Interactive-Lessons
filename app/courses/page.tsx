@@ -274,15 +274,17 @@ function CourseCard({
             {status ? "Continue course" : "View course"} <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
           </span>
           <div className="text-right">
-            {course.price_bdt ? (
+            {course.price_bdt != null && course.price_bdt > 0 ? (
               <div className="flex items-center gap-1.5 justify-end">
                 {course.original_price_bdt ? (
                   <span className="text-xs text-[var(--br-text-muted)] line-through">৳{course.original_price_bdt}</span>
                 ) : null}
                 <span className="text-sm font-extrabold text-slate-900 bg-surface-strong rounded-lg px-2 py-0.5">৳{course.price_bdt}</span>
               </div>
-            ) : (
+            ) : course.price_bdt === 0 ? (
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 rounded-lg px-2 py-0.5">Free</span>
+            ) : (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--br-text-muted)] bg-[var(--br-surface-muted)] rounded-lg px-2 py-0.5">Price not set</span>
             )}
           </div>
         </div>

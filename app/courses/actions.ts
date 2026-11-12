@@ -27,7 +27,11 @@ export async function enrollInCourse(courseId: string) {
     throw new Error("This private course is available by invitation only.");
   }
 
-  if (course.price_bdt !== null && course.price_bdt > 0) {
+  if (course.price_bdt === null) {
+    throw new Error("This course price has not been set yet. Please contact the course team.");
+  }
+
+  if (course.price_bdt > 0) {
     throw new Error("This is a paid course. Please submit payment details to enroll.");
   }
 

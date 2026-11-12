@@ -109,7 +109,7 @@ export default async function AdminCoursesPage() {
       { label: "Add curriculum items", ready: itemCount > 0 },
       { label: "Organize the curriculum into sections", ready: sectionCount > 0 },
       { label: "Define at least one course outcome", ready: outcomeCount > 0 },
-      { label: "Add payment instructions for this paid course", ready: !course.price_bdt || Boolean(course.payment_instructions?.trim()) },
+      { label: course.price_bdt == null ? "Set course price (enter 0 for free)" : "Add payment instructions for this paid course", ready: course.price_bdt != null && (course.price_bdt === 0 || Boolean(course.payment_instructions?.trim())) },
     ];
     const readinessScore = Math.round((checks.filter((check) => check.ready).length / checks.length) * 100);
 

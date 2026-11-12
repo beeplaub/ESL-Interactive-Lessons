@@ -26,11 +26,11 @@ export function roleHomePath(role?: string | null) {
  * their deep link honored when there is one.
  */
 export function resolvePostLoginPath(role: string | null | undefined, nextPath?: string | null) {
-  // A guest may deliberately choose to buy a public paid course before
-  // signing in. Let that narrowly scoped return resume the purchase; keep
-  // the normal staff landing rule for every other post-login destination.
-  const courseCheckoutReturn = Boolean(nextPath && /^\/courses\/[^/?#]+\?checkout=1$/.test(nextPath));
-  if (isStaff(role) && !courseCheckoutReturn) return "/admin";
+  // Guest course actions resume after authentication: paid courses reopen
+  // checkout and explicit free courses complete enrollment. Keep the normal
+  // staff landing rule for every other post-login destination.
+  const courseActionReturn = Boolean(nextPath && /^\/courses\/[^/?#]+\?(?:checkout|enroll)=1$/.test(nextPath));
+  if (isStaff(role) && !courseActionReturn) return "/admin";
   if (nextPath?.startsWith("/") && !nextPath.startsWith("/admin")) return nextPath;
   return roleHomePath(role);
 }

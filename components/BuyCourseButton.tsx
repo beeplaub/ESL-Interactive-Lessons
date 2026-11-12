@@ -76,7 +76,7 @@ export function BuyCourseButton({
         onClick={openModal}
         className="br-button-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold"
       >
-        Buy Course ·{" "}
+        Enroll ·{" "}
         {hasDiscount && (
           <span className="line-through opacity-60 mr-0.5">৳{originalPriceBdt}</span>
         )}
@@ -279,19 +279,8 @@ export function BuyCourseButton({
   );
 }
 
-/* ---- Sign-in CTA for logged-out users ---- */
-export function SignInToEnrollButton() {
-  return (
-    <Link
-      href="/login"
-      className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)]"
-    >
-      Sign in to enroll <ArrowRight className="size-4" />
-    </Link>
-  );
-}
-
-export function GuestBuyCourseButton({
+/* ---- Guest CTA: authenticate, then resume free enrollment or checkout ---- */
+export function GuestCourseEnrollButton({
   courseId,
   priceBdt,
   originalPriceBdt,
@@ -300,17 +289,19 @@ export function GuestBuyCourseButton({
   priceBdt: number;
   originalPriceBdt?: number | null;
 }) {
-  const checkoutPath = `/courses/${courseId}?checkout=1`;
+  const resumePath = priceBdt > 0
+    ? `/courses/${courseId}?checkout=1`
+    : `/courses/${courseId}?enroll=1`;
   return (
     <Link
-      href={`/login?next=${encodeURIComponent(checkoutPath)}`}
+      href={`/login?next=${encodeURIComponent(resumePath)}`}
       className="br-button-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold"
     >
-      Buy Course ·{" "}
-      {originalPriceBdt && originalPriceBdt > priceBdt ? (
+      Enroll ·{" "}
+      {priceBdt === 0 ? "Free" : originalPriceBdt && originalPriceBdt > priceBdt ? (
         <span className="mr-0.5 opacity-60 line-through">৳{originalPriceBdt}</span>
       ) : null}
-      ৳{priceBdt} <ArrowRight className="size-4" />
+      {priceBdt > 0 ? `৳${priceBdt}` : null} <ArrowRight className="size-4" />
     </Link>
   );
 }

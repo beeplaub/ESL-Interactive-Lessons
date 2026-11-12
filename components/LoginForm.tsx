@@ -77,6 +77,7 @@ export function LoginForm() {
           email,
           password,
           options: {
+            emailRedirectTo: authCallbackUrl(),
             data: {
               full_name: fullName,
               first_name: trimmedFirst,

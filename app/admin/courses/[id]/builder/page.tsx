@@ -513,7 +513,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         <BuilderDialog
           icon="pricing"
           triggerLabel="Pricing & Payment"
-          countLabel={course.price_bdt ? `৳${course.price_bdt}` : "Free Course"}
+          countLabel={course.price_bdt == null ? "Price not set" : course.price_bdt === 0 ? "Free Course" : `৳${course.price_bdt}`}
           title="Pricing & Payment details"
           description="Configure course purchase price and payment instructions (bKash/Nagad/Bank Transfer info)."
         >
@@ -521,7 +521,8 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium">
                 Price (BDT)
-                <input name="priceBdt" type="number" min="0" defaultValue={course.price_bdt ?? ""} placeholder="e.g. 500 (leave empty for Free)" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+                <input name="priceBdt" type="number" min="0" step="1" required defaultValue={course.price_bdt ?? ""} placeholder="e.g. 500 (enter 0 for free)" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+                <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">A saved price stays unchanged when you edit the landing page. Enter 0 only for a free course.</span>
               </label>
               <label className="text-sm font-medium">
                 Original Price (BDT) - Optional
