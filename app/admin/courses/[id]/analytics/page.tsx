@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BarChart3, UserPlus } from "lucide-react";
-import { requireCourseAccess } from "@/lib/auth";
+import { isPlatformAdmin, requireCourseAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enrollStudentByEmail, updateEnrollmentStatusAction } from "@/app/admin/courses/actions";
+import { RemoveCancelledCourseLearnerButton } from "@/components/admin/RemoveCancelledCourseLearnerButton";
 
 export default async function CourseAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireCourseAccess(id, "view_analytics");
+  const { profile } = await requireCourseAccess(id, "view_analytics");
+  const canPermanentlyRemoveLearners = isPlatformAdmin(profile?.role);
   const admin = createAdminClient();
   const [
     { data: course },
@@ -114,8 +116,8 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
       </section>
 
       <section className="mt-6 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
-        <div className="hidden grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr] gap-3 border-b border-[var(--br-border)] bg-surface-muted p-3 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid">
-          <span>Learner</span><span>Email</span><span>Status</span><span>Items</span><span>Progress</span><span>Score</span><span>Coverage</span>
+        <div className={`hidden gap-3 border-b border-[var(--br-border)] bg-surface-muted p-3 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid ${canPermanentlyRemoveLearners ? "grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr_0.9fr]" : "grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr]"}`}>
+          <span>Learner</span><span>Email</span><span>Status</span><span>Items</span><span>Progress</span><span>Score</span><span>Coverage</span>{canPermanentlyRemoveLearners ? <span>Actions</span> : null}
         </div>
         <div className="divide-y divide-black/10">
           {(enrollments ?? []).map((enrollment) => {
@@ -126,7 +128,7 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
               || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ")
               || "Learner";
             return (
-              <div key={enrollment.id} className="grid gap-2 p-4 md:grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr] md:items-center">
+              <div key={enrollment.id} className={`grid gap-2 p-4 md:items-center ${canPermanentlyRemoveLearners ? "md:grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr_0.9fr]" : "md:grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr]"}`}>
                 <Link href={`/admin/students/${enrollment.user_id}`} className="font-semibold text-moss hover:underline">{name}</Link>
                 <span className="min-w-0 truncate text-sm text-[var(--br-text-muted)]">{emailByUser.get(enrollment.user_id) || "No email"}</span>
                 <form
@@ -147,6 +149,7 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
                 <span className="font-semibold text-moss">{progress?.progress_percent ?? 0}%</span>
                 <span className="font-semibold text-moss">{assessment ? `${Math.round(Number(assessment.score_percent ?? 0))}%` : "—"}</span>
                 <span className="text-sm">{assessment ? `${Math.round(Number(assessment.coverage_percent ?? 0))}%` : "—"}</span>
+                {canPermanentlyRemoveLearners && enrollment.status === "CANCELLED" ? <RemoveCancelledCourseLearnerButton courseId={course.id} userId={enrollment.user_id} learnerName={name} /> : canPermanentlyRemoveLearners ? <span /> : null}
               </div>
             );
           })}

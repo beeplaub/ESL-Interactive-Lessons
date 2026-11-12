@@ -1167,7 +1167,7 @@ export async function updateOrderStatusDirectly(
 
   if (order.status === newStatus) return { success: true };
 
-  const { error: updateError } = await admin
+  const { data: updatedOrder, error: updateError } = await admin
     .from("course_orders")
     .update({
       status: newStatus,
@@ -1176,10 +1176,16 @@ export async function updateOrderStatusDirectly(
       confirmed_at: newStatus === "CONFIRMED" ? new Date().toISOString() : null,
       updated_at: new Date().toISOString()
     })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("id")
+    .maybeSingle();
 
   if (updateError) {
     return { success: false, error: `Failed to update order status: ${updateError.message}` };
+  }
+
+  if (!updatedOrder) {
+    return { success: false, error: "This payment order was removed before it could be updated." };
   }
 
   if (newStatus === "CONFIRMED") {
@@ -1262,4 +1268,39 @@ export async function updateEnrollmentStatusAction(courseId: string, enrollmentI
   const { error } = await admin.from("course_enrollments").update({ status }).eq("id", enrollmentId);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/courses/${courseId}/analytics`);
+}
+
+export async function permanentlyRemoveCancelledCourseLearnerAction(
+  courseId: string,
+  userId: string,
+): Promise<{ success: true; warning?: string } | { success: false; error: string }> {
+  try {
+    const { user } = await requireAdmin();
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("remove_cancelled_course_learner", {
+      p_course_id: courseId,
+      p_user_id: userId,
+      p_actor_id: user.id,
+    });
+
+    if (error) throw new Error(error.message);
+
+    const receiptPaths = data?.[0]?.receipt_paths ?? [];
+    let warning: string | undefined;
+    if (receiptPaths.length) {
+      const { error: storageError } = await admin.storage.from("payment-receipts").remove(receiptPaths);
+      if (storageError) {
+        warning = "Course records were removed, but some payment receipt files could not be deleted. Contact support to finish cleanup.";
+        console.error("Cancelled course learner receipt cleanup failed", storageError);
+      }
+    }
+
+    revalidatePath(`/admin/courses/${courseId}/analytics`);
+    revalidatePath(`/courses/${courseId}`);
+    revalidatePath("/courses");
+    revalidatePath("/account");
+    return { success: true, warning };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Could not remove the cancelled learner." };
+  }
 }
