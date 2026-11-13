@@ -7,7 +7,6 @@ import type { IpaAudioManifest } from "@/lib/ipa/chart";
 import { IpaChartAudioAdmin } from "@/components/admin/IpaChartAudioAdmin";
 import type { IpaChartAudioAsset, IpaChartAudioSettings } from "@/lib/ipa/audio";
 import { IpaChartWordAdmin } from "@/components/admin/IpaChartWordAdmin";
-import { IpaVowelContrastAdminImport } from "@/components/admin/IpaVowelContrastAdminImport";
 import type { IpaChartCatalogWord } from "@/lib/ipa/catalog";
 import type { IpaAccent, IpaSound } from "@/lib/ipa/chart";
 
@@ -30,7 +29,6 @@ export function IpaChartAdminPanel({ audio, audioConfigured, audioSettings, audi
     </header>
 
     <IpaChartWordAdmin configured={catalogConfigured} initialWords={catalogWords} />
-    <IpaVowelContrastAdminImport />
     <IpaChartAudioAdmin configured={audioConfigured} initialSettings={audioSettings} initialAssets={audioAssets} charts={charts} catalogWords={catalogWords} />
 
     <section className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] p-5">
