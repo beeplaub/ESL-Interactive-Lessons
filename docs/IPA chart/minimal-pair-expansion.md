@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the reviewed inventory and import plan transcribed from the user-provided list and updated with the user's clarifications. The database schema is live, and a creator-only idempotent importer is prepared. The complete 99-pair/185-word source set is in `lib/ipa/vowel-contrast-expansion.ts`; the import has not been run yet.
+This is the reviewed inventory transcribed from the user-provided list and updated with the user's clarifications. The database schema is live, and the creator-only idempotent importer has completed successfully. Live verification found 99 active pairs, 198 accent-specific pair links, 185 unique active words, and 370 linked UK/US pronunciations with parsed syllable data and target-syllable indices. No audio was generated. The first import attempt safely staged 167 inactive word rows; the successful retry reused those rows without creating duplicates.
 
 The source list describes the IPA as mainly British English. The reviewed catalog contains a separate Cambridge UK and US pronunciation for each unique spelling, plus an accent-specific target sound assignment. Syllable count, syllable boundaries, and lexical stress should be generated from each verified IPA transcription by the existing parser. Per the user's clarification, these are **target-vowel contrast pairs**: consonants, including final consonants, may differ if the intended vowel contrast is correct. Pair 25 (biting / beating) is removed.
 
@@ -153,8 +153,8 @@ The target contrast is copied from the user's source list and verified for UK an
 - [x] Verify Cambridge UK and US IPA for every unique spelling. For inflected forms without their own Cambridge pronunciation page, derive the form from the Cambridge base-verb entry and preserve that source link.
 - [x] Confirm all 99 pairs have target-vowel contrasts in both accents; consonants may differ.
 - [x] Assign each pronunciation to its accent-specific chart sound and highlight the target spelling.
-- [x] Check the 185 spellings against active and archived catalog records: 18 active matches and no archived matches.
+- [x] Check the 185 spellings against active and archived catalog records before import: 18 active matches and no archived matches; the 167 remaining spellings were staged and activated by the completed import. The catalog now has 557 active words.
 - [x] Confirm IPA parsing produces syllable count, boundaries, and stress data automatically.
 - [x] Preserve each pair relation explicitly for future learner activities.
 - [x] Prepare a protected, retry-safe admin importer; new records remain inactive until their accent links are complete. The import does not generate audio.
-- [ ] Run the creator-only import workflow after this code is available in the app, then verify live counts, pair links, accent IPA, and generated syllable data.
+- [x] Run the creator-only import workflow and verify live counts, pair links, accent IPA, and generated syllable data: 99 pairs, 198 accent links, 185 unique active words, and 370 parsed accent pronunciations.
