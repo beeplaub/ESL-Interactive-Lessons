@@ -565,7 +565,7 @@ function MobileTopbar({
               {isStaffUser ? <MobileDrawerLink href="/ai-tutor" label="AI Tutor" icon={Sparkles} active={active === "ai-tutor"} /> : null}
               <MobileDrawerLink href="/ipa-chart" label="IPA Chart" icon={AudioLines} active={active === "ipa-chart"} />
               <MobileDrawerLink href="/games" label="Games" icon={Gamepad2} active={active === "games"} />
-              {showAdminOnlyLearnerLinks ? <MobileDrawerLink href="/community" label="Community" icon={MessagesSquare} active={active === "community"} /> : null}
+              <MobileDrawerLink href="/community" label="Community" icon={MessagesSquare} active={active === "community"} />
               <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />
               <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardCheck} active={active === "assignments"} />
               {showAdminOnlyLearnerLinks ? <MobileDrawerLink href="/calendar" label="Calendar" icon={CalendarDays} active={active === "calendar"} /> : null}

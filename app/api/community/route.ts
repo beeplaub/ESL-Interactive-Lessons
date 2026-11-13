@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notifications";
+import { deleteMediaObject } from "@/lib/storage/mediaStorage";
 
 const allowedFeedback = new Set(["CONVERSATION", "WELCOME", "CORRECT_ME"]);
 
@@ -78,12 +79,56 @@ export async function POST(request: Request) {
 
   if (input.action === "report") {
     const postId = typeof input.postId === "string" ? input.postId : "";
+    const replyId = typeof input.replyId === "string" ? input.replyId : "";
     const reason = typeof input.reason === "string" ? input.reason.trim() : "";
     const details = typeof input.details === "string" ? input.details.trim().slice(0, 2000) : null;
-    if (!postId || !reason || reason.length > 120) return NextResponse.json({ error: "Choose a report reason." }, { status: 400 });
-    const { error } = await supabase.from("community_reports").insert({ post_id: postId, reporter_id: user.id, reason, details });
+    if ((!postId && !replyId) || (postId && replyId) || !reason || reason.length > 120) return NextResponse.json({ error: "Choose a conversation or reply and a report reason." }, { status: 400 });
+    const visibleContent = postId
+      ? await supabase.from("community_posts").select("id").eq("id", postId).eq("status", "PUBLISHED").maybeSingle()
+      : await supabase.from("community_replies").select("id").eq("id", replyId).eq("status", "PUBLISHED").maybeSingle();
+    if (!visibleContent.data) return NextResponse.json({ error: "That content is unavailable." }, { status: 404 });
+    const { error } = await supabase.from("community_reports").insert({ post_id: postId || null, reply_id: replyId || null, reporter_id: user.id, reason, details });
     if (error) return NextResponse.json({ error: "Could not submit the report." }, { status: 400 });
     return NextResponse.json({ reported: true }, { status: 201 });
+  }
+
+  if (input.action === "delete_conversation") {
+    const postId = typeof input.postId === "string" ? input.postId : "";
+    if (!postId) return NextResponse.json({ error: "Choose a conversation to delete." }, { status: 400 });
+    const admin = createAdminClient();
+    const [{ data: post, error: postError }, { data: profile, error: profileError }] = await Promise.all([
+      admin.from("community_posts").select("id,author_id").eq("id", postId).maybeSingle(),
+      admin.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+    ]);
+    if (postError || profileError) return NextResponse.json({ error: "Could not verify permission to delete this conversation." }, { status: 500 });
+    if (!post) return NextResponse.json({ error: "This conversation was not found or was already deleted." }, { status: 404 });
+    if (post.author_id !== user.id && profile?.role !== "ADMIN") return NextResponse.json({ error: "Only the conversation owner or an admin can delete it." }, { status: 403 });
+    const deletion = await deleteCommunityContent(admin, "post", postId);
+    if (!deletion.ok) return NextResponse.json({ error: deletion.error }, { status: deletion.status });
+    return NextResponse.json({ deleted: true });
+  }
+
+  if (input.action === "moderate_content") {
+    const targetType = input.targetType === "reply" ? "reply" : input.targetType === "post" ? "post" : "";
+    const targetId = typeof input.targetId === "string" ? input.targetId : "";
+    const moderation = typeof input.moderation === "string" ? input.moderation : "";
+    if (!targetType || !targetId || !["HIDE", "RESTORE", "DELETE"].includes(moderation)) return NextResponse.json({ error: "Choose valid content moderation details." }, { status: 400 });
+    const admin = createAdminClient();
+    const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (profile?.role !== "ADMIN") return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+
+    if (moderation === "DELETE") {
+      const deletion = await deleteCommunityContent(admin, targetType, targetId);
+      if (!deletion.ok) return NextResponse.json({ error: deletion.error }, { status: deletion.status });
+      return NextResponse.json({ deleted: true });
+    }
+
+    const status = moderation === "HIDE" ? "HIDDEN" : "PUBLISHED";
+    const { error } = targetType === "post"
+      ? await admin.from("community_posts").update({ status }).eq("id", targetId)
+      : await admin.from("community_replies").update({ status }).eq("id", targetId);
+    if (error) return NextResponse.json({ error: "Could not update this content." }, { status: 400 });
+    return NextResponse.json({ updated: true, status });
   }
 
   if (input.action === "moderate_report") {
@@ -121,4 +166,36 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ error: "Unknown community action." }, { status: 400 });
+}
+
+async function deleteCommunityContent(admin: ReturnType<typeof createAdminClient>, targetType: "post" | "reply", targetId: string): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
+  const targetMedia = await admin.from("community_media").select("provider,bucket,path").eq(targetType === "post" ? "post_id" : "reply_id", targetId);
+  if (targetMedia.error) return { ok: false, error: "Could not check attached voice recordings. The content was left in place.", status: 500 };
+  let attachedMedia = targetMedia.data ?? [];
+  if (targetType === "post") {
+    const { data: postReplies, error: repliesError } = await admin.from("community_replies").select("id").eq("post_id", targetId);
+    if (repliesError) return { ok: false, error: "Could not check conversation replies. The conversation was left in place.", status: 500 };
+    const replyIds = (postReplies ?? []).map((reply) => reply.id);
+    if (replyIds.length) {
+      const { data: replyMedia, error: replyMediaError } = await admin.from("community_media").select("provider,bucket,path").in("reply_id", replyIds);
+      if (replyMediaError) return { ok: false, error: "Could not check attached voice recordings. The content was left in place.", status: 500 };
+      attachedMedia = [...attachedMedia, ...(replyMedia ?? [])];
+    }
+  }
+  try {
+    for (const object of attachedMedia) {
+      const storageObject = object.provider === "r2" && object.path && !object.path.startsWith("ai-recordings/")
+        ? { ...object, path: `ai-recordings/${object.path}` }
+        : object;
+      await deleteMediaObject(admin, storageObject);
+    }
+  } catch {
+    return { ok: false, error: "Could not remove every attached voice recording. The conversation was left in place so deletion can be safely retried.", status: 502 };
+  }
+  const { data: deletedContent, error } = targetType === "post"
+    ? await admin.from("community_posts").delete().eq("id", targetId).select("id").maybeSingle()
+    : await admin.from("community_replies").delete().eq("id", targetId).select("id").maybeSingle();
+  if (error) return { ok: false, error: "Could not delete this content. The audio cleanup can be safely retried.", status: 400 };
+  if (!deletedContent) return { ok: false, error: "This content was not found or was already deleted.", status: 404 };
+  return { ok: true };
 }

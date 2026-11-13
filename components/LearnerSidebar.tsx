@@ -66,7 +66,7 @@ export function LearnerSidebar({
       ...(showAiTutor ? [{ href: "/ai-tutor", label: "AI Tutor", icon: Sparkles, key: "ai-tutor" }] : []),
       { href: "/ipa-chart", label: "IPA Chart", icon: AudioLines, key: "ipa-chart" },
       { href: "/games", label: "Games", icon: Gamepad2, key: "games" },
-      ...(showAdminOnlyLearnerLinks ? [{ href: "/community", label: "Community", icon: MessagesSquare, key: "community" }] : []),
+      { href: "/community", label: "Community", icon: MessagesSquare, key: "community" },
       { href: "/assignments", label: "Assignments", icon: ClipboardCheck, key: "assignments" },
       { href: "/tasks", label: "Tasks", icon: ListTodo, key: "tasks" },
       ...(showAdminOnlyLearnerLinks ? [{ href: "/calendar", label: "Calendar", icon: CalendarDays, key: "calendar" }] : []),

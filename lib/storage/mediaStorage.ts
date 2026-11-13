@@ -166,7 +166,8 @@ export async function deleteMediaObject(admin: AdminClient, object: { provider?:
     return;
   }
 
-  await admin.storage.from(object.bucket).remove([object.path]);
+  const { error } = await admin.storage.from(object.bucket).remove([object.path]);
+  if (error) throw new Error(error.message || "Could not delete the stored media object.");
 }
 
 /** Returns a short-lived private URL for R2 objects such as learner recordings. */
