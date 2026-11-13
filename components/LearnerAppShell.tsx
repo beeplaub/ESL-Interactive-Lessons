@@ -126,7 +126,7 @@ export async function LearnerAppShell({
   const currentLevel = profile?.cefr_level || null;
   const isStaffUser = isStaff(profile?.role);
   const showAdminOnlyLearnerLinks = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
-  const notifications = await buildNotifications(admin, user?.id ?? null, currentLevel);
+  const { items: notifications, unreadCount: unreadNotificationCount } = await buildNotifications(admin, user?.id ?? null, currentLevel);
   const rightSidebarData = showRightSidebar ? await buildRightSidebarData(admin, user?.id ?? null, currentLevel) : null;
   const levelProgressPercent = user ? (await getLatestLevelTestSummary(admin, user.id))?.weightedPercent ?? null : null;
 
@@ -141,6 +141,7 @@ export async function LearnerAppShell({
         isLoggedIn={Boolean(user)}
         currentLevel={currentLevel}
         notifications={notifications}
+        unreadNotificationCount={unreadNotificationCount}
         isStaffUser={isStaffUser}
         showAdminOnlyLearnerLinks={showAdminOnlyLearnerLinks}
       />
@@ -153,6 +154,7 @@ export async function LearnerAppShell({
               leading={desktopChromeLeading}
               compactSpacing={compactDesktopChrome}
               notifications={notifications}
+              unreadNotificationCount={unreadNotificationCount}
               userName={name}
               initials={initials}
               avatarUrl={profile?.avatar_url ?? null}
@@ -289,10 +291,15 @@ async function buildRightSidebarData(
   };
 }
 
-async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, _currentLevel: string | null): Promise<NotificationItem[]> {
-  const { data: savedNotifications } = userId
-    ? await admin.from("user_notifications").select("id,title,detail,href,action_label,tone,read_at,created_at").eq("user_id", userId).eq("in_app_enabled", true).is("archived_at", null).or("expires_at.is.null,expires_at.gt." + new Date().toISOString()).order("created_at", { ascending: false }).limit(8)
-    : { data: [] };
+async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, _currentLevel: string | null): Promise<{ items: NotificationItem[]; unreadCount: number }> {
+  const now = new Date().toISOString();
+  const [notificationsResult, unreadCountResult] = userId
+    ? await Promise.all([
+        admin.from("user_notifications").select("id,title,detail,href,action_label,tone,read_at,created_at").eq("user_id", userId).eq("in_app_enabled", true).is("archived_at", null).or("expires_at.is.null,expires_at.gt." + now).order("created_at", { ascending: false }).limit(8),
+        admin.from("user_notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("in_app_enabled", true).is("archived_at", null).is("read_at", null).or("expires_at.is.null,expires_at.gt." + now),
+      ])
+    : [{ data: [] }, { count: 0 }];
+  const savedNotifications = notificationsResult.data;
   const items: NotificationItem[] = [];
   for (const notification of savedNotifications ?? []) {
     const tone = notification.tone === "orange" || notification.tone === "green" || notification.tone === "blue" ? notification.tone : "purple";
@@ -308,7 +315,7 @@ async function buildNotifications(admin: ReturnType<typeof createAdminClient>, u
       tone,
     });
   }
-  return items.slice(0, 8);
+  return { items: items.slice(0, 8), unreadCount: unreadCountResult.count ?? 0 };
 }
 
 function DesktopLearnerChrome({
@@ -316,6 +323,7 @@ function DesktopLearnerChrome({
   leading,
   compactSpacing,
   notifications,
+  unreadNotificationCount,
   userName,
   initials,
   avatarUrl,
@@ -327,6 +335,7 @@ function DesktopLearnerChrome({
   leading?: React.ReactNode;
   compactSpacing?: boolean;
   notifications: NotificationItem[];
+  unreadNotificationCount: number;
   userName: string;
   initials: string;
   avatarUrl: string | null;
@@ -367,7 +376,7 @@ function DesktopLearnerChrome({
         <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[var(--br-shadow)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
           <Target className="size-4 text-[var(--br-chart-primary)]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
-        <NotificationsDropdown initialNotifications={notifications} mode="desktop" />
+        <NotificationsDropdown initialNotifications={notifications} initialUnreadCount={unreadNotificationCount} mode="desktop" />
         <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[var(--br-surface-strong)] bg-surface p-1.5 pr-3 shadow-[var(--br-shadow)]">
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
           <span className="hidden max-w-[130px] truncate text-xs font-bold text-[var(--br-dark-card)] min-[1120px]:block">{isLoggedIn ? userName : "My Account"}</span>
@@ -512,6 +521,7 @@ function MobileTopbar({
   isLoggedIn,
   currentLevel,
   notifications,
+  unreadNotificationCount,
   isStaffUser,
   showAdminOnlyLearnerLinks,
 }: {
@@ -521,6 +531,7 @@ function MobileTopbar({
   isLoggedIn: boolean;
   currentLevel: string | null;
   notifications: NotificationItem[];
+  unreadNotificationCount: number;
   isStaffUser?: boolean;
   showAdminOnlyLearnerLinks?: boolean;
 }) {
@@ -549,7 +560,7 @@ function MobileTopbar({
           <Target className="size-[15px] text-white" />
           {currentLevel ? <span>{currentLevel}</span> : null}
         </Link>
-        <NotificationsDropdown initialNotifications={notifications} mode="mobile" />
+        <NotificationsDropdown initialNotifications={notifications} initialUnreadCount={unreadNotificationCount} mode="mobile" />
         <Link href={isLoggedIn ? "/profile" : "/login"} aria-label={isLoggedIn ? "Profile" : "My Account"}>
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
         </Link>

@@ -8,6 +8,7 @@ import { deleteNotification, markAllNotificationsRead, markNotificationRead, mar
 
 type Props = {
   initialNotifications: NotificationItem[];
+  initialUnreadCount: number;
   mode: "desktop" | "mobile";
 };
 
@@ -18,7 +19,7 @@ const tones = {
   blue: "bg-[var(--br-info)]",
 };
 
-export function NotificationsDropdown({ initialNotifications, mode }: Props) {
+export function NotificationsDropdown({ initialNotifications, initialUnreadCount, mode }: Props) {
   const [readKeys, setReadKeys] = useState<string[]>([]);
   const [dismissedKeys, setDismissedKeys] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
@@ -26,6 +27,7 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
   const [deletedNotificationIds, setDeletedNotificationIds] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [unreadCountDelta, setUnreadCountDelta] = useState(0);
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
     return Boolean(item.isRead || readNotificationIds.includes(item.notificationId));
   };
   const visibleNotifications = initialNotifications.filter((item) => item.notificationId ? !deletedNotificationIds.includes(item.notificationId) : !dismissedKeys.includes(item.key));
-  const unreadCount = visibleNotifications.filter((item) => !isRead(item)).length;
+  const unreadCount = Math.max(0, initialUnreadCount + unreadCountDelta);
   const persistentUnreadIds = visibleNotifications.filter((item) => item.notificationId && !isRead(item)).map((item) => item.notificationId!);
 
   const markRead = (item: NotificationItem) => {
@@ -68,10 +70,12 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
       try { localStorage.setItem("brenup_read_notifications", JSON.stringify(updated)); } catch { /* local preference only */ }
       return;
     }
+    setUnreadCountDelta((current) => current - 1);
     setReadNotificationIds((current) => [...current, item.notificationId!]);
     setUnreadNotificationIds((current) => current.filter((id) => id !== item.notificationId));
     void markNotificationRead(item.notificationId).catch((error) => {
       console.error("Failed to mark notification as read:", error);
+      setUnreadCountDelta((current) => current + 1);
       setReadNotificationIds((current) => current.filter((id) => id !== item.notificationId));
     });
   };
@@ -88,10 +92,12 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
       return;
     }
     if (!isRead(item)) return markRead(item);
+    setUnreadCountDelta((current) => current + 1);
     setUnreadNotificationIds((current) => [...current, item.notificationId!]);
     setReadNotificationIds((current) => current.filter((id) => id !== item.notificationId));
     void markNotificationUnread(item.notificationId).catch((error) => {
       console.error("Failed to mark notification as unread:", error);
+      setUnreadCountDelta((current) => current - 1);
       setUnreadNotificationIds((current) => current.filter((id) => id !== item.notificationId));
     });
   };
@@ -103,9 +109,11 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
       try { localStorage.setItem("brenup_dismissed_notifications", JSON.stringify(updated)); } catch { /* local preference only */ }
       return;
     }
+    if (!isRead(item)) setUnreadCountDelta((current) => current - 1);
     setDeletedNotificationIds((current) => [...current, item.notificationId!]);
     void deleteNotification(item.notificationId).catch((error) => {
       console.error("Failed to delete notification:", error);
+      if (!isRead(item)) setUnreadCountDelta((current) => current + 1);
       setDeletedNotificationIds((current) => current.filter((id) => id !== item.notificationId));
     });
   };
@@ -113,20 +121,18 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
   const markAllRead = () => {
     if (!unreadCount || isMarkingAll) return;
     setIsMarkingAll(true);
+    setUnreadCountDelta(-initialUnreadCount);
     const derivedUnreadKeys = visibleNotifications.filter((item) => !item.notificationId && !isRead(item)).map((item) => item.key);
     if (derivedUnreadKeys.length) {
       const updated = [...new Set([...readKeys, ...derivedUnreadKeys])];
       setReadKeys(updated);
       try { localStorage.setItem("brenup_read_notifications", JSON.stringify(updated)); } catch { /* local preference only */ }
     }
-    if (!persistentUnreadIds.length) {
-      setIsMarkingAll(false);
-      return;
-    }
     setReadNotificationIds((current) => [...new Set([...current, ...persistentUnreadIds])]);
     setUnreadNotificationIds((current) => current.filter((id) => !persistentUnreadIds.includes(id)));
     void markAllNotificationsRead().catch((error) => {
       console.error("Failed to mark notifications as read:", error);
+      setUnreadCountDelta(0);
       setReadNotificationIds((current) => current.filter((id) => !persistentUnreadIds.includes(id)));
     }).finally(() => setIsMarkingAll(false));
   };
@@ -142,7 +148,7 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
     <details data-exclusive-popup ref={detailsRef} onToggle={(event) => setIsOpen(event.currentTarget.open)} className="group relative">
       <summary className={summaryClass} aria-label="Notifications">
         <Bell className={mode === "desktop" ? "size-[18px] text-[var(--br-text-muted)]" : "size-5"} />
-        {unreadCount > 0 ? <span className={mode === "desktop" ? "absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border-2 border-[var(--br-canvas-elevated)] bg-[var(--br-danger)] text-[10px] font-black text-on-dark" : "absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[var(--br-dark-card)] bg-[var(--br-danger)] text-[8px] font-bold"}>{unreadCount}</span> : null}
+        {unreadCount > 0 ? <span className={mode === "desktop" ? "absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-[var(--br-canvas-elevated)] bg-[var(--br-danger)] px-1 text-[10px] font-black leading-none text-on-dark" : "absolute right-0.5 top-0.5 flex min-h-3.5 min-w-3.5 items-center justify-center rounded-full border border-[var(--br-dark-card)] bg-[var(--br-danger)] px-0.5 text-[8px] font-bold leading-none"}>{unreadCount}</span> : null}
       </summary>
       <div className={panelClass}>
         <div className="flex items-center justify-between gap-3 border-b border-[var(--br-surface-strong)] px-4 py-3"><div><p className="text-sm font-black text-[var(--br-dark-card)]">Notifications</p><p className="text-xs font-semibold text-[var(--br-text-muted)]">Latest learning and platform updates</p></div>{unreadCount ? <button type="button" disabled={isMarkingAll} onClick={markAllRead} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-extrabold text-[var(--br-chart-primary)] hover:underline disabled:opacity-50"><CheckCheck className="size-3.5" /> Mark all read</button> : null}</div>
