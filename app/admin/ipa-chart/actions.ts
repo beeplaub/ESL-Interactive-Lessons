@@ -215,7 +215,8 @@ export async function importIpaVowelContrastExpansion() {
       const key = `${wordId}:${accent}:${soundId}`;
       const existing = pronunciationByKey.get(key);
       if (existing && existing.ipa !== ipa) throw new Error(`${word.spelling} already has a different ${accent.toUpperCase()} IPA for /${IPA_CHARTS[accent].find(sound => sound.id === soundId)?.symbol}/. The import stopped before pair links were changed.`);
-      const existingDefault = existing?.is_default ?? hasDefaultByAccent.has(`${wordId}:${accent}`);
+      const defaultKey = `${wordId}:${accent}`;
+      const isDefault = existing ? existing.is_default : !hasDefaultByAccent.has(defaultKey);
       pronunciationRows.push({
         word_id: wordId,
         accent,
@@ -226,9 +227,9 @@ export async function importIpaVowelContrastExpansion() {
         part_of_speech: word.partOfSpeech ?? null,
         target_syllable_index: word.targetSyllableIndex,
         sort_order: 5000 + (pairs.find(pair => pair.left.toLocaleLowerCase("en-US") === word.spelling.toLocaleLowerCase("en-US") || pair.right.toLocaleLowerCase("en-US") === word.spelling.toLocaleLowerCase("en-US"))?.sourcePairNumber ?? 0),
-        is_default: existingDefault || !hasDefaultByAccent.has(`${wordId}:${accent}`),
+        is_default: isDefault,
       });
-      if (existing?.is_default || !hasDefaultByAccent.has(`${wordId}:${accent}`)) hasDefaultByAccent.add(`${wordId}:${accent}`);
+      if (isDefault) hasDefaultByAccent.add(defaultKey);
     }
   }
 
