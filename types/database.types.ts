@@ -16,6 +16,51 @@ export type SlideType =
 export type Database = {
   public: {
     Tables: {
+      speech_practice_prompts: {
+        Row: {
+          id: string;
+          prompt_type: "SHADOWING" | "TONGUE_TWISTER";
+          title: string;
+          text: string;
+          cefr_level: string | null;
+          target_sounds: string[];
+          tags: string[];
+          audio_variants: Json;
+          status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          prompt_type: "SHADOWING" | "TONGUE_TWISTER";
+          title: string;
+          text: string;
+          cefr_level?: string | null;
+          target_sounds?: string[];
+          tags?: string[];
+          audio_variants?: Json;
+          status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          prompt_type?: "SHADOWING" | "TONGUE_TWISTER";
+          title?: string;
+          text?: string;
+          cefr_level?: string | null;
+          target_sounds?: string[];
+          tags?: string[];
+          audio_variants?: Json;
+          status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;

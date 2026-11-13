@@ -1,7 +1,7 @@
 "use client";
 
 import type { TouchEvent } from "react";
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Repeat2, Sparkles, TrendingUp, Loader2, XCircle, Volume2, Play, Pause, FileText, Headphones } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Mic, MicOff, RotateCcw, Repeat2, Sparkles, TrendingUp, Loader2, XCircle, Volume2, Play, Pause, FileText, Headphones } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { motion, Reorder } from "framer-motion";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
@@ -1029,6 +1029,8 @@ export function QuizPlayer({
               onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
               onResult={handleQuestionResult}
               quizId={quizId}
+              onFinishShadowing={() => submit()}
+              finishPending={isPending}
             />
           </ActivityEvaluationModeContext.Provider>
         ) : null}
@@ -1129,6 +1131,8 @@ export function QuestionCard({
   soundDiscriminationReviewRoundIndex,
   onChange,
   onResult,
+  onFinishShadowing,
+  finishPending = false,
   quizId,
   lessonId
 }: {
@@ -1142,6 +1146,8 @@ export function QuestionCard({
   onChange: (value: unknown) => void;
   /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
   onResult?: (result: "correct" | "wrong" | "partial", questionId: string) => void;
+  onFinishShadowing?: () => void;
+  finishPending?: boolean;
   quizId?: string | null;
   lessonId?: string | null;
 }) {
@@ -1187,6 +1193,10 @@ export function QuestionCard({
     else onResult("wrong", question.id);
   }, [submitted, isResolved, correct, allCorrect, partial, question.id, onResult]);
 
+  if (question.question_type === "SHADOWING" && asRecord(question.options).layered_flow === true) {
+    return <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} onFinish={onFinishShadowing} finishPending={finishPending} />;
+  }
+
   return (
     <motion.fieldset
       animate={
@@ -1222,8 +1232,8 @@ export function QuestionCard({
       <legend className="min-w-0 max-w-full px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] [overflow-wrap:anywhere] sm:text-xl">
         <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-sm font-black text-[var(--br-chart-primary)]">{question.question_number}</span>{question.question_text}
       </legend>
-      {question.description ? <p className="mt-3 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">{question.description}</p> : null}
-      <div className="mt-5">
+      {question.description?.trim() ? <p className="mt-3 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">{question.description.trim()}</p> : null}
+      <div className={question.question_type === "SHADOWING" ? question.description?.trim() ? "mt-4" : "mt-2" : "mt-5"}>
         {question.question_type === "MCQ" ? <Mcq question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
@@ -1243,7 +1253,7 @@ export function QuestionCard({
         {question.question_type === "PARAPHRASE_ID" ? <ParaphraseId question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "DICTATION" ? <DictationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_SELECT" ? <ListenSelectPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} onFinish={onFinishShadowing} finishPending={finishPending} /> : null}
       {question.question_type === "READ_ALOUD" ? <ReadingPracticePlayer config={{ title: String(asRecord(question.options).title ?? "Reading passage"), passage: String(asRecord(question.options).passage ?? ""), level: String(asRecord(question.options).level ?? "A1"), time_limit_seconds: asRecord(question.options).time_limit_seconds ? Number(asRecord(question.options).time_limit_seconds) : null, pace_wpm: readingPaceForLevel(String(asRecord(question.options).level ?? "A1"), Number(asRecord(question.options).pace_wpm ?? Number.NaN)), recording_attempt_limit: asRecord(question.options).recording_attempt_limit ? Number(asRecord(question.options).recording_attempt_limit) : null, chunking_enabled: asRecord(question.options).chunking_enabled === true, usage_key: `quiz:${quizId ?? "preview"}:${question.id}` }} disabled={submitted} onResult={(result) => onChange({ ...result, score: result.match_percent } as unknown as Json)} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} reviewRoundIndex={soundDiscriminationReviewRoundIndex} onChange={onChange} /> : null}
@@ -1333,7 +1343,7 @@ function HeadingsMatching({
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_18px_60px_-36px_rgba(48,34,96,0.32)]">
       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Select the correct heading for each paragraph</p>
       <div className="space-y-4">
         {paragraphs.map((p) => {
@@ -3345,9 +3355,12 @@ type ShadowingPlayerProps = {
   value?: ShadowingValue;
   disabled: boolean;
   onChange: (val: ShadowingValue) => void;
+  onFinish?: () => void;
+  finishPending?: boolean;
 };
 
 function ShadowingPlayer(props: ShadowingPlayerProps) {
+  if (asRecord(props.question.options).layered_flow === true) return <LayeredShadowingPlayer {...props} />;
   return asRecord(props.question.options).shadowing_mode === "CHUNK_AB" || asRecord(props.question.options).shadowing_mode === "SENTENCE_AB"
     ? <SentenceShadowingPlayer {...props} />
     : <LegacyShadowingPlayer {...props} />;
@@ -3404,6 +3417,462 @@ function playShadowingWindow(
     if (audio.readyState >= 1) onReady();
     else audio.load();
   });
+}
+
+function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish, finishPending = false }: ShadowingPlayerProps) {
+  const options = asRecord(question.options);
+  const targetText = shadowingSentenceText(options);
+  const audioUrl = String(options.audio_url ?? "");
+  const accent = String(options.accent ?? "");
+  const accentLabel = accent === "en-GB" ? "British English" : accent === "en-US" ? "American English" : "";
+  const cefrLevel = String(options.cefr_level ?? "").trim();
+  const maxRecordingSeconds = Math.max(5, Math.min(60, Math.round(Number(options.max_recording_seconds ?? 15) || 15)));
+  const maxAttempts = Math.max(1, Math.min(100, Number(options.max_attempts ?? 3) || 3));
+  const [stage, setStage] = useState<"listen" | "say" | "compare">("listen");
+  const [modelDurationSeconds, setModelDurationSeconds] = useState<number | null>(null);
+  const [modelListened, setModelListened] = useState(false);
+  const [modelLoopEnabled, setModelLoopEnabled] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [recordingSecondsLeft, setRecordingSecondsLeft] = useState(maxRecordingSeconds);
+  const [attemptsUsed, setAttemptsUsed] = useState(() => Math.max(0, Number(asRecord(value as Json).attempts_used ?? 0) || 0));
+  const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [learnerAudioUrl, setLearnerAudioUrl] = useState<string | null>(null);
+  const [modelPlaying, setModelPlaying] = useState(false);
+  const [learnerPlaying, setLearnerPlaying] = useState(false);
+  const [comparisonPlaying, setComparisonPlaying] = useState(false);
+  const [comparisonLoopEnabled, setComparisonLoopEnabled] = useState(false);
+  const [comparisonHeard, setComparisonHeard] = useState(Boolean(asRecord(value as Json).comparison_heard));
+  const [wordCoverage, setWordCoverage] = useState<number | null>(() => typeof asRecord(value as Json).word_coverage === "number" ? Number(asRecord(value as Json).word_coverage) : null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const attemptsUsedRef = useRef(attemptsUsed);
+  const comparisonHeardRef = useRef(comparisonHeard);
+  const wordCoverageRef = useRef<number | null>(wordCoverage);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef(0);
+  const loopTokenRef = useRef(0);
+  const comparisonLoopRef = useRef(false);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const modelAudioRef = useRef<HTMLAudioElement | null>(null);
+  const learnerAudioRef = useRef<HTMLAudioElement | null>(null);
+  const modelCompareHeardRef = useRef(false);
+  const learnerCompareHeardRef = useRef(false);
+  const readyToRecord = Boolean(audioUrl && targetText.trim());
+
+  const stopComparison = useCallback(() => {
+    loopTokenRef.current += 1;
+    activeAudioRef.current?.pause();
+    activeAudioRef.current = null;
+    comparisonLoopRef.current = false;
+    setComparisonLoopEnabled(false);
+    setComparisonPlaying(false);
+  }, []);
+
+  useEffect(() => {
+    const modelAudio = modelAudioRef.current;
+    const learnerAudio = learnerAudioRef.current;
+    return () => {
+      loopTokenRef.current += 1;
+      activeAudioRef.current?.pause();
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.onstop = null;
+        try { recorder.stop(); } catch { /* The browser may already have stopped it. */ }
+      }
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      modelAudio?.pause();
+      learnerAudio?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!learnerAudioUrl) return;
+    return () => URL.revokeObjectURL(learnerAudioUrl);
+  }, [learnerAudioUrl]);
+
+  function completeComparison() {
+    if (comparisonHeardRef.current) return;
+    comparisonHeardRef.current = true;
+    setComparisonHeard(true);
+    onChange({ completed: true, comparison_heard: true, word_coverage: wordCoverageRef.current, attempts_used: attemptsUsedRef.current });
+  }
+
+  function handleModelEnded() {
+    setModelPlaying(false);
+    setModelListened(true);
+    if (stage === "compare") {
+      modelCompareHeardRef.current = true;
+      if (learnerCompareHeardRef.current) completeComparison();
+    }
+  }
+
+  function handleLearnerEnded() {
+    setLearnerPlaying(false);
+    learnerCompareHeardRef.current = true;
+    if (modelCompareHeardRef.current) completeComparison();
+  }
+
+  const processRecording = useCallback(async (blob: Blob, durationSeconds: number) => {
+    setProcessing(true);
+    setError(null);
+    setRecordingDuration(durationSeconds);
+    comparisonHeardRef.current = false;
+    modelCompareHeardRef.current = false;
+    learnerCompareHeardRef.current = false;
+    setComparisonHeard(false);
+    setAutoplayBlocked(false);
+    setWordCoverage(null);
+    wordCoverageRef.current = null;
+    stopComparison();
+    const learnerUrl = URL.createObjectURL(blob);
+    setLearnerAudioUrl(learnerUrl);
+    const nextAttemptsUsed = attemptsUsedRef.current + 1;
+    attemptsUsedRef.current = nextAttemptsUsed;
+    setAttemptsUsed(nextAttemptsUsed);
+    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
+    const form = new FormData();
+    form.append("file", blob, `shadowing.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
+    form.append("durationSeconds", String(durationSeconds));
+    try {
+      const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+      const result = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
+      if (!response.ok || !result.transcript) throw new Error(result.error || "Transcription is temporarily unavailable.");
+      const coverage = shadowingWordCoverage(targetText, result.transcript);
+      wordCoverageRef.current = coverage;
+      setWordCoverage(coverage);
+      onChange({ completed: false, comparison_heard: false, word_coverage: coverage, attempts_used: nextAttemptsUsed });
+    } catch (caught) {
+      wordCoverageRef.current = null;
+      setWordCoverage(null);
+      onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
+      setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again.");
+    } finally {
+      setProcessing(false);
+    }
+  }, [onChange, stopComparison, targetText]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current?.state !== "recording") return;
+    setRecording(false);
+    setProcessing(true);
+    playRecordingEnd();
+    mediaRecorderRef.current.stop();
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (disabled || processing || recording || attemptsUsedRef.current >= maxAttempts || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") setError("Microphone recording is not available in this browser.");
+      return;
+    }
+    setError(null);
+    setModelLoopEnabled(false);
+    if (modelAudioRef.current) modelAudioRef.current.loop = false;
+    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: attemptsUsedRef.current });
+    stopComparison();
+    modelAudioRef.current?.pause();
+    learnerAudioRef.current?.pause();
+    chunksRef.current = [];
+    startedAtRef.current = Date.now();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        recorder.onstop = null;
+        try { if (recorder.state !== "inactive") recorder.stop(); } catch { /* Recorder may already have stopped. */ }
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        setRecording(false);
+        setProcessing(false);
+        setError("The microphone stopped unexpectedly. Please try again.");
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        chunksRef.current = [];
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        if (!blob.size) {
+          setRecording(false);
+          setProcessing(false);
+          setError("No audio was recorded. Please try again.");
+          return;
+        }
+        const duration = Math.max(1, Math.ceil((Date.now() - startedAtRef.current) / 1000));
+        setRecording(false);
+        void processRecording(blob, duration);
+      };
+      recorder.start(250);
+      setRecordingSecondsLeft(maxRecordingSeconds);
+      setRecording(true);
+      playRecordingStart();
+    } catch {
+      setRecording(false);
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      setError("Microphone access was blocked. Please allow microphone access and try again.");
+    }
+  }, [disabled, maxAttempts, maxRecordingSeconds, onChange, processRecording, processing, recording, stopComparison]);
+
+  useEffect(() => {
+    if (countdown === null) return;
+    const timer = window.setTimeout(() => {
+      if (countdown === 0) {
+        setCountdown(null);
+        void startRecording();
+      } else {
+        setCountdown((current) => current === null ? null : current - 1);
+      }
+    }, countdown === 0 ? 650 : 850);
+    return () => window.clearTimeout(timer);
+  }, [countdown, startRecording]);
+
+  useEffect(() => {
+    if (!recording) return;
+    const timer = window.setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - startedAtRef.current) / 1000);
+      const remaining = Math.max(0, maxRecordingSeconds - elapsedSeconds);
+      setRecordingSecondsLeft(remaining);
+      if (remaining <= 0) stopRecording();
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [maxRecordingSeconds, recording, stopRecording]);
+
+  async function playComparison(keepLooping: boolean) {
+    if (!learnerAudioUrl || !audioUrl || comparisonPlaying) return;
+    loopTokenRef.current += 1;
+    const token = loopTokenRef.current;
+    activeAudioRef.current?.pause();
+    modelAudioRef.current?.pause();
+    learnerAudioRef.current?.pause();
+    comparisonLoopRef.current = keepLooping;
+    setComparisonLoopEnabled(keepLooping);
+    setComparisonPlaying(true);
+    setModelPlaying(false);
+    setLearnerPlaying(false);
+    setAutoplayBlocked(false);
+    while (loopTokenRef.current === token) {
+      const modelPlayed = await playShadowingWindow(audioUrl, 0, Number.POSITIVE_INFINITY, token, loopTokenRef, activeAudioRef, modelAudioRef.current);
+      if (loopTokenRef.current !== token) break;
+      if (!modelPlayed) {
+        setAutoplayBlocked(true);
+        break;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+      if (loopTokenRef.current !== token) break;
+      const learnerPlayed = await playShadowingWindow(learnerAudioUrl, 0, Number.POSITIVE_INFINITY, token, loopTokenRef, activeAudioRef, learnerAudioRef.current);
+      if (loopTokenRef.current !== token) break;
+      if (!learnerPlayed) {
+        setAutoplayBlocked(true);
+        break;
+      }
+      modelCompareHeardRef.current = true;
+      learnerCompareHeardRef.current = true;
+      completeComparison();
+      if (!keepLooping) break;
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    }
+    if (loopTokenRef.current === token) {
+      comparisonLoopRef.current = false;
+      setComparisonLoopEnabled(false);
+      setComparisonPlaying(false);
+    }
+  }
+
+  function toggleComparisonLoop() {
+    if (comparisonLoopRef.current) {
+      stopComparison();
+      return;
+    }
+    void playComparison(true);
+  }
+
+  function handleListenPlay(loop = modelLoopEnabled) {
+    const audio = modelAudioRef.current;
+    if (!audio || disabled || processing || recording) return;
+    learnerAudioRef.current?.pause();
+    audio.loop = loop;
+    if (audio.ended || (Number.isFinite(audio.duration) && audio.currentTime >= audio.duration)) audio.currentTime = 0;
+    void audio.play().then(() => setModelPlaying(true)).catch(() => setError("Could not play the model audio. Please try again."));
+  }
+
+  function toggleModelLoop() {
+    const audio = modelAudioRef.current;
+    if (!audio || disabled || processing || recording) return;
+    const next = !modelLoopEnabled;
+    setModelLoopEnabled(next);
+    audio.loop = next;
+    if (next) handleListenPlay(true);
+    else if (audio) {
+      audio.pause();
+      setModelPlaying(false);
+      setModelListened(true);
+    }
+  }
+
+  function handleRecordAgain() {
+    stopComparison();
+    modelAudioRef.current?.pause();
+    learnerAudioRef.current?.pause();
+    setStage("say");
+    setLearnerAudioUrl(null);
+    setRecordingDuration(0);
+    setWordCoverage(null);
+    wordCoverageRef.current = null;
+    setComparisonHeard(false);
+    comparisonHeardRef.current = false;
+    modelCompareHeardRef.current = false;
+    learnerCompareHeardRef.current = false;
+    setModelPlaying(false);
+    setLearnerPlaying(false);
+  }
+
+  const stepIndex = stage === "listen" ? 0 : stage === "say" ? 1 : 2;
+  const modelDurationLabel = modelDurationSeconds === null ? null : `${modelDurationSeconds} sec`;
+  const recordingProgress = maxRecordingSeconds ? (maxRecordingSeconds - recordingSecondsLeft) / maxRecordingSeconds : 0;
+
+  return (
+    <div className="w-full overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_18px_60px_-36px_rgba(48,34,96,0.32)]">
+      <audio
+        ref={modelAudioRef}
+        src={audioUrl || undefined}
+        preload="metadata"
+        className="sr-only"
+        onLoadedMetadata={(event) => {
+          const duration = event.currentTarget.duration;
+          if (Number.isFinite(duration) && duration > 0) setModelDurationSeconds(Math.max(1, Math.ceil(duration)));
+        }}
+        onEnded={handleModelEnded}
+        aria-label="Model sentence audio"
+      />
+      {learnerAudioUrl ? <audio ref={learnerAudioRef} src={learnerAudioUrl} preload="metadata" className="sr-only" onEnded={handleLearnerEnded} aria-label="Your recorded sentence" /> : null}
+
+      <header className="border-b border-slate-100 px-5 py-5 sm:px-9 sm:py-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Shadowing practice</p>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{question.question_text || "Listen. Say it. Compare."}</h1>
+            {question.description?.trim() ? <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">{question.description.trim()}</p> : null}
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2" aria-label="Prompt details">
+            {accentLabel ? <span className="inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800">{accentLabel}</span> : null}
+            {cefrLevel ? <span className="inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800">{cefrLevel}</span> : null}
+          </div>
+        </div>
+
+      <div className="mt-6" aria-label="Shadowing progress">
+        <div className="relative grid grid-cols-3 gap-2 sm:gap-5">
+        <div className="absolute left-[16.5%] right-[16.5%] top-[18px] h-0.5 bg-slate-200" aria-hidden="true" />
+        <div className="absolute left-[16.5%] top-[18px] h-0.5 bg-violet-600 transition-all duration-500" style={{ width: `${stepIndex * 33.5}%` }} aria-hidden="true" />
+        {["Listen", "Say it", "Compare"].map((label, index) => {
+          const done = index < stepIndex || (index === 2 && comparisonHeard);
+          const active = index === stepIndex;
+          return <div key={label} className="relative z-10 flex min-w-0 flex-col items-center gap-2 text-center" aria-current={active ? "step" : undefined}>
+            <span className={`grid size-9 place-items-center rounded-full border-2 transition sm:size-10 ${done ? "border-violet-700 bg-violet-700 text-white" : active ? "border-violet-700 bg-white text-violet-800 shadow-[0_0_0_5px_rgba(124,58,237,0.10)]" : "border-slate-200 bg-white text-slate-400"}`}>
+              {done ? <Check size={17} strokeWidth={3} /> : <span className="text-xs font-extrabold">{index + 1}</span>}
+            </span>
+            <span className={`text-xs font-extrabold sm:text-sm ${done || active ? "text-slate-800" : "text-slate-400"}`}>{label}</span>
+          </div>;
+        })}
+        </div>
+      </div>
+      </header>
+
+      <div className="px-5 py-6 sm:px-9 sm:py-9">
+
+      {stage === "listen" ? <section className="mx-auto grid w-full max-w-2xl justify-items-center px-1 py-1 text-center sm:px-2">
+        <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-extrabold text-violet-800"><Headphones size={15} /> LISTEN</span>
+        <p className="mt-7 max-w-2xl text-2xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-4xl">{targetText}</p>
+        {modelDurationLabel ? <span className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800 shadow-sm"><Clock3 size={14} /> Model audio · {modelDurationLabel}</span> : null}
+        <p className="mt-3 text-sm text-[var(--br-text-muted)]">Listen to the whole sentence. Replay or loop it as often as you like.</p>
+        <button type="button" onClick={() => handleListenPlay()} disabled={!readyToRecord || disabled || processing || recording || modelPlaying} aria-label="Tap to listen" className="mt-6 grid size-24 place-items-center rounded-full bg-[var(--br-action)] text-white shadow-[0_12px_28px_-12px_rgba(217,83,53,0.65)] transition hover:scale-[1.03] hover:brightness-95 disabled:opacity-50 sm:size-28">
+          {modelPlaying ? <span className="flex items-center gap-1" aria-hidden="true"><i className="h-7 w-1.5 animate-pulse rounded-full bg-white" /><i className="h-10 w-1.5 animate-pulse rounded-full bg-white [animation-delay:120ms]" /><i className="h-6 w-1.5 animate-pulse rounded-full bg-white [animation-delay:240ms]" /><i className="h-9 w-1.5 animate-pulse rounded-full bg-white [animation-delay:360ms]" /></span> : <Volume2 size={37} strokeWidth={2.2} />}
+        </button>
+        <span className="mt-2 text-xs font-extrabold text-[var(--br-action-strong)]">{modelPlaying ? modelLoopEnabled ? "Looping · tap loop to stop" : "Listening…" : "Tap to listen"}</span>
+        <button type="button" onClick={toggleModelLoop} disabled={!readyToRecord || disabled || processing || recording} aria-label={modelLoopEnabled ? "Stop looping model audio" : "Loop model audio"} aria-pressed={modelLoopEnabled} title={modelLoopEnabled ? "Stop loop" : "Loop audio"} className={`mt-3 grid size-10 place-items-center rounded-full border border-slate-200 bg-white transition hover:border-violet-300 hover:bg-violet-50 ${modelLoopEnabled ? "text-violet-800 ring-2 ring-violet-100" : "text-violet-700"}`}>
+          <Repeat2 size={17} className={modelLoopEnabled ? "animate-spin [animation-duration:1.4s] motion-reduce:animate-none" : ""} />
+        </button>
+        {modelListened ? <p className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-emerald-700"><CheckCircle2 size={15} /> Listening complete</p> : null}
+        {error ? <p role="status" className="mt-3 text-sm font-semibold text-amber-800">{error}</p> : null}
+        {modelListened ? <button type="button" onClick={() => { setStage("say"); setModelLoopEnabled(false); if (modelAudioRef.current) modelAudioRef.current.loop = false; }} disabled={disabled} className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 text-sm font-extrabold text-white shadow-sm transition hover:brightness-95 disabled:opacity-50">I’m ready to try <ArrowRight size={17} /></button> : <p className="mt-4 text-xs font-medium text-slate-400">No microphone needed yet</p>}
+      </section> : null}
+
+      {stage === "say" ? <section className="mx-auto grid w-full max-w-2xl justify-items-center px-1 py-1 text-center sm:px-2">
+        <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-extrabold text-violet-800"><Mic size={15} /> SAY IT</span>
+        <p className="mt-7 max-w-2xl text-2xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-4xl">{targetText}</p>
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {modelDurationLabel ? <span className="inline-flex min-h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800">Model · {modelDurationLabel}</span> : null}
+          <span className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800"><Clock3 size={13} /> Your time · up to {maxRecordingSeconds} sec</span>
+        </div>
+        <p className="mt-3 max-w-md text-sm leading-6 text-[var(--br-text-muted)]">{modelDurationLabel ? `Try to say it in about ${modelDurationSeconds} seconds. ` : "Say the sentence at a steady pace. "}You can take up to {maxRecordingSeconds} seconds to record.</p>
+        <p className="mt-2 text-xs font-semibold text-[var(--br-text-muted)]">{Math.min(attemptsUsed + (recording ? 1 : 0), maxAttempts)} of {maxAttempts} attempts used</p>
+        {countdown !== null ? <div className="mt-6 grid justify-items-center" role="status" aria-live="assertive">
+          <div className="grid size-24 place-items-center rounded-full bg-violet-700 text-4xl font-black text-white shadow-[0_0_0_10px_rgba(124,58,237,0.10)] animate-pulse sm:size-28">{countdown === 0 ? "GO" : countdown}</div>
+          <span className="mt-3 text-sm font-extrabold text-violet-800">Get ready…</span>
+        </div> : <>
+          <button type="button" onClick={recording ? stopRecording : () => setCountdown(3)} disabled={disabled || processing || attemptsUsed >= maxAttempts || (!recording && (recording || Boolean(learnerAudioUrl)))} className={`mt-7 grid size-24 place-items-center rounded-full text-white shadow-lg transition sm:size-28 ${recording ? "bg-[var(--br-action-strong)] ring-8 ring-orange-100" : "bg-[var(--br-action)] hover:scale-[1.03] hover:brightness-95"}`} aria-label={recording ? "Stop recording" : "Tap to record"}>
+            {recording ? <MicOff size={35} /> : processing ? <Loader2 size={28} className="animate-spin" /> : <Mic size={37} />}
+          </button>
+          <span className="mt-2 text-sm font-extrabold text-[var(--br-action-strong)]">{recording ? "Tap to stop early" : processing ? "Preparing your comparison…" : learnerAudioUrl ? "Recording complete" : attemptsUsed >= maxAttempts ? "No attempts remaining" : "Tap to record"}</span>
+          {recording ? <div className="mt-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-3.5">
+            <div className="flex items-center justify-between text-xs font-extrabold"><span className="text-[var(--br-action-strong)]">Recording</span><span className="tabular-nums text-slate-700">00:{String(recordingSecondsLeft).padStart(2, "0")} <span className="font-semibold text-slate-400">/ 00:{String(maxRecordingSeconds).padStart(2, "0")}</span></span></div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[var(--br-action)] transition-[width] duration-200" style={{ width: `${Math.min(100, Math.max(0, recordingProgress * 100))}%` }} /></div>
+            <p className="mt-2 text-left text-[11px] font-medium text-[var(--br-text-muted)]">Recording stops when the timer ends.</p>
+          </div> : null}
+          {processing ? <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-violet-700"><Loader2 size={16} className="animate-spin" /> Preparing your comparison…</p> : null}
+          {recordingDuration > 0 && !processing && learnerAudioUrl ? <p className="mt-2 text-xs font-medium text-emerald-700">Recorded for {recordingDuration} seconds.</p> : null}
+          {error ? <p role="status" className="mt-3 text-sm font-semibold text-amber-800">{error}</p> : null}
+          {!recording && !processing && learnerAudioUrl ? <button type="button" onClick={() => setStage("compare")} disabled={disabled} className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-violet-700 px-5 text-sm font-extrabold text-white transition hover:bg-violet-800 disabled:opacity-50">Continue to Compare <ArrowRight size={17} /></button> : null}
+          {!recording && !processing && !learnerAudioUrl ? <p className="mt-3 max-w-sm text-xs leading-5 text-[var(--br-text-muted)]">A short countdown starts first. You have up to {maxRecordingSeconds} seconds; recording stops automatically.</p> : null}
+          {!recording && !processing && !learnerAudioUrl ? <button type="button" onClick={() => setStage("listen")} className="mt-4 text-xs font-bold text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-violet-800">Back to Listening</button> : null}
+        </>}
+      </section> : null}
+
+      {stage === "compare" && learnerAudioUrl ? <section className="mx-auto grid w-full max-w-3xl gap-4">
+        <div className="text-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-extrabold text-violet-800"><Repeat2 size={15} /> COMPARE</span>
+          <h2 className="mt-5 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Hear the difference</h2>
+          <p className="mt-2 text-sm text-slate-500">Play each version separately, or hear them one after the other.</p>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="relative overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-white p-4 shadow-sm sm:p-5">
+            <span className="absolute inset-y-0 left-0 w-1 bg-violet-500" aria-hidden="true" />
+            <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-violet-50 text-violet-700"><Volume2 size={20} /></span><div><p className="text-sm font-extrabold text-slate-800">A · Model audio</p><p className="text-xs font-medium text-slate-500">{[accentLabel, modelDurationLabel].filter(Boolean).join(" · ") || "Model recording"}</p></div></div>
+            <p className="mt-4 text-sm font-bold leading-6 text-slate-700">{targetText}</p>
+            <button type="button" onClick={() => { learnerAudioRef.current?.pause(); const audio = modelAudioRef.current; if (audio) { audio.currentTime = 0; void audio.play().then(() => setModelPlaying(true)).catch(() => setError("Could not play the model audio.")); } }} disabled={modelPlaying || comparisonPlaying} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-violet-800 transition hover:border-violet-200 hover:bg-violet-50 disabled:opacity-60"><Play size={14} fill="currentColor" /> {modelPlaying ? "Playing model…" : "Play model"}</button>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-white p-4 shadow-sm sm:p-5">
+            <span className="absolute inset-y-0 left-0 w-1 bg-[var(--br-action)]" aria-hidden="true" />
+            <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-orange-50 text-[var(--br-action-strong)]"><Mic size={20} /></span><div><p className="text-sm font-extrabold text-slate-800">B · Your voice</p><p className="text-xs font-medium text-slate-500">Your recording · {recordingDuration} sec</p></div></div>
+            <p className="mt-4 text-sm font-bold leading-6 text-slate-700">{targetText}</p>
+            <button type="button" onClick={() => { modelAudioRef.current?.pause(); const audio = learnerAudioRef.current; if (audio) { audio.currentTime = 0; void audio.play().then(() => setLearnerPlaying(true)).catch(() => setError("Could not play your recording.")); } }} disabled={learnerPlaying || comparisonPlaying} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-[var(--br-action-strong)] transition hover:border-orange-200 hover:bg-orange-50 disabled:opacity-60"><Play size={14} fill="currentColor" /> {learnerPlaying ? "Playing your voice…" : "Play your voice"}</button>
+          </div>
+        </div>
+        {comparisonHeard && wordCoverage !== null ? <p className="text-center text-sm font-semibold text-[var(--br-text-muted)]">Word coverage: <span className="font-extrabold text-[var(--br-dark-card)]">{Math.round(wordCoverage * 100)}%</span> recognized by speech-to-text. This is not a pronunciation score.</p> : null}
+        {comparisonHeard && wordCoverage === null ? <p className="text-center text-xs text-[var(--br-text-muted)]">Word coverage could not be calculated for this attempt. You can still compare both recordings.</p> : null}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button type="button" onClick={() => void playComparison(false)} disabled={comparisonPlaying || modelPlaying || learnerPlaying} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-extrabold text-white transition hover:bg-violet-800 disabled:opacity-60"><Play size={15} fill="currentColor" /> {comparisonPlaying && !comparisonLoopEnabled ? "Playing both…" : "Play Both in Sequence"}</button>
+          <button type="button" onClick={toggleComparisonLoop} disabled={!learnerAudioUrl || modelPlaying || learnerPlaying || (comparisonPlaying && !comparisonLoopEnabled)} aria-label={comparisonLoopEnabled ? "Stop looping comparison" : "Loop comparison"} aria-pressed={comparisonLoopEnabled} title={comparisonLoopEnabled ? "Stop loop" : "Loop both"} className={`grid size-11 place-items-center rounded-xl border border-slate-200 bg-white transition hover:border-violet-300 hover:bg-violet-50 disabled:opacity-50 ${comparisonLoopEnabled ? "text-violet-800 ring-2 ring-violet-100" : "text-violet-700"}`}><Repeat2 size={17} className={comparisonLoopEnabled ? "animate-spin [animation-duration:1.4s] motion-reduce:animate-none" : ""} /></button>
+        </div>
+        <p className="text-center text-xs text-[var(--br-text-muted)]">Model first, then your recording{comparisonLoopEnabled ? " · repeating" : ""}</p>
+        {autoplayBlocked ? <p role="status" className="text-center text-xs font-semibold text-amber-800">Tap each audio button to play it if automatic playback is blocked.</p> : null}
+        {error ? <p role="status" className="text-center text-sm font-semibold text-amber-800">{error}</p> : null}
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+          <button type="button" onClick={handleRecordAgain} disabled={disabled || processing || recording || attemptsUsed >= maxAttempts} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 sm:gap-2 sm:px-4"><RotateCcw size={15} /> Record Again</button>
+          <button type="button" onClick={onFinish} disabled={!comparisonHeard || disabled || finishPending} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-violet-700 px-2 text-sm font-extrabold text-white hover:bg-violet-800 disabled:opacity-50 sm:gap-2 sm:px-4">{finishPending ? <Loader2 size={15} className="animate-spin" /> : null}{finishPending ? "Saving…" : "Finish Practice"}<CheckCircle2 size={16} /></button>
+        </div>
+      </section> : null}
+      </div>
+    </div>
+  );
 }
 
 function SentenceShadowingPlayer({ question, value, disabled, onChange }: ShadowingPlayerProps) {

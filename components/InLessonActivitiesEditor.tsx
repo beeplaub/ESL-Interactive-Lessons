@@ -16,6 +16,7 @@ import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading
 import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 import { ReadingPracticeEditor } from "@/components/ReadingPractice";
 import { IpaChartSoundDiscriminationPicker, type SoundDiscriminationChartConfig } from "@/components/ipa/IpaChartSoundDiscriminationPicker";
+import { SpeechPracticePromptPicker, type SpeechPromptSnapshot } from "@/components/SpeechPracticePromptPicker";
 
 type Activity = {
   id: string;
@@ -2434,16 +2435,18 @@ function TongueTwisterPracticeEditor({ activity, onSave }: { activity: Activity;
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the model, then try saying it aloud."));
   const [passage, setPassage] = useState(String(data.passage ?? ""));
   const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
-  const needsReview = !passage.trim() || !audioUrl.trim();
+  const [libraryItems, setLibraryItems] = useState<SpeechPromptSnapshot[]>(Array.isArray(data.library_items) ? data.library_items as SpeechPromptSnapshot[] : []);
+  const needsReview = libraryItems.length ? false : !passage.trim() || !audioUrl.trim();
   return <div className="grid gap-4 rounded-2xl border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand-soft)]/40 via-white to-[var(--br-success-soft)]/40 p-4 sm:p-5">
     <div><p className="text-xs font-black uppercase tracking-wide text-[var(--br-brand)]">Learner self-grade</p><p className="mt-1 text-sm text-[var(--br-text-muted)]">Learners listen to their recording and choose a score from 1 to 3. Their audio stays in the browser and is not uploaded.</p></div>
     <label className="text-sm font-bold">Activity title<input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
     <label className="text-sm font-bold">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
-    <label className="text-sm font-bold">Tongue twister<textarea value={passage} onChange={(event) => setPassage(event.target.value)} rows={3} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
-    <label className="text-sm font-bold">Model audio URL<input type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="Paste or reuse the Learn audio URL" className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
+    <label className="text-sm font-bold">Tongue twister<textarea value={passage} onChange={(event) => { setPassage(event.target.value); setLibraryItems((items) => items.length ? [{ ...items[0], text: event.target.value }, ...items.slice(1)] : items); }} rows={3} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
+    <label className="text-sm font-bold">Model audio URL<input type="url" value={audioUrl} onChange={(event) => { setAudioUrl(event.target.value); setLibraryItems((items) => items.length ? [{ ...items[0], audio_url: event.target.value }, ...items.slice(1)] : items); }} placeholder="Paste or reuse the Learn audio URL" className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" /></label>
+    <SpeechPracticePromptPicker type="TONGUE_TWISTER" selected={libraryItems} onChange={(items) => { setLibraryItems(items); if (items[0]) { setPassage(items[0].text); setAudioUrl(items[0].audio_url); } }} />
     {audioUrl.trim() ? <audio controls preload="metadata" src={audioUrl.trim()} className="w-full" /> : null}
     <p className="rounded-xl bg-white/80 p-3 text-xs leading-5 text-[var(--br-text-muted)]">This estimates similarity between the two audio patterns. It does not identify phonemes or certify pronunciation accuracy. The activity is ready to publish when it has both text and model audio.</p>
-    <SaveButton onClick={() => onSave({ title, prompt, level: "sentence", max_attempts: 3, max_recording_seconds: 30, passage, audio_url: audioUrl.trim(), score_mode: "self_grade_3", targets: [{ id: "twister", text: passage, color: "var(--br-achievement)" }] } as unknown as Json, needsReview)} />
+    <SaveButton onClick={() => onSave({ title, prompt, level: "sentence", max_attempts: 3, max_recording_seconds: 30, passage: libraryItems[0]?.text ?? passage, audio_url: libraryItems[0]?.audio_url ?? audioUrl.trim(), library_items: libraryItems, score_mode: "self_grade_3", targets: libraryItems.length ? libraryItems.map((item, index) => ({ id: `library-${index + 1}`, text: item.text, audio_url: item.audio_url, color: "var(--br-achievement)" })) : [{ id: "twister", text: passage, color: "var(--br-achievement)" }] } as unknown as Json, needsReview)} />
   </div>;
 }
 
@@ -2688,35 +2691,61 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
 function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const data = asRecord(activity.activity_data);
   const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
-  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."));
+  const [heading, setHeading] = useState(String(data.title ?? "Listen. Say it. Compare."));
+  const [description, setDescription] = useState(String(data.description ?? ""));
   const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
   const [targetText, setTargetText] = useState(() => shadowingSentenceText(data));
+  const [libraryItems, setLibraryItems] = useState<SpeechPromptSnapshot[]>(Array.isArray(data.library_items) ? data.library_items as SpeechPromptSnapshot[] : []);
   const [maxAttempts, setMaxAttempts] = useState(Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)));
-  const needsReview = !targetText.trim() || !audioUrl.trim();
+  const [maxRecordingSeconds, setMaxRecordingSeconds] = useState(Math.max(5, Math.min(60, Number(data.max_recording_seconds ?? 15) || 15)));
+  const needsReview = libraryItems.length ? false : !targetText.trim() || !audioUrl.trim();
   return (
     <div className="grid gap-4">
-      <label className="text-sm font-medium">
-        Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
-      </label>
-      <ShadowingSentenceEditor audioUrl={audioUrl} targetText={targetText} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={setAudioUrl} onTargetTextChange={setTargetText} />
-      <label className="text-sm font-medium">
-        Recording attempts allowed per learner
-        <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" />
-        <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt. Default: 3.</span>
-      </label>
+      <div className="rounded-lg border border-[var(--br-border)] bg-surface-muted/50 p-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Learner heading</p>
+        <p className="mt-1 text-sm font-bold text-[var(--br-dark-card)]">Shadowing practice <span className="font-normal text-[var(--br-text-muted)]">(fixed label)</span></p>
+        <label className="mt-3 block text-sm font-medium">
+          Main heading
+          <input value={heading} onChange={(event) => setHeading(event.target.value)} maxLength={100} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
+        </label>
+        <label className="mt-3 block text-sm font-medium">
+          Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
+          <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={240} rows={2} placeholder="Add a short note to guide the learner" className="mt-1 w-full resize-y rounded-md border border-[var(--br-border)] px-3 py-2" />
+        </label>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">
+          Maximum recording time
+          <select value={maxRecordingSeconds} onChange={(event) => setMaxRecordingSeconds(Number(event.target.value))} className="mt-1 block min-h-10 w-full rounded-md border border-[var(--br-border)] bg-white px-3 py-2">
+            {[5, 10, 15, 20, 30, 60].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
+          </select>
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Recording stops automatically when this time ends.</span>
+        </label>
+        <label className="text-sm font-medium">
+          Recording attempts allowed per learner
+          <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt.</span>
+        </label>
+      </div>
+      <ShadowingSentenceEditor audioUrl={audioUrl} targetText={targetText} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={(url) => { setAudioUrl(url); setLibraryItems((items) => items.length ? [{ ...items[0], audio_url: url }, ...items.slice(1)] : items); }} onTargetTextChange={(text) => { setTargetText(text); setLibraryItems((items) => items.length ? [{ ...items[0], text }, ...items.slice(1)] : items); }} />
+      <SpeechPracticePromptPicker type="SHADOWING" selected={libraryItems} onChange={(items) => { setLibraryItems(items); if (items[0]) { setTargetText(items[0].text); setAudioUrl(items[0].audio_url); } }} />
 
       <div className="flex flex-wrap gap-3">
         <SaveButton
           onClick={() =>
             onSave(
               {
-                prompt,
+                title: heading.trim() || "Listen. Say it. Compare.",
+                description: description.trim() || null,
+                prompt: heading.trim() || "Listen. Say it. Compare.",
                 shadowing_mode: "SENTENCE_AB",
+                layered_flow: true,
                 max_attempts: maxAttempts,
-                audio_url: audioUrl,
-                target_text: targetText,
-                correct_answer: targetText,
+                max_recording_seconds: maxRecordingSeconds,
+                audio_url: libraryItems[0]?.audio_url ?? audioUrl,
+                target_text: libraryItems[0]?.text ?? targetText,
+                library_items: libraryItems,
+                correct_answer: libraryItems[0]?.text ?? targetText,
               } as Json,
               needsReview
             )

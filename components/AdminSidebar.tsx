@@ -76,6 +76,7 @@ const groups: NavGroup[] = [
       { href: "/admin/media", label: "Media Library", Icon: Images, roles: ALL_STAFF },
       { href: "/admin/creator-tools", label: "Creator Tools", Icon: AudioLines, roles: ALL_STAFF },
       { href: "/admin/ipa-chart", label: "IPA Chart", Icon: AudioLines, roles: PLATFORM_ADMIN },
+      { href: "/admin/speech-practice", label: "Speech Practice Library", Icon: AudioLines, roles: PLATFORM_ADMIN },
     ],
   },
   {

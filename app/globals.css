@@ -205,6 +205,11 @@ select {
   outline-offset: 3px;
 }
 
+.speech-practice-modal :where(input, textarea, select):focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
 /* Keep primary coral actions consistent: coral CTAs invert to white with violet text on hover. */
 :is(a, button, [role="button"])[class~="bg-[var(--br-action)]"]:hover:not(:disabled):not([aria-disabled="true"]),
 :is(a, button, [role="button"])[class~="bg-[var(--br-action-strong)]"]:hover:not(:disabled):not([aria-disabled="true"]),

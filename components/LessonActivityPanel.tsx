@@ -276,16 +276,46 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     }];
   }
   if (activityType === "SHADOWING") {
+    const libraryItems = Array.isArray(data.library_items) ? data.library_items.map((item) => asRecord(item as Json)) : [];
+    const shadowingHeading = String(data.title ?? data.prompt ?? "Listen. Say it. Compare.");
+    const shadowingDescription = String(data.description ?? "").trim() || null;
+    const maxRecordingSeconds = Math.max(5, Math.min(60, Math.round(Number(data.max_recording_seconds ?? 15) || 15)));
+    if (libraryItems.length > 0) return libraryItems.map((item, index) => {
+      const targetText = String(item.text ?? "");
+      return {
+        id: `shadowing-${index + 1}`,
+        question_number: index + 1,
+        question_type: "SHADOWING",
+        question_text: shadowingHeading,
+        description: shadowingDescription,
+        options: {
+          audio_url: String(item.audio_url ?? ""), target_text: targetText, shadowing_mode: "SENTENCE_AB",
+          layered_flow: data.layered_flow === true,
+          activity_label: "Shadowing practice",
+          accent: String(item.accent ?? ""), cefr_level: String(item.cefr_level ?? ""),
+          max_attempts: Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)),
+          max_recording_seconds: maxRecordingSeconds,
+          phases: [{ id: "sentence", target_text: targetText, audio_url: String(item.audio_url ?? "") }],
+          repeat_count: 1, require_all_green: data.require_all_green !== false, show_live_match: data.show_live_match !== false,
+        } as Json,
+        correct_answer: targetText as Json,
+      };
+    });
     const audioUrl = String(data.audio_url ?? "");
     const targetText = shadowingSentenceText(data);
     return [{
       id: "1",
       question_number: 1,
       question_type: "SHADOWING",
-      question_text: String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."),
+      question_text: shadowingHeading,
+      description: shadowingDescription,
       options: {
         audio_url: audioUrl,
         target_text: targetText,
+        layered_flow: data.layered_flow === true,
+        activity_label: "Shadowing practice",
+        accent: String(data.accent ?? ""), cefr_level: String(data.cefr_level ?? ""),
+        max_recording_seconds: maxRecordingSeconds,
         shadowing_mode: data.shadowing_mode === "CHUNK_AB" || data.shadowing_mode === "SENTENCE_AB" ? String(data.shadowing_mode) : "LEGACY_PHASES",
         max_attempts: Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)),
         phases: shadowingPhases(data).map((phase) => ({ id: phase.id, target_text: phase.targetText, audio_url: phase.audioUrl })),
@@ -595,6 +625,17 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     }];
   }
   if (activityType === "PRONUNCIATION" || activityType === "TONGUE_TWISTER") {
+    const libraryItems = Array.isArray(data.library_items) ? data.library_items.map((item) => asRecord(item as Json)) : [];
+    if (activityType === "TONGUE_TWISTER" && libraryItems.length > 0) return libraryItems.map((item, index) => {
+      const text = String(item.text ?? "");
+      const id = `twister-${index + 1}`;
+      return {
+        id, question_number: index + 1, question_type: "PRONUNCIATION",
+        question_text: String(data.prompt ?? "Listen to the model, then try saying it aloud."),
+        options: { level: "sentence", title: String(item.title ?? data.title ?? "Tongue Twister Challenge"), passage: text, targets: [{ id, text, color: "var(--br-achievement)", audio_url: String(item.audio_url ?? "") }], max_attempts: Math.max(1, Number(data.max_attempts ?? 3)), max_recording_seconds: Math.max(5, Math.min(30, Math.round(Number(data.max_recording_seconds ?? 30) || 30))), audio_url: String(item.audio_url ?? ""), score_mode: "self_grade_3" } as Json,
+        correct_answer: [id] as Json,
+      };
+    });
     const rawTargets: unknown[] = Array.isArray(data.targets) ? data.targets : [];
     const targets = rawTargets.map((item, index) => {
       const row = asRecord(item as Json);
@@ -1885,6 +1926,7 @@ function GenericLessonActivityPanel({
   const hasSubjectiveQuestions = subjectiveQuestions.length > 0;
   const isPronunciationActivity = questions.length > 0 && questions.every((question) => question.question_type === "PRONUNCIATION");
   const isShadowingActivity = questions.length > 0 && questions.every((question) => question.question_type === "SHADOWING");
+  const isLayeredShadowing = isShadowingActivity && questions.every((question) => asRecord(question.options).layered_flow === true);
   const allAnswered = questions.length > 0 && questions.every((question) => hasAnswer(question, answers[question.id]));
   const shadowingComparisonHeard = isShadowingActivity && questions.every((question) => asRecord(answers[question.id] as Json).comparison_heard === true);
   const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
@@ -2135,9 +2177,9 @@ function GenericLessonActivityPanel({
   }
 
   return (
-    <section className="w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm">
+    <section className={isLayeredShadowing ? "w-full min-w-0" : "w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm"}>
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between gap-3">
+      {!isLayeredShadowing ? <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">{activityLabel(activity.activity_type)}</h2>
         </div>
@@ -2153,9 +2195,9 @@ function GenericLessonActivityPanel({
           )}
           <SoundToggle />
         </div>
-      </div>
+      </div> : null}
 
-      {!submitted ? (
+      {!submitted && !isLayeredShadowing ? (
         <div className="mb-4">
           <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-[var(--br-text-muted)]"><span>Progress</span><span>{answeredCount}/{questions.length}</span></div>
           <div className="h-2.5 overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70" role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
@@ -2199,7 +2241,7 @@ function GenericLessonActivityPanel({
       {currentQuestion && (!submitted || reviewMode === "detail") && (
         <div className={autoGradingActive ? "hidden" : undefined}>
           {/* Question counter + arrows */}
-          {currentQuestion.question_type !== "STRESS_PICKER" ? <div className="mb-3 flex items-center justify-between gap-2">
+          {currentQuestion.question_type !== "STRESS_PICKER" && !isLayeredShadowing ? <div className="mb-3 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setQIndex((i) => Math.max(0, i - 1))}
@@ -2245,7 +2287,7 @@ function GenericLessonActivityPanel({
           </div> : null}
 
           {/* Current question */}
-          <div className="min-h-[120px]">
+          <div className={isLayeredShadowing ? "" : "min-h-[120px]"}>
             <ActivityEvaluationModeContext.Provider value={evaluationMode || historicalReviewOnly ? { mode: evaluationMode, reviewOnly: historicalReviewOnly, onAiUnavailable: handleAiUnavailable } : null}>
               <QuestionCard
                 key={`${currentQuestion.id}:${selectedAttemptId ?? "new"}`}
@@ -2258,6 +2300,8 @@ function GenericLessonActivityPanel({
                 soundDiscriminationReviewRoundIndex={currentQuestion.question_type === "SOUND_DISCRIMINATION" ? soundReviewRoundIndex : undefined}
                 onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
                 onResult={handleQuestionResult}
+                onFinishShadowing={() => submit()}
+                finishPending={isPending}
                 lessonId={lessonId}
               />
             </ActivityEvaluationModeContext.Provider>
@@ -2277,7 +2321,7 @@ function GenericLessonActivityPanel({
       )}
 
       {/* Footer */}
-      {!autoGradingActive ? <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3">
+      {!autoGradingActive && (!isLayeredShadowing || submitted) ? <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3">
         <p className="text-sm text-[var(--br-text-muted)]">
           {submitted
             ? hasPendingWritingGrading
