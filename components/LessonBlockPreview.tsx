@@ -1414,6 +1414,9 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
   const caption = bn ? asString(content.caption_bn) : asString(content.caption);
   const hideReveal = content.reveal_hidden === true;
   const mobileLayout = content.mobile_layout === "horizontal" ? "horizontal" : "stacked";
+  const mergedRegions = asArray(content.merged_regions).map((item) => asRecord(item as Json)).map((region) => ({ startRow: Number(region.startRow) || 0, startCol: Number(region.startCol) || 0, rowSpan: Math.max(1, Number(region.rowSpan) || 1), colSpan: Math.max(1, Number(region.colSpan) || 1) }));
+  const mergedAt = (row: number, col: number) => mergedRegions.find((region) => region.startRow === row && region.startCol === col);
+  const mergedCovered = (row: number, col: number) => mergedRegions.some((region) => row >= region.startRow && row < region.startRow + region.rowSpan && col >= region.startCol && col < region.startCol + region.colSpan && !(row === region.startRow && col === region.startCol));
   const [revealed, setRevealed] = useState(!hideReveal || alwaysOpen);
   const toggleReveal = () => setRevealed((current) => !current);
   const handleRevealKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
@@ -1478,11 +1481,13 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
             {rows.length ? (
               rows.map((row, rowIndex) => (
                 <tr key={rowIndex} className="border-t border-[var(--br-border)] align-top" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>
-                  {headers.map((_, colIndex) => (
-                    <td key={colIndex} className={`break-words whitespace-normal px-4 py-4 align-top leading-7 ${colIndex === 0 ? "border-l-4 font-extrabold text-[var(--br-dark-card)]" : "border-l border-[var(--br-brand)]/10 text-[var(--br-text-muted)]"}`} style={colIndex === 0 ? { borderLeftColor: columnThemes[rowIndex % columnThemes.length] } : undefined}>
+                  {headers.map((_, colIndex) => {
+                    if (mergedCovered(rowIndex, colIndex)) return null;
+                    const merge = mergedAt(rowIndex, colIndex);
+                    return <td key={colIndex} rowSpan={merge?.rowSpan} colSpan={merge?.colSpan} className={`break-words whitespace-normal px-4 py-4 leading-7 ${merge ? "text-center align-middle" : "align-top"} ${colIndex === 0 ? "border-l-4 font-extrabold text-[var(--br-dark-card)]" : "border-l border-[var(--br-brand)]/10 text-[var(--br-text-muted)]"}`} style={colIndex === 0 ? { borderLeftColor: columnThemes[rowIndex % columnThemes.length] } : undefined}>
                       {row[colIndex] || ""}
-                    </td>
-                  ))}
+                    </td>;
+                  })}
                 </tr>
               ))
             ) : (
@@ -1494,11 +1499,11 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
         </table>
       </div>
       <div className="md:hidden">
-        {mobileLayout === "horizontal" ? (
+        {mobileLayout === "horizontal" || mergedRegions.length ? (
           <div data-lesson-horizontal-scroll tabIndex={0} aria-label="Scrollable lesson table" className="max-w-full overflow-x-auto overscroll-x-contain border-t border-[var(--br-brand)]/15 [scrollbar-width:thin]" style={{ touchAction: "pan-x pan-y" }}>
             <table className="w-full table-fixed border-collapse text-sm" style={{ minWidth: `${Math.max(headers.length * 170, 560)}px` }}>
               <thead><tr className="bg-[var(--br-action)]">{headers.map((header, index) => <th key={index} className={`break-words px-3 py-3 text-left text-sm font-black leading-5 text-white ${index > 0 ? "border-l border-white/25" : ""}`}>{header || `Column ${index + 1}`}</th>)}</tr></thead>
-              <tbody>{rows.length ? rows.map((row, rowIndex) => <tr key={rowIndex} className="border-t border-[var(--br-border)] align-top" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>{headers.map((_, colIndex) => <td key={colIndex} className={`break-words whitespace-normal px-3 py-3 align-top leading-6 ${colIndex === 0 ? "border-l-4 font-extrabold text-[var(--br-dark-card)]" : "border-l border-[var(--br-brand)]/10 text-[var(--br-text-muted)]"}`} style={colIndex === 0 ? { borderLeftColor: columnThemes[rowIndex % columnThemes.length] } : undefined}>{row[colIndex] || ""}</td>)}</tr>) : <tr><td className="border-t border-[var(--br-border)] px-4 py-3 text-[var(--br-text-muted)]" colSpan={headers.length}>No rows yet.</td></tr>}</tbody>
+              <tbody>{rows.length ? rows.map((row, rowIndex) => <tr key={rowIndex} className="border-t border-[var(--br-border)] align-top" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>{headers.map((_, colIndex) => { if (mergedCovered(rowIndex, colIndex)) return null; const merge = mergedAt(rowIndex, colIndex); return <td key={colIndex} rowSpan={merge?.rowSpan} colSpan={merge?.colSpan} className={`break-words whitespace-normal px-3 py-3 leading-6 ${merge ? "text-center align-middle" : "align-top"} ${colIndex === 0 ? "border-l-4 font-extrabold text-[var(--br-dark-card)]" : "border-l border-[var(--br-brand)]/10 text-[var(--br-text-muted)]"}`} style={colIndex === 0 ? { borderLeftColor: columnThemes[rowIndex % columnThemes.length] } : undefined}>{row[colIndex] || ""}</td>; })}</tr>) : <tr><td className="border-t border-[var(--br-border)] px-4 py-3 text-[var(--br-text-muted)]" colSpan={headers.length}>No rows yet.</td></tr>}</tbody>
             </table>
           </div>
         ) : headers.length === 2 ? (

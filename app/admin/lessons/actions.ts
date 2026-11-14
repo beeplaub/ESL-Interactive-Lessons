@@ -542,17 +542,41 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     const rawHeaders = Array.isArray(parsed.headers) && parsed.headers.length ? parsed.headers : ["Column 1", "Column 2"];
     const headers = rawHeaders.map((header, index) => String(header ?? "").trim() || `Column ${index + 1}`);
     const rawRows = Array.isArray(parsed.rows) ? parsed.rows : [];
+    let mergeInput: unknown[] = [];
+    try { const value: unknown = JSON.parse(String(formData.get("table_merges") || "[]")); if (Array.isArray(value)) mergeInput = value; } catch { mergeInput = []; }
     const rows = rawRows
       .map((row) => {
         const cells = Array.isArray(row) ? row : [];
         return headers.map((_, index) => String(cells[index] ?? "").trim());
       })
-      .filter((row) => row.some((cell) => cell.length > 0));
+      .filter((row, rowIndex) => row.some((cell) => cell.length > 0) || mergeInput.some((item) => {
+        if (!item || typeof item !== "object") return false;
+        const region = item as Record<string, unknown>;
+        const start = Math.max(0, Math.floor(Number(region.startRow) || 0));
+        const span = Math.max(1, Math.floor(Number(region.rowSpan) || 1));
+        return rowIndex >= start && rowIndex < start + span;
+      }));
+    let bengaliHeaders: string[] = [];
+    let bengaliRows: string[][] = [];
+    try { const value: unknown = JSON.parse(String(formData.get("headers_bn_json") || "[]")); if (Array.isArray(value)) bengaliHeaders = value.map((item) => String(item ?? "")); } catch { bengaliHeaders = splitLines(formData.get("headers_bn")); }
+    try { const value: unknown = JSON.parse(String(formData.get("rows_bn_json") || "[]")); if (Array.isArray(value)) bengaliRows = value.map((row) => Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : []); } catch { bengaliRows = splitLines(formData.get("rows_bn")).map((line) => line.split("|").map((cell) => cell.trim())); }
+    let mergedRegions: { startRow: number; startCol: number; rowSpan: number; colSpan: number }[] = [];
+    try {
+      mergedRegions = mergeInput.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const region = item as Record<string, unknown>;
+        const startRow = Math.max(0, Math.floor(Number(region.startRow) || 0));
+        const startCol = Math.max(0, Math.floor(Number(region.startCol) || 0));
+        const rowSpan = Math.max(1, Math.floor(Number(region.rowSpan) || 1));
+        const colSpan = Math.max(1, Math.floor(Number(region.colSpan) || 1));
+        return rowSpan * colSpan > 1 && startRow + rowSpan <= rows.length && startCol + colSpan <= headers.length ? [{ startRow, startCol, rowSpan, colSpan }] : [];
+      });
+    } catch { mergedRegions = []; }
     return {
       caption: nullableText(formData.get("caption")), caption_bn: nullableText(formData.get("caption_bn")),
-      headers, rows,
-      headers_bn: splitLines(formData.get("headers_bn")),
-      rows_bn: splitLines(formData.get("rows_bn")).map((line) => line.split("|").map((cell) => cell.trim())),
+      headers, rows, merged_regions: mergedRegions,
+      headers_bn: bengaliHeaders,
+      rows_bn: bengaliRows,
       reveal_hidden: formData.get("reveal_hidden") === "on",
       mobile_layout: formData.get("mobile_layout") === "horizontal" ? "horizontal" : "stacked",
       header_fill: hexColorValue(formData.get("header_fill"), "var(--br-info)")
@@ -634,6 +658,7 @@ function defaultBlockContent(blockType: string): Json {
     caption: null,
     headers: ["Column 1", "Column 2"],
     rows: [["", ""], ["", ""]],
+    headers_bn: ["", ""], rows_bn: [["", ""], ["", ""]], merged_regions: [],
     reveal_hidden: false,
     mobile_layout: "stacked",
     header_fill: "var(--br-info)"

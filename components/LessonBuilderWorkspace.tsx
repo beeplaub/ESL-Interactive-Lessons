@@ -56,6 +56,7 @@ import { BuilderTextToolbar } from "@/components/BuilderTextToolbar";
 import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/components/BuilderDevicePreviewFrame";
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 import { BilingualFieldEditor } from "@/components/BilingualBlockFields";
+import { ModernTableGrid, type TableMergeRegion } from "@/components/ModernTableGrid";
 import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
 import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
 import { SystemLessonGate } from "@/components/BuilderLessonPlayer";
@@ -1805,6 +1806,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   const [tableHeaders, setTableHeaders] = useState<string[]>(() =>
     Array.isArray(data.headers) && data.headers.length ? data.headers.map(String) : ["Column 1", "Column 2"]
   );
+  const [tableHeadersBn, setTableHeadersBn] = useState<string[]>(() => Array.isArray(data.headers_bn) && data.headers_bn.length ? data.headers_bn.map(String) : (Array.isArray(data.headers) && data.headers.length ? data.headers : ["Column 1", "Column 2"]).map(() => ""));
   const [tableRows, setTableRows] = useState<string[][]>(() => {
     const headers = Array.isArray(data.headers) && data.headers.length ? data.headers.map(String) : ["Column 1", "Column 2"];
     const rows = Array.isArray(data.rows) ? data.rows : [];
@@ -1812,6 +1814,8 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       ? rows.map((row) => headers.map((_, index) => asString(Array.isArray(row) ? row[index] : "")))
       : [headers.map(() => ""), headers.map(() => "")];
   });
+  const [tableRowsBn, setTableRowsBn] = useState<string[][]>(() => Array.isArray(data.rows_bn) && data.rows_bn.length ? (data.rows_bn as unknown[]).map((row) => Array.isArray(row) ? row.map(String) : []) : Array.from({ length: Array.isArray(data.rows) && data.rows.length ? data.rows.length : 2 }, () => (Array.isArray(data.headers) && data.headers.length ? data.headers : ["Column 1", "Column 2"]).map(() => "")));
+  const [tableMerges, setTableMerges] = useState<TableMergeRegion[]>(() => Array.isArray(data.merged_regions) ? data.merged_regions as TableMergeRegion[] : []);
   const [tableMobileLayout, setTableMobileLayout] = useState<"stacked" | "horizontal">(() =>
     asString(data.mobile_layout) === "horizontal" ? "horizontal" : "stacked"
   );
@@ -1903,9 +1907,9 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="rounded-2xl border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand)]/[0.04] via-surface to-[var(--br-success)]/[0.04] p-4 sm:p-5">
         <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-[var(--br-brand)] text-on-dark"><CheckCircle2 size={18} /></span><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--br-brand)]">Learner reflection</p><p className="mt-0.5 text-xs text-[var(--br-text-muted)]">Help learners review what they can do.</p></div></div>
         <div className="grid gap-3">
-          <label className="text-sm font-semibold text-ink">Checklist title<input name="title" defaultValue={asString(data.title)} placeholder="I can now…" className="field mt-1 w-full" /></label>
-          <label className="text-sm font-semibold text-ink">Introductory text <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="intro" rows={2} defaultValue={asString(data.intro)} placeholder="Check each statement you can do confidently." className="field mt-1 w-full" /></label>
-          <label className="text-sm font-semibold text-ink">Review statements <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="items" rows={6} defaultValue={lines(data.items)} placeholder="I can introduce myself.\nI can ask a follow-up question." className="field mt-1 w-full" /></label>
+          <label className="text-sm font-semibold text-ink">Checklist title<input name="title" defaultValue={asString(data.title)} placeholder="I can now…" className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label>
+          <label className="text-sm font-semibold text-ink">Introductory text <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="intro" rows={2} defaultValue={asString(data.intro)} placeholder="Check each statement you can do confidently." className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label>
+          <label className="text-sm font-semibold text-ink">Review statements <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="items" rows={6} defaultValue={lines(data.items)} placeholder="I can introduce myself.\nI can ask a follow-up question." className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label>
           <label className="flex items-start gap-2 rounded-xl border border-[var(--br-brand)]/15 bg-white/70 p-3 text-sm"><input type="checkbox" name="require_completion" defaultChecked={data.require_completion === true} className="mt-0.5 size-4 rounded border-[var(--br-border)] accent-[var(--br-brand)]" /><span><span className="font-semibold text-ink">Require every item before lesson completion</span><span className="mt-0.5 block text-xs leading-5 text-[var(--br-text-muted)]">The Complete lesson button stays disabled until learners check all statements.</span></span></label>
         </div>
       </div>
@@ -1934,8 +1938,8 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="rounded-2xl border border-[var(--br-action)]/20 bg-[var(--br-brand-soft)]/25 p-4 sm:p-5">
         <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-action)]">Sticky note</p>
         <div className="grid gap-3">
-          <label className="text-sm font-semibold text-ink">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Remember this" className="field mt-1 w-full" /></label>
-          <label className="text-sm font-semibold text-ink">Note text <textarea name="body" rows={5} defaultValue={asString(data.body)} placeholder="Use ‘could’ for polite requests." className="field mt-1 w-full" /></label>
+          <label className="text-sm font-semibold text-ink">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Remember this" className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label>
+          <label className="text-sm font-semibold text-ink">Note text <textarea name="body" rows={5} defaultValue={asString(data.body)} placeholder="Use ‘could’ for polite requests." className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label>
           <label className="text-sm font-semibold text-ink">Card size <span className="font-normal text-[var(--br-text-muted)]">(smaller or larger square)</span><input name="card_size" type="range" min="55" max="100" step="1" defaultValue={Number(data.card_size) || 100} className="mt-2 w-full accent-[var(--br-action)]" /></label>
         </div>
       </div>
@@ -2050,7 +2054,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     return <BilingualFieldEditor label="Vocabulary" english={<label className="text-sm">Vocabulary items (word | pronunciation | meaning | example | notes)<textarea name="entries" rows={6} defaultValue={entries} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-mono text-xs" /></label>} bengali={<label className="text-sm">বাংলা শব্দভান্ডার (শব্দ | উচ্চারণ | অর্থ | উদাহরণ | নোট)<textarea name="entries_bn" lang="bn" rows={6} defaultValue={entriesBn} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-mono text-xs" /></label>} />;
   }
   if (blockType === "GRAMMAR") {
-    return <div className="grid gap-3"><BilingualFieldEditor label="Grammar" english={<><label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="field mt-1 w-full" /></label><label className="text-sm">Explanation<textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="field mt-1 w-full" /></label><label className="text-sm">Examples<textarea name="examples" rows={3} defaultValue={lines(data.examples)} className="field mt-1 w-full" /></label><label className="text-sm">Notes<textarea name="notes" rows={2} defaultValue={asString(data.notes)} className="field mt-1 w-full" /></label></>} bengali={<><label className="text-sm">শিরোনাম<input name="title_bn" lang="bn" defaultValue={asString(data.title_bn)} className="field mt-1 w-full" /></label><label className="text-sm">ব্যাখ্যা<textarea name="explanation_bn" lang="bn" rows={3} defaultValue={asString(data.explanation_bn)} className="field mt-1 w-full" /></label><label className="text-sm">উদাহরণ<textarea name="examples_bn" lang="bn" rows={3} defaultValue={lines(data.examples_bn)} className="field mt-1 w-full" /></label><label className="text-sm">নোট<textarea name="notes_bn" lang="bn" rows={2} defaultValue={asString(data.notes_bn)} className="field mt-1 w-full" /></label></>} /><label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span>Hide grammar details until revealed</span></label></div>;
+    return <div className="grid gap-3"><BilingualFieldEditor label="Grammar" english={<><label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><label className="text-sm">Explanation<textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><label className="text-sm">Examples<textarea name="examples" rows={3} defaultValue={lines(data.examples)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><label className="text-sm">Notes<textarea name="notes" rows={2} defaultValue={asString(data.notes)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label></>} bengali={<><label className="text-sm">শিরোনাম<input name="title_bn" lang="bn" defaultValue={asString(data.title_bn)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><label className="text-sm">ব্যাখ্যা<textarea name="explanation_bn" lang="bn" rows={3} defaultValue={asString(data.explanation_bn)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><label className="text-sm">উদাহরণ<textarea name="examples_bn" lang="bn" rows={3} defaultValue={lines(data.examples_bn)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><label className="text-sm">নোট<textarea name="notes_bn" lang="bn" rows={2} defaultValue={asString(data.notes_bn)} className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label></>} /><label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span>Hide grammar details until revealed</span></label></div>;
   }
   if (blockType === "COMMON_MISTAKE") {
     const examples = (value: unknown) => Array.isArray(value) ? (value as Record<string, unknown>[]).map((e) => [e.context, e.incorrect, e.correct].map(asString).join(" | ")).join("\n") : "";
@@ -2134,78 +2138,48 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   if (blockType === "TABLE") {
     const addColumn = () => {
       setTableHeaders((headers) => [...headers, `Column ${headers.length + 1}`]);
+      setTableHeadersBn((headers) => [...headers, ""]);
       setTableRows((rows) => rows.map((row) => [...row, ""]));
+      setTableRowsBn((rows) => rows.map((row) => [...row, ""]));
     };
-    const removeColumn = (colIndex: number) => {
-      setTableHeaders((headers) => headers.filter((_, index) => index !== colIndex));
-      setTableRows((rows) => rows.map((row) => row.filter((_, index) => index !== colIndex)));
+    const removeColumn = (column: number) => {
+      setTableHeaders((headers) => headers.filter((_, index) => index !== column));
+      setTableHeadersBn((headers) => headers.filter((_, index) => index !== column));
+      setTableRows((rows) => rows.map((row) => row.filter((_, index) => index !== column)));
+      setTableRowsBn((rows) => rows.map((row) => row.filter((_, index) => index !== column)));
+      setTableMerges((regions) => regions.flatMap((region) => {
+        if (column < region.startCol) return [{ ...region, startCol: region.startCol - 1 }];
+        if (column >= region.startCol + region.colSpan) return [region];
+        if (region.colSpan <= 1) return [];
+        return [{ ...region, colSpan: region.colSpan - 1 }];
+      }));
     };
-    const addRow = () => setTableRows((rows) => [...rows, tableHeaders.map(() => "")]);
-    const removeRow = (rowIndex: number) => setTableRows((rows) => rows.filter((_, index) => index !== rowIndex));
-
-    return (
-      <div className="grid gap-3">
-        <BilingualFieldEditor label="Table text" english={<label className="text-sm">Caption (optional)<input name="caption" defaultValue={asString(data.caption)} placeholder="e.g., Table 1: Irregular verbs" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>} bengali={<><label className="text-sm">শিরোনাম (ঐচ্ছিক)<input name="caption_bn" lang="bn" defaultValue={asString(data.caption_bn)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">কলামের শিরোনাম (প্রতি লাইনে একটি)<textarea name="headers_bn" lang="bn" rows={3} defaultValue={lines(data.headers_bn)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">সারির তথ্য (প্রতি লাইনে একটি, কলামগুলো | দিয়ে আলাদা করুন)<textarea name="rows_bn" lang="bn" rows={5} defaultValue={Array.isArray(data.rows_bn) ? (data.rows_bn as string[][]).map((row) => row.join(" | ")).join("\n") : ""} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></>} />
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Hide table until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see the title and a Reveal table button first.</span></span></label>
-        <label className="text-sm">Mobile layout<select value={tableMobileLayout} onChange={(event) => setTableMobileLayout(event.target.value === "horizontal" ? "horizontal" : "stacked")} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><option value="stacked">Stacked cards</option><option value="horizontal">Horizontal table (scroll)</option></select><span className="mt-1 block text-xs text-[var(--br-text-muted)]">Choose how learners see this table on small screens. Desktop layout stays the same.</span></label>
-        <p className="rounded-xl border border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/50 px-3 py-2.5 text-xs leading-5 text-[var(--br-text-muted)]">Column colors are applied automatically in the learner view: purple, green, CTA orange, then blue.</p>
-        <div className="text-sm">
-          Table content
-          <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--br-border)]">
-            <table className="w-full min-w-[480px] border-collapse text-sm">
-              <thead>
-                <tr>
-                  {tableHeaders.map((header, colIndex) => (
-                    <th key={colIndex} className="border-b border-[var(--br-border)] bg-surface-muted p-2 text-left">
-                      <div className="flex items-center gap-1">
-                        <input
-                          value={header}
-                          onChange={(event) => setTableHeaders((headers) => headers.map((value, index) => index === colIndex ? event.target.value : value))}
-                          placeholder={`Column ${colIndex + 1}`}
-                          className="w-full min-w-[110px] rounded border border-[var(--br-border)] px-2 py-1 text-sm font-medium"
-                        />
-                        {tableHeaders.length > 1 ? (
-                          <button type="button" title="Remove column" onClick={() => removeColumn(colIndex)} className="shrink-0 text-[var(--br-text-muted)] hover:text-coral"><X size={14} /></button>
-                        ) : null}
-                      </div>
-                    </th>
-                  ))}
-                  <th className="border-b border-[var(--br-border)] bg-surface-muted p-2">
-                    <button type="button" onClick={addColumn} className="flex items-center gap-1 whitespace-nowrap rounded-md border border-[var(--br-border)] px-2 py-1 text-xs font-semibold hover:bg-black/5"><Plus size={13} /> Column</button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {tableRows.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {row.map((cell, colIndex) => (
-                      <td key={colIndex} className="border-b border-[var(--br-border)] p-2">
-                        <input
-                          value={cell}
-                          onChange={(event) => setTableRows((rows) => rows.map((r, ri) => ri === rowIndex ? r.map((c, ci) => ci === colIndex ? event.target.value : c) : r))}
-                          className="w-full min-w-[110px] rounded border border-[var(--br-border)] px-2 py-1 text-sm"
-                        />
-                      </td>
-                    ))}
-                    <td className="border-b border-[var(--br-border)] p-2 text-center">
-                      <button type="button" title="Remove row" onClick={() => removeRow(rowIndex)} className="text-[var(--br-text-muted)] hover:text-coral"><X size={14} /></button>
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td colSpan={tableHeaders.length + 1} className="p-2">
-                    <button type="button" onClick={addRow} className="flex items-center gap-1 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold hover:bg-black/5"><Plus size={13} /> Row</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <input type="hidden" name="table_data" value={JSON.stringify({ headers: tableHeaders, rows: tableRows })} />
-        <input type="hidden" name="mobile_layout" value={tableMobileLayout} />
-        <input type="hidden" name="header_fill" value={tableHeaderFill} />
-      </div>
-    );
+    const addRow = () => { setTableRows((rows) => [...rows, tableHeaders.map(() => "")]); setTableRowsBn((rows) => [...rows, tableHeaders.map(() => "")]); };
+    const removeRow = (row: number) => {
+      setTableRows((rows) => rows.filter((_, index) => index !== row)); setTableRowsBn((rows) => rows.filter((_, index) => index !== row));
+      setTableMerges((regions) => regions.flatMap((region) => {
+        if (row < region.startRow) return [{ ...region, startRow: region.startRow - 1 }];
+        if (row >= region.startRow + region.rowSpan) return [region];
+        if (region.rowSpan <= 1) return [];
+        return [{ ...region, rowSpan: region.rowSpan - 1 }];
+      }));
+    };
+    const mergeCells = (region: TableMergeRegion) => {
+      const occupied = (values: string[][]) => values.some((line, ri) => line.some((cell, ci) => ri >= region.startRow && ri < region.startRow + region.rowSpan && ci >= region.startCol && ci < region.startCol + region.colSpan && (ri !== region.startRow || ci !== region.startCol) && cell.trim()));
+      if (occupied(tableRows) || occupied(tableRowsBn)) return "Clear the other selected cells in both languages before merging to keep their text safe.";
+      setTableMerges((current) => [...current, region]);
+      return null;
+    };
+    const gridProps = { merges: tableMerges, onMerge: mergeCells, onUnmerge: (region: TableMergeRegion) => setTableMerges((current) => current.filter((item) => item !== region && !(item.startRow === region.startRow && item.startCol === region.startCol && item.rowSpan === region.rowSpan && item.colSpan === region.colSpan))) };
+    return <div className="grid gap-4">
+      <BilingualFieldEditor label="Build your table" english={<><label className="block text-sm font-semibold">Caption <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="caption" defaultValue={asString(data.caption)} placeholder="e.g. Regular and irregular verbs" className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><ModernTableGrid headers={tableHeaders} rows={tableRows} setHeaders={setTableHeaders} setRows={setTableRows} onAddRow={addRow} onRemoveRow={removeRow} onAddColumn={addColumn} onRemoveColumn={removeColumn} {...gridProps} /></>} bengali={<><label className="block text-sm font-semibold">বাংলা ক্যাপশন <span className="font-normal text-[var(--br-text-muted)]">(ঐচ্ছিক)</span><input name="caption_bn" lang="bn" defaultValue={asString(data.caption_bn)} placeholder="যেমন: নিয়মিত ও অনিয়মিত ক্রিয়া" className="mt-1 h-11 w-full rounded-xl border border-[var(--br-border)] bg-white px-3 text-sm outline-none transition focus:border-[var(--br-brand)] focus:ring-1 focus:ring-[var(--br-brand)]/25" /></label><ModernTableGrid headers={tableHeadersBn} rows={tableRowsBn} setHeaders={setTableHeadersBn} setRows={setTableRowsBn} onAddRow={addRow} onRemoveRow={removeRow} onAddColumn={addColumn} onRemoveColumn={removeColumn} {...gridProps} bengali /></>} />
+      <details className="group rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)]"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-bold text-[var(--br-dark-card)] marker:hidden"><span>Display options</span><ChevronRight size={16} className="transition group-open:rotate-90" /></summary><div className="grid gap-3 border-t border-[var(--br-border)] p-4"><label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)] accent-[var(--br-brand)]" /><span><span className="font-semibold">Hide table until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see a reveal button first.</span></span></label><div><p className="mb-1.5 text-sm font-semibold">Mobile layout</p><div className="inline-flex rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-1" role="group" aria-label="Mobile table layout"><button type="button" aria-pressed={tableMobileLayout === "stacked"} onClick={() => setTableMobileLayout("stacked")} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${tableMobileLayout === "stacked" ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-brand)]"}`}>Stacked cards</button><button type="button" aria-pressed={tableMobileLayout === "horizontal"} onClick={() => setTableMobileLayout("horizontal")} className={`rounded-lg px-3 py-2 text-xs font-bold transition ${tableMobileLayout === "horizontal" ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-brand)]"}`}>Horizontal table</button></div></div><p className="text-xs text-[var(--br-text-muted)]">Column colors are applied automatically in the learner view.</p></div></details>
+      <input type="hidden" name="table_data" value={JSON.stringify({ headers: tableHeaders, rows: tableRows })} />
+      <input type="hidden" name="headers_bn_json" value={JSON.stringify(tableHeadersBn)} />
+      <input type="hidden" name="rows_bn_json" value={JSON.stringify(tableRowsBn)} />
+      <input type="hidden" name="table_merges" value={JSON.stringify(tableMerges)} />
+      <input type="hidden" name="mobile_layout" value={tableMobileLayout} /><input type="hidden" name="header_fill" value={tableHeaderFill} />
+    </div>;
   }
   return <p className="text-sm text-[var(--br-text-muted)]">No fields for {blockType}.</p>;
 }
