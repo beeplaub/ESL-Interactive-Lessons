@@ -3781,10 +3781,15 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
           </div>
         </div>
 
-        {questionCount > 1 ? <div className="mt-5" aria-label={`Sentence ${questionPosition + 1} of ${questionCount}`}>
-          <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-bold text-[var(--br-text-muted)]"><span>Sentence {questionPosition + 1} of {questionCount}</span><span>{questionPosition + Number(comparisonHeard)} / {questionCount} complete</span></div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Shadowing sentence progress" aria-valuemin={0} aria-valuemax={questionCount} aria-valuenow={questionPosition + Number(comparisonHeard)}>
-            <div className="h-full rounded-full bg-violet-600 transition-all duration-300" style={{ width: `${Math.min(100, (questionPosition + Number(comparisonHeard)) / questionCount * 100)}%` }} />
+        {questionCount > 1 ? <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/45 px-3 py-2" aria-label={`Sentence ${questionPosition + 1} of ${questionCount}`}>
+          <div className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-bold">
+            <span className="text-violet-800">Sentence {questionPosition + 1} of {questionCount}</span>
+            <span className={`rounded-full px-2 py-0.5 tabular-nums ${questionPosition + Number(comparisonHeard) === questionCount ? "bg-emerald-100 text-emerald-800" : "bg-white/80 text-slate-600"}`}>
+              {questionPosition + Number(comparisonHeard)} / {questionCount} complete
+            </span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-white" role="progressbar" aria-label="Shadowing sentence progress" aria-valuemin={0} aria-valuemax={questionCount} aria-valuenow={questionPosition + Number(comparisonHeard)}>
+            <div className={`h-full rounded-full transition-all duration-500 ${questionPosition + Number(comparisonHeard) === questionCount ? "bg-emerald-500" : "bg-gradient-to-r from-violet-600 to-[var(--br-action)]"}`} style={{ width: `${Math.min(100, (questionPosition + Number(comparisonHeard)) / questionCount * 100)}%` }} />
           </div>
         </div> : null}
 
@@ -3799,7 +3804,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
             <span className={`grid size-9 place-items-center rounded-full border-2 transition sm:size-10 ${done ? "border-violet-700 bg-violet-700 text-white" : active ? "border-violet-700 bg-white text-violet-800 shadow-[0_0_0_5px_rgba(124,58,237,0.10)]" : "border-slate-200 bg-white text-slate-400"}`}>
               {done ? <Check size={17} strokeWidth={3} /> : <span className="text-xs font-extrabold">{index + 1}</span>}
             </span>
-            <span className={`text-xs font-extrabold sm:text-sm ${done || active ? "text-slate-800" : "text-slate-400"}`}>{label}</span>
+            <span className="sr-only">{index + 1}. {label}</span>
           </div>;
         })}
         </div>
@@ -3809,12 +3814,11 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
       <div className="px-5 py-6 sm:px-9 sm:py-9">
 
       {stage === "listen" ? <section className="mx-auto grid w-full max-w-2xl justify-items-center px-1 py-1 text-center sm:px-2">
-        <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-extrabold text-violet-800"><Headphones size={15} /> LISTEN</span>
-        <p className="mt-7 max-w-2xl text-2xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-4xl">{targetText}</p>
+        <p className="max-w-2xl text-2xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-4xl">{targetText}</p>
         {modelDurationLabel ? <span className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800 shadow-sm"><Clock3 size={14} /> Model audio · {modelDurationLabel}</span> : null}
         <p className="mt-3 text-sm text-[var(--br-text-muted)]">Listen to the whole sentence. Replay or loop it as often as you like.</p>
-        <button type="button" onClick={() => handleListenPlay()} disabled={!readyToRecord || disabled || processing || recording || modelPlaying} aria-label="Tap to listen" className="mt-6 grid size-24 place-items-center rounded-full bg-[var(--br-action)] text-white shadow-[0_12px_28px_-12px_rgba(217,83,53,0.65)] transition hover:scale-[1.03] hover:brightness-95 disabled:opacity-50 sm:size-28">
-          {modelPlaying ? <span className="flex items-center gap-1" aria-hidden="true"><i className="h-7 w-1.5 animate-pulse rounded-full bg-white" /><i className="h-10 w-1.5 animate-pulse rounded-full bg-white [animation-delay:120ms]" /><i className="h-6 w-1.5 animate-pulse rounded-full bg-white [animation-delay:240ms]" /><i className="h-9 w-1.5 animate-pulse rounded-full bg-white [animation-delay:360ms]" /></span> : <Volume2 size={37} strokeWidth={2.2} />}
+        <button type="button" onClick={() => handleListenPlay()} disabled={!readyToRecord || disabled || processing || recording || modelPlaying} aria-label="Tap to listen" className="mt-6 grid size-21 place-items-center rounded-full bg-[var(--br-action)] text-white shadow-[0_12px_28px_-12px_rgba(217,83,53,0.65)] transition hover:scale-[1.03] hover:brightness-95 disabled:opacity-50 sm:size-24">
+          {modelPlaying ? <span className="flex items-center gap-1" aria-hidden="true"><i className="h-6 w-1.5 animate-pulse rounded-full bg-white" /><i className="h-8 w-1.5 animate-pulse rounded-full bg-white [animation-delay:120ms]" /><i className="h-5 w-1.5 animate-pulse rounded-full bg-white [animation-delay:240ms]" /><i className="h-7 w-1.5 animate-pulse rounded-full bg-white [animation-delay:360ms]" /></span> : <Volume2 size={33} strokeWidth={2.2} />}
         </button>
         <span className="mt-2 text-xs font-extrabold text-[var(--br-action-strong)]">{modelPlaying ? modelLoopEnabled ? "Looping · tap loop to stop" : "Listening…" : "Tap to listen"}</span>
         <button type="button" onClick={toggleModelLoop} disabled={!readyToRecord || disabled || processing || recording} aria-label={modelLoopEnabled ? "Stop looping model audio" : "Loop model audio"} aria-pressed={modelLoopEnabled} title={modelLoopEnabled ? "Stop loop" : "Loop audio"} className={`mt-3 grid size-10 place-items-center rounded-full border border-slate-200 bg-white transition hover:border-violet-300 hover:bg-violet-50 ${modelLoopEnabled ? "text-violet-800 ring-2 ring-violet-100" : "text-violet-700"}`}>
@@ -3826,8 +3830,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
       </section> : null}
 
       {stage === "say" ? <section className="mx-auto grid w-full max-w-2xl justify-items-center px-1 py-1 text-center sm:px-2">
-        <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-extrabold text-violet-800"><Mic size={15} /> SAY IT</span>
-        <p className="mt-7 max-w-2xl text-2xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-4xl">{targetText}</p>
+        <p className="max-w-2xl text-2xl font-extrabold leading-snug tracking-tight text-slate-900 sm:text-4xl">{targetText}</p>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {modelDurationLabel ? <span className="inline-flex min-h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800">Model · {modelDurationLabel}</span> : null}
           <span className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800"><Clock3 size={13} /> Your time · up to {maxRecordingSeconds} sec</span>
@@ -3838,8 +3841,8 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
           <div className="grid size-24 place-items-center rounded-full bg-violet-700 text-4xl font-black text-white shadow-[0_0_0_10px_rgba(124,58,237,0.10)] animate-pulse sm:size-28">{countdown === 0 ? "GO" : countdown}</div>
           <span className="mt-3 text-sm font-extrabold text-violet-800">Get ready…</span>
         </div> : <>
-          <button type="button" onClick={recording ? stopRecording : () => setCountdown(3)} disabled={disabled || processing || attemptsUsed >= maxAttempts || (!recording && (recording || Boolean(learnerAudioUrl)))} className={`mt-7 grid size-24 place-items-center rounded-full text-white shadow-lg transition sm:size-28 ${recording ? "bg-[var(--br-action-strong)] ring-8 ring-orange-100" : "bg-[var(--br-action)] hover:scale-[1.03] hover:brightness-95"}`} aria-label={recording ? "Stop recording" : "Tap to record"}>
-            {recording ? <MicOff size={35} /> : processing ? <Loader2 size={28} className="animate-spin" /> : <Mic size={37} />}
+          <button type="button" onClick={recording ? stopRecording : () => setCountdown(3)} disabled={disabled || processing || attemptsUsed >= maxAttempts || (!recording && (recording || Boolean(learnerAudioUrl)))} className={`mt-7 grid size-21 place-items-center rounded-full text-white shadow-lg transition sm:size-24 ${recording ? "bg-[var(--br-action-strong)] ring-8 ring-orange-100" : "bg-[var(--br-action)] hover:scale-[1.03] hover:brightness-95"}`} aria-label={recording ? "Stop recording" : "Tap to record"}>
+            {recording ? <MicOff size={31} /> : processing ? <Loader2 size={26} className="animate-spin" /> : <Mic size={33} />}
           </button>
           <span className="mt-2 text-sm font-extrabold text-[var(--br-action-strong)]">{recording ? "Tap to stop early" : processing ? "Preparing your comparison…" : learnerAudioUrl ? "Recording complete" : attemptsUsed >= maxAttempts ? "No attempts remaining" : "Tap to record"}</span>
           {recording ? <div className="mt-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-3.5">
