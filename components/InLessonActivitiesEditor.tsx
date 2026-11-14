@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2, Volume2 } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, GripVertical, PenLine, Plus, Trash2, Volume2 } from "lucide-react";
 import { deleteSlideActivity, reorderLessonSlideActivities, updateSlideActivity } from "@/app/admin/lessons/actions";
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
@@ -18,7 +18,7 @@ import { ReadingPracticeEditor } from "@/components/ReadingPractice";
 import { IpaChartSoundDiscriminationPicker, type SoundDiscriminationChartConfig } from "@/components/ipa/IpaChartSoundDiscriminationPicker";
 import { SpeechPracticePromptPicker, type SpeechPromptSnapshot } from "@/components/SpeechPracticePromptPicker";
 
-type Activity = {
+export type Activity = {
   id: string;
   lesson_id: string;
   slide_id?: string | null;
@@ -881,6 +881,7 @@ function ActivityPanel({
   });
   const title = activity.slides?.title || `Slide ${activity.slide_number}`;
   const displaySlideNumber = activity.slides?.slide_number ?? activity.slide_number;
+  const isShadowingActivity = activity.activity_type === "SHADOWING";
 
   function save(activityData: Json, needsReview = false) {
     const savedActivityData = isWritingQuestionType(activity.activity_type)
@@ -944,10 +945,10 @@ function ActivityPanel({
         </button>
       </div>
       {isOpen ? (
-        <BuilderModalLayer label={`Edit ${labelFor(activity.activity_type)} activity`}>
-          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+        <BuilderModalLayer label={`Edit ${labelFor(activity.activity_type)} activity`} scrollable={!isShadowingActivity}>
+          <div className={`w-full min-w-0 rounded-2xl bg-white shadow-2xl ${isShadowingActivity ? "flex max-h-[calc(100dvh-1.5rem)] max-w-3xl flex-col overflow-hidden p-4 sm:max-h-[calc(100dvh-3rem)] sm:p-5" : "max-h-[calc(100dvh-1.5rem)] max-w-4xl overflow-auto rounded-xl bg-surface p-4 sm:max-h-[calc(100dvh-3rem)] sm:p-5"}`}>
+            <div className={`flex min-w-0 items-start justify-between gap-4 ${isShadowingActivity ? "shrink-0" : ""}`}>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity editor</p>
                 <h3 className="mt-1 text-lg font-semibold">{labelFor(activity.activity_type)}</h3>
                 <p className="mt-1 text-sm text-[var(--br-text-muted)]">Slide {displaySlideNumber} · {title}</p>
@@ -956,7 +957,7 @@ function ActivityPanel({
                 Close
               </button>
             </div>
-            <div className="mt-4 grid gap-4">
+            <div className={`mt-4 grid min-w-0 ${isShadowingActivity ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto gap-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "gap-4"}`}>
               {activity.needs_review ? (
                 <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                   {activity.activity_type === "SHADOWING"
@@ -1024,10 +1025,10 @@ function ActivityPanel({
                   Remove activity
                 </button>
               </div>
-              <div className="rounded-md bg-black/[0.03] p-3">
+              {!isShadowingActivity ? <div className="rounded-md bg-black/[0.03] p-3">
                 <h4 className="text-sm font-semibold">Original pasted text</h4>
                 <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-[var(--br-text-muted)]">{activity.raw_text}</pre>
-              </div>
+              </div> : null}
             </div>
           </div>
         </BuilderModalLayer>
@@ -2688,49 +2689,138 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
   );
 }
 
-function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+export function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const data = asRecord(activity.activity_data);
   const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
   const [heading, setHeading] = useState(String(data.title ?? "Listen. Say it. Compare."));
   const [description, setDescription] = useState(String(data.description ?? ""));
-  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
-  const [targetText, setTargetText] = useState(() => shadowingSentenceText(data));
+  const [manualPrompts, setManualPrompts] = useState<Array<{ id: string; text: string; audio_url: string }>>(() => {
+    const saved = Array.isArray(data.prompts) ? data.prompts.map((item) => asRecord(item as Json)).map((item, index) => ({
+      id: String(item.id ?? `manual-${index + 1}`),
+      text: String(item.text ?? ""),
+      audio_url: String(item.audio_url ?? ""),
+    })) : [];
+    return saved.length ? saved : [{ id: "manual-1", text: shadowingSentenceText(data), audio_url: String(data.audio_url ?? "") }];
+  });
+  const [expandedManualPromptId, setExpandedManualPromptId] = useState(() => {
+    const firstPrompt = Array.isArray(data.prompts) && data.prompts.length ? asRecord(data.prompts[0] as Json) : null;
+    return String(firstPrompt?.id ?? "manual-1");
+  });
   const [libraryItems, setLibraryItems] = useState<SpeechPromptSnapshot[]>(Array.isArray(data.library_items) ? data.library_items as SpeechPromptSnapshot[] : []);
   const [maxAttempts, setMaxAttempts] = useState(Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)));
   const [maxRecordingSeconds, setMaxRecordingSeconds] = useState(Math.max(5, Math.min(60, Number(data.max_recording_seconds ?? 15) || 15)));
-  const needsReview = libraryItems.length ? false : !targetText.trim() || !audioUrl.trim();
+  const [sourceMode, setSourceMode] = useState<"library" | "manual" | null>(() => {
+    if (Array.isArray(data.prompts) && data.prompts.length > 0) return "manual";
+    if (Array.isArray(data.library_items) && data.library_items.length > 0) return "library";
+    return [data.target_text, data.audio_url].some((value) => String(value ?? "").trim()) ? "manual" : null;
+  });
+  const selectedPrompt = sourceMode === "library" ? libraryItems[0] : undefined;
+  const firstManualPrompt = manualPrompts[0];
+  const savedText = selectedPrompt?.text ?? (sourceMode === "manual" ? firstManualPrompt?.text ?? "" : "");
+  const savedAudioUrl = selectedPrompt?.audio_url ?? (sourceMode === "manual" ? firstManualPrompt?.audio_url ?? "" : "");
+  const needsReview = sourceMode === "library"
+    ? libraryItems.length === 0
+    : sourceMode !== "manual" || manualPrompts.length === 0 || manualPrompts.some((item) => !item.text.trim() || !item.audio_url.trim());
+
+  function addManualPrompt() {
+    const id = crypto.randomUUID();
+    setManualPrompts((current) => [...current, { id, text: "", audio_url: "" }]);
+    setExpandedManualPromptId(id);
+  }
+
+  function updateManualPrompt(id: string, patch: Partial<{ text: string; audio_url: string }>) {
+    setManualPrompts((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+  }
+
+  function removeManualPrompt(id: string) {
+    const remaining = manualPrompts.filter((item) => item.id !== id);
+    setManualPrompts(remaining);
+    if (expandedManualPromptId === id) setExpandedManualPromptId(remaining[0]?.id ?? "");
+  }
+
+  function moveManualPrompt(id: string, direction: -1 | 1) {
+    const index = manualPrompts.findIndex((item) => item.id === id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= manualPrompts.length) return;
+    const reordered = [...manualPrompts];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    setManualPrompts(reordered);
+  }
   return (
-    <div className="grid gap-4">
-      <div className="rounded-lg border border-[var(--br-border)] bg-surface-muted/50 p-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Learner heading</p>
-        <p className="mt-1 text-sm font-bold text-[var(--br-dark-card)]">Shadowing practice <span className="font-normal text-[var(--br-text-muted)]">(fixed label)</span></p>
-        <label className="mt-3 block text-sm font-medium">
-          Main heading
-          <input value={heading} onChange={(event) => setHeading(event.target.value)} maxLength={100} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
-        </label>
-        <label className="mt-3 block text-sm font-medium">
-          Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
-          <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={240} rows={2} placeholder="Add a short note to guide the learner" className="mt-1 w-full resize-y rounded-md border border-[var(--br-border)] px-3 py-2" />
-        </label>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm font-medium">
-          Maximum recording time
-          <select value={maxRecordingSeconds} onChange={(event) => setMaxRecordingSeconds(Number(event.target.value))} className="mt-1 block min-h-10 w-full rounded-md border border-[var(--br-border)] bg-white px-3 py-2">
+    <div className="grid min-w-0 gap-3">
+      <details className="group rounded-xl border border-[var(--br-border)] bg-white">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-bold text-[var(--br-dark-card)] [&::-webkit-details-marker]:hidden">
+          <span>Learner-facing heading <span className="ml-1 font-normal text-[var(--br-text-muted)]">· optional</span></span>
+          <ChevronDown size={16} className="shrink-0 text-[var(--br-text-muted)] transition group-open:rotate-180" />
+        </summary>
+        <div className="grid gap-3 border-t border-[var(--br-border)] p-3 sm:grid-cols-2">
+          <label className="min-w-0 text-sm font-medium">
+            Main heading
+            <input value={heading} onChange={(event) => setHeading(event.target.value)} maxLength={100} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2" />
+          </label>
+          <label className="min-w-0 text-sm font-medium">
+            Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
+            <input value={description} onChange={(event) => setDescription(event.target.value)} maxLength={240} placeholder="A short note for learners" className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2" />
+          </label>
+        </div>
+      </details>
+
+      <div className="grid min-w-0 grid-cols-2 gap-2">
+        <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">
+          Recording time
+          <select value={maxRecordingSeconds} onChange={(event) => setMaxRecordingSeconds(Number(event.target.value))} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-sm font-semibold text-ink">
             {[5, 10, 15, 20, 30, 60].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
           </select>
-          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Recording stops automatically when this time ends.</span>
         </label>
-        <label className="text-sm font-medium">
-          Recording attempts allowed per learner
-          <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
-          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt.</span>
+        <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">
+          Attempts per learner
+          <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-sm font-semibold text-ink" />
         </label>
       </div>
-      <ShadowingSentenceEditor audioUrl={audioUrl} targetText={targetText} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={(url) => { setAudioUrl(url); setLibraryItems((items) => items.length ? [{ ...items[0], audio_url: url }, ...items.slice(1)] : items); }} onTargetTextChange={(text) => { setTargetText(text); setLibraryItems((items) => items.length ? [{ ...items[0], text }, ...items.slice(1)] : items); }} />
-      <SpeechPracticePromptPicker type="SHADOWING" selected={libraryItems} onChange={(items) => { setLibraryItems(items); if (items[0]) { setTargetText(items[0].text); setAudioUrl(items[0].audio_url); } }} />
+      <p className="-mt-1 text-[11px] text-[var(--br-text-muted)]">The recording stops at the selected time. Each submitted recording uses one attempt.</p>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="grid min-w-0 grid-cols-2 gap-2 rounded-xl bg-slate-100/80 p-1.5" aria-label="Choose a sentence source">
+        <button type="button" aria-pressed={sourceMode === "library"} onClick={() => setSourceMode("library")} className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-sm font-bold transition ${sourceMode === "library" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600 hover:bg-white/70"}`}>
+          <BookOpen size={16} className="shrink-0" /> <span className="truncate">Choose from library</span>
+        </button>
+        <button type="button" aria-pressed={sourceMode === "manual"} onClick={() => setSourceMode("manual")} className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-sm font-bold transition ${sourceMode === "manual" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600 hover:bg-white/70"}`}>
+          <PenLine size={16} className="shrink-0" /> <span className="truncate">Add manually</span>
+        </button>
+      </div>
+
+      {sourceMode === "manual" ? <div className="grid min-w-0 gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><p className="text-sm font-extrabold text-[var(--br-dark-card)]">Your sentences</p><p className="text-xs text-[var(--br-text-muted)]">Each sentence gets its own Listen → Say it → Compare flow.</p></div>
+          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">{manualPrompts.length} {manualPrompts.length === 1 ? "prompt" : "prompts"}</span>
+        </div>
+        <ol className="grid min-w-0 gap-2">
+          {manualPrompts.map((item, index) => {
+            const expanded = expandedManualPromptId === item.id;
+            return <li key={item.id} className="min-w-0 overflow-hidden rounded-xl border border-[var(--br-border)] bg-white">
+              <div className="flex min-w-0 items-center gap-2 p-2.5">
+                <button type="button" aria-expanded={expanded} onClick={() => setExpandedManualPromptId(expanded ? "" : item.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-violet-50 text-xs font-extrabold text-violet-800">{index + 1}</span>
+                  <span className="min-w-0 flex-1"><span className="block text-xs font-bold text-[var(--br-dark-card)]">Sentence {index + 1}</span><span className="block truncate text-xs text-[var(--br-text-muted)]">{item.text.trim() || "Add a sentence and model audio"}</span></span>
+                  <ChevronDown size={15} className={`shrink-0 text-[var(--br-text-muted)] transition ${expanded ? "rotate-180" : ""}`} />
+                </button>
+                {manualPrompts.length > 1 ? <>
+                  <div className="flex shrink-0 items-center">
+                    <button type="button" onClick={() => moveManualPrompt(item.id, -1)} disabled={index === 0} aria-label={`Move sentence ${index + 1} up`} className="grid size-7 place-items-center rounded text-[var(--br-text-muted)] hover:bg-slate-100 disabled:opacity-30"><ArrowUp size={14} /></button>
+                    <button type="button" onClick={() => moveManualPrompt(item.id, 1)} disabled={index === manualPrompts.length - 1} aria-label={`Move sentence ${index + 1} down`} className="grid size-7 place-items-center rounded text-[var(--br-text-muted)] hover:bg-slate-100 disabled:opacity-30"><ArrowDown size={14} /></button>
+                  </div>
+                  <button type="button" onClick={() => removeManualPrompt(item.id)} aria-label={`Remove sentence ${index + 1}`} className="grid size-8 shrink-0 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-rose-50 hover:text-rose-700"><Trash2 size={15} /></button>
+                </> : null}
+              </div>
+              {expanded ? <div className="border-t border-[var(--br-border)] p-2.5"><ShadowingSentenceEditor audioUrl={item.audio_url} targetText={item.text} promptNumber={index + 1} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={(audio_url) => updateManualPrompt(item.id, { audio_url })} onTargetTextChange={(text) => updateManualPrompt(item.id, { text })} /></div> : null}
+            </li>;
+          })}
+        </ol>
+        <button type="button" onClick={addManualPrompt} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-dashed border-violet-300 bg-violet-50/50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-50"><Plus size={16} /> Add another sentence</button>
+      </div> : null}
+      {sourceMode === "library" ? <SpeechPracticePromptPicker type="SHADOWING" selected={libraryItems} onChange={setLibraryItems} /> : null}
+      {!sourceMode ? <p className="rounded-xl border border-dashed border-[var(--br-border-strong)] px-3 py-4 text-center text-sm text-[var(--br-text-muted)]">Choose a source to add the sentence and its model audio.</p> : null}
+
+      <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap gap-3 border-t border-[var(--br-border)] bg-white/95 px-1 py-2 backdrop-blur-sm">
         <SaveButton
           onClick={() =>
             onSave(
@@ -2742,10 +2832,13 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
                 layered_flow: true,
                 max_attempts: maxAttempts,
                 max_recording_seconds: maxRecordingSeconds,
-                audio_url: libraryItems[0]?.audio_url ?? audioUrl,
-                target_text: libraryItems[0]?.text ?? targetText,
-                library_items: libraryItems,
-                correct_answer: libraryItems[0]?.text ?? targetText,
+                audio_url: savedAudioUrl,
+                target_text: savedText,
+                accent: selectedPrompt?.accent ?? String(data.accent ?? ""),
+                cefr_level: selectedPrompt?.cefr_level ?? String(data.cefr_level ?? ""),
+                library_items: sourceMode === "library" ? libraryItems : [],
+                prompts: sourceMode === "manual" ? manualPrompts : [],
+                correct_answer: savedText,
               } as Json,
               needsReview
             )

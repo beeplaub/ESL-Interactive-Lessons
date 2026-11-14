@@ -119,11 +119,11 @@ export function SingleMediaRecorderInput({ value, onChange, type = "audio", labe
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-xs">
-      {label || headerAction ? <div className="flex flex-wrap items-center justify-between gap-2"><label className="text-xs font-semibold text-[var(--br-text-muted)]">{label}</label>{headerAction}</div> : null}
+    <div className="min-w-0 max-w-full space-y-2 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-xs">
+      {label || headerAction ? <div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><label className="text-xs font-semibold text-[var(--br-text-muted)]">{label}</label><div className="min-w-0 max-w-full">{headerAction}</div></div> : null}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-[var(--br-border)] pb-1 text-xs">
+      <div className="flex min-w-0 flex-wrap items-center gap-1 border-b border-[var(--br-border)] pb-1 text-xs">
         <button
           type="button"
           onClick={() => setActiveTab("url")}
@@ -157,13 +157,13 @@ export function SingleMediaRecorderInput({ value, onChange, type = "audio", labe
 
       {/* URL Tab */}
       {activeTab === "url" && (
-        <div className="flex gap-2">
+        <div className="flex min-w-0 gap-2">
           <input
             type="url"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={`Enter ${type} URL (https://...)`}
-            className="w-full rounded-lg border border-[var(--br-border)] px-3 py-1.5 text-xs text-ink focus:border-moss focus:outline-hidden"
+            className="min-w-0 flex-1 rounded-lg border border-[var(--br-border)] px-3 py-1.5 text-xs text-ink focus:border-moss focus:outline-hidden"
           />
           {value && (
             <button
@@ -274,7 +274,7 @@ export function SingleMediaRecorderInput({ value, onChange, type = "audio", labe
 
       {/* Current Preview */}
       {value && (
-        <div className="mt-2 rounded-lg bg-black/5 p-2 space-y-1">
+        <div className="mt-2 min-w-0 rounded-lg bg-black/5 p-2 space-y-1">
           <p className="text-[10px] uppercase font-bold text-[var(--br-text-muted)] tracking-wider">Active Media Source:</p>
           {type === "audio" && <audio controls src={value} className="w-full h-8" />}
           {type === "image" && (

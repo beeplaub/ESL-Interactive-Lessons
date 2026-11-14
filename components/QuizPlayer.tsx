@@ -767,6 +767,7 @@ export function QuizPlayer({
   }
 
   function handleTouchMove(event: TouchEvent<HTMLDivElement>) {
+    if (questions[currentIndex]?.question_type === "SHADOWING") return;
     const start = touchStartRef.current;
     if (!start) return;
     const touch = event.touches[0];
@@ -779,6 +780,7 @@ export function QuizPlayer({
   function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
     const start = touchStartRef.current;
     touchStartRef.current = null;
+    if (questions[currentIndex]?.question_type === "SHADOWING") return;
     if (!start) return;
     const touch = event.changedTouches[0];
     if (!touch) return;
@@ -1029,14 +1031,17 @@ export function QuizPlayer({
               onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
               onResult={handleQuestionResult}
               quizId={quizId}
-              onFinishShadowing={() => submit()}
+              onFinishShadowing={() => {
+                if (currentIndex < questions.length - 1) setCurrentIndex((index) => Math.min(questions.length - 1, index + 1));
+                else submit();
+              }}
               finishPending={isPending}
             />
           </ActivityEvaluationModeContext.Provider>
         ) : null}
       </div>
 
-      {!autoGradingActive && currentQuestion?.question_type !== "STRESS_PICKER" ? <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
+      {!autoGradingActive && currentQuestion?.question_type !== "STRESS_PICKER" && (submitted || currentQuestion?.question_type !== "SHADOWING") ? <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
@@ -1194,7 +1199,7 @@ export function QuestionCard({
   }, [submitted, isResolved, correct, allCorrect, partial, question.id, onResult]);
 
   if (question.question_type === "SHADOWING" && asRecord(question.options).layered_flow === true) {
-    return <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} onFinish={onFinishShadowing} finishPending={finishPending} />;
+    return <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} onFinish={onFinishShadowing} finishPending={finishPending} questionPosition={questionPosition} questionCount={questionCount} />;
   }
 
   return (
@@ -1253,7 +1258,7 @@ export function QuestionCard({
         {question.question_type === "PARAPHRASE_ID" ? <ParaphraseId question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "DICTATION" ? <DictationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_SELECT" ? <ListenSelectPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} onFinish={onFinishShadowing} finishPending={finishPending} /> : null}
+        {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} onFinish={onFinishShadowing} finishPending={finishPending} questionPosition={questionPosition} questionCount={questionCount} /> : null}
       {question.question_type === "READ_ALOUD" ? <ReadingPracticePlayer config={{ title: String(asRecord(question.options).title ?? "Reading passage"), passage: String(asRecord(question.options).passage ?? ""), level: String(asRecord(question.options).level ?? "A1"), time_limit_seconds: asRecord(question.options).time_limit_seconds ? Number(asRecord(question.options).time_limit_seconds) : null, pace_wpm: readingPaceForLevel(String(asRecord(question.options).level ?? "A1"), Number(asRecord(question.options).pace_wpm ?? Number.NaN)), recording_attempt_limit: asRecord(question.options).recording_attempt_limit ? Number(asRecord(question.options).recording_attempt_limit) : null, chunking_enabled: asRecord(question.options).chunking_enabled === true, usage_key: `quiz:${quizId ?? "preview"}:${question.id}` }} disabled={submitted} onResult={(result) => onChange({ ...result, score: result.match_percent } as unknown as Json)} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} reviewRoundIndex={soundDiscriminationReviewRoundIndex} onChange={onChange} /> : null}
@@ -3357,6 +3362,8 @@ type ShadowingPlayerProps = {
   onChange: (val: ShadowingValue) => void;
   onFinish?: () => void;
   finishPending?: boolean;
+  questionPosition?: number;
+  questionCount?: number;
 };
 
 function ShadowingPlayer(props: ShadowingPlayerProps) {
@@ -3419,7 +3426,7 @@ function playShadowingWindow(
   });
 }
 
-function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish, finishPending = false }: ShadowingPlayerProps) {
+function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish, finishPending = false, questionPosition = 0, questionCount = 1 }: ShadowingPlayerProps) {
   const options = asRecord(question.options);
   const targetText = shadowingSentenceText(options);
   const audioUrl = String(options.audio_url ?? "");
@@ -3774,6 +3781,13 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
           </div>
         </div>
 
+        {questionCount > 1 ? <div className="mt-5" aria-label={`Sentence ${questionPosition + 1} of ${questionCount}`}>
+          <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-bold text-[var(--br-text-muted)]"><span>Sentence {questionPosition + 1} of {questionCount}</span><span>{questionPosition + Number(comparisonHeard)} / {questionCount} complete</span></div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Shadowing sentence progress" aria-valuemin={0} aria-valuemax={questionCount} aria-valuenow={questionPosition + Number(comparisonHeard)}>
+            <div className="h-full rounded-full bg-violet-600 transition-all duration-300" style={{ width: `${Math.min(100, (questionPosition + Number(comparisonHeard)) / questionCount * 100)}%` }} />
+          </div>
+        </div> : null}
+
       <div className="mt-6" aria-label="Shadowing progress">
         <div className="relative grid grid-cols-3 gap-2 sm:gap-5">
         <div className="absolute left-[16.5%] right-[16.5%] top-[18px] h-0.5 bg-slate-200" aria-hidden="true" />
@@ -3873,7 +3887,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
         {error ? <p role="status" className="text-center text-sm font-semibold text-amber-800">{error}</p> : null}
         <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
           <button type="button" onClick={handleRecordAgain} disabled={disabled || processing || recording || attemptsUsed >= maxAttempts} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 sm:gap-2 sm:px-4"><RotateCcw size={15} /> Record Again</button>
-          <button type="button" onClick={onFinish} disabled={!comparisonHeard || disabled || finishPending} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-violet-700 px-2 text-sm font-extrabold text-white hover:bg-violet-800 disabled:opacity-50 sm:gap-2 sm:px-4">{finishPending ? <Loader2 size={15} className="animate-spin" /> : null}{finishPending ? "Saving…" : "Finish Practice"}<CheckCircle2 size={16} /></button>
+          <button type="button" onClick={onFinish} disabled={!comparisonHeard || disabled || finishPending} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-violet-700 px-2 text-sm font-extrabold text-white hover:bg-violet-800 disabled:opacity-50 sm:gap-2 sm:px-4">{finishPending ? <Loader2 size={15} className="animate-spin" /> : null}{finishPending ? "Saving…" : questionPosition < questionCount - 1 ? "Next sentence" : "Finish Practice"}<CheckCircle2 size={16} /></button>
         </div>
       </section> : null}
       </div>

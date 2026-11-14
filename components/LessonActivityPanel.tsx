@@ -276,11 +276,13 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     }];
   }
   if (activityType === "SHADOWING") {
+    const savedPrompts = Array.isArray(data.prompts) ? data.prompts.map((item) => asRecord(item as Json)) : [];
     const libraryItems = Array.isArray(data.library_items) ? data.library_items.map((item) => asRecord(item as Json)) : [];
+    const promptItems = savedPrompts.length ? savedPrompts : libraryItems;
     const shadowingHeading = String(data.title ?? data.prompt ?? "Listen. Say it. Compare.");
     const shadowingDescription = String(data.description ?? "").trim() || null;
     const maxRecordingSeconds = Math.max(5, Math.min(60, Math.round(Number(data.max_recording_seconds ?? 15) || 15)));
-    if (libraryItems.length > 0) return libraryItems.map((item, index) => {
+    if (promptItems.length > 0) return promptItems.map((item, index) => {
       const targetText = String(item.text ?? "");
       return {
         id: `shadowing-${index + 1}`,
@@ -2301,7 +2303,10 @@ function GenericLessonActivityPanel({
                 soundDiscriminationReviewRoundIndex={currentQuestion.question_type === "SOUND_DISCRIMINATION" ? soundReviewRoundIndex : undefined}
                 onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
                 onResult={handleQuestionResult}
-                onFinishShadowing={() => submit()}
+                onFinishShadowing={() => {
+                  if (qIndex < questions.length - 1) setQIndex((index) => Math.min(questions.length - 1, index + 1));
+                  else submit();
+                }}
                 finishPending={isPending}
                 lessonId={lessonId}
               />

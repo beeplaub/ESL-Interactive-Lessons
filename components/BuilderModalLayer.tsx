@@ -10,6 +10,7 @@ type Props = {
   labelledBy?: string;
   label?: string;
   fullBleed?: boolean;
+  scrollable?: boolean;
 };
 
 /**
@@ -23,6 +24,7 @@ export function BuilderModalLayer({
   labelledBy,
   label,
   fullBleed = false,
+  scrollable = true,
 }: Props) {
   const [mounted, setMounted] = useState(false);
 
@@ -43,7 +45,7 @@ export function BuilderModalLayer({
 
   return createPortal(
     <div
-      className={`lesson-builder-ui fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-black/50 backdrop-blur-[2px] ${className}`}
+      className={`lesson-builder-ui fixed inset-0 z-[100] ${scrollable ? "overflow-y-auto overscroll-contain" : "overflow-hidden"} bg-black/50 backdrop-blur-[2px] ${className}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby={labelledBy}

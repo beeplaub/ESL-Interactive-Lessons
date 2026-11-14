@@ -10,21 +10,21 @@ type Props = {
   onTargetTextChange: (text: string) => void;
   lessonId?: string;
   voiceSettings: FlashcardVoiceSettings;
+  promptNumber?: number;
 };
 
-export function ShadowingSentenceEditor({ audioUrl, targetText, onAudioUrlChange, onTargetTextChange, lessonId, voiceSettings }: Props) {
+export function ShadowingSentenceEditor({ audioUrl, targetText, onAudioUrlChange, onTargetTextChange, lessonId, voiceSettings, promptNumber }: Props) {
   return (
-    <div className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
-      <div>
-        <h3 className="text-sm font-black text-[var(--br-dark-card)]">Model sentence</h3>
-        <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">Add one complete sentence and its model audio. Learners record once, then listen to the model and their recording in a loop.</p>
+    <div className="grid min-w-0 gap-2.5 rounded-xl border border-[var(--br-border)] bg-slate-50/60 p-3">
+      <div className="min-w-0">
+        <h3 className="text-sm font-black text-[var(--br-dark-card)]">{promptNumber ? `Sentence ${promptNumber}` : "Model sentence"}</h3>
       </div>
-      <label className="text-sm font-medium">
+      <label className="min-w-0 text-sm font-medium">
         Sentence text
-        <textarea rows={3} value={targetText} onChange={(event) => onTargetTextChange(event.target.value)} placeholder="e.g. I'm gonna go to the store." className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-white px-3 py-2" />
+        <textarea rows={2} value={targetText} onChange={(event) => onTargetTextChange(event.target.value)} placeholder="e.g. I'm gonna go to the store." className="mt-1 block w-full min-w-0 resize-y rounded-lg border border-[var(--br-border)] bg-white px-3 py-2" />
       </label>
       <MediaRecorderInput
-        label="Model sentence audio"
+        label={promptNumber ? `Sentence ${promptNumber} audio` : "Model sentence audio"}
         value={audioUrl}
         headerAction={<FlashcardAudioGenerator
           lessonId={lessonId}
