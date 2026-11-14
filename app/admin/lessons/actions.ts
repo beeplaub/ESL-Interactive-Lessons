@@ -251,7 +251,9 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "QUOTE") {
     return {
       body: String(formData.get("body") || "").trim(),
+      body_bn: String(formData.get("body_bn") || "").trim(),
       attribution: nullableText(formData.get("attribution")),
+      attribution_bn: nullableText(formData.get("attribution_bn")),
       text_align: textAlignValue(formData.get("text_align")),
       block_background_color: hexColorValue(formData.get("block_background_color"), "") || null
     };
@@ -279,7 +281,9 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "CLUES") {
     return {
       title: nullableText(formData.get("title")),
-      items: splitLines(formData.get("items"))
+      title_bn: nullableText(formData.get("title_bn")),
+      items: splitLines(formData.get("items")),
+      items_bn: splitLines(formData.get("items_bn"))
     };
   }
   if (blockType === "IMAGE") {
@@ -363,29 +367,28 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   }
   if (blockType === "VOCABULARY") {
     return {
-      entries: splitLines(formData.get("entries")).map((line) => {
-        const [word, pronunciation, meaning, example, notes] = line.split("|").map((part) => part.trim());
-        return { word, pronunciation, meaning, example, notes };
-      })
+      entries: splitLines(formData.get("entries")).map((line) => { const [word, pronunciation, meaning, example, notes] = line.split("|").map((part) => part.trim()); return { word, pronunciation, meaning, example, notes }; }),
+      entries_bn: splitLines(formData.get("entries_bn")).map((line) => { const [word, pronunciation, meaning, example, notes] = line.split("|").map((part) => part.trim()); return { word, pronunciation, meaning, example, notes }; })
     };
   }
   if (blockType === "GRAMMAR") {
     return {
-      title: String(formData.get("title") || "").trim(),
-      explanation: String(formData.get("explanation") || "").trim(),
-      examples: splitLines(formData.get("examples")),
-      notes: nullableText(formData.get("notes")),
+      title: String(formData.get("title") || "").trim(), title_bn: String(formData.get("title_bn") || "").trim(),
+      explanation: String(formData.get("explanation") || "").trim(), explanation_bn: String(formData.get("explanation_bn") || "").trim(),
+      examples: splitLines(formData.get("examples")), examples_bn: splitLines(formData.get("examples_bn")),
+      notes: nullableText(formData.get("notes")), notes_bn: nullableText(formData.get("notes_bn")),
       reveal_hidden: formData.get("reveal_hidden") === "on"
     };
   }
   if (blockType === "COMMON_MISTAKE") {
     return {
-      title: String(formData.get("title") || "").trim(),
-      context: nullableText(formData.get("context")),
-      mistake: String(formData.get("mistake") || "").trim(),
-      correction: String(formData.get("correction") || "").trim(),
-      explanation: String(formData.get("explanation") || "").trim(),
-      tip: nullableText(formData.get("tip")),
+      title: String(formData.get("title") || "").trim(), title_bn: String(formData.get("title_bn") || "").trim(),
+      context: nullableText(formData.get("context")), context_bn: nullableText(formData.get("context_bn")),
+      mistake: String(formData.get("mistake") || "").trim(), mistake_bn: String(formData.get("mistake_bn") || "").trim(),
+      correction: String(formData.get("correction") || "").trim(), correction_bn: String(formData.get("correction_bn") || "").trim(),
+      explanation: String(formData.get("explanation") || "").trim(), explanation_bn: String(formData.get("explanation_bn") || "").trim(),
+      tip: nullableText(formData.get("tip")), tip_bn: nullableText(formData.get("tip_bn")),
+      examples_bn: splitLines(formData.get("examples_bn")).map((line) => { const [context, incorrect, correct] = line.split("|").map((part) => part.trim()); return { context, incorrect, correct }; }).filter((example) => example.incorrect || example.correct),
       examples: splitLines(formData.get("examples")).map((line) => {
         const [context, incorrect, correct] = line.split("|").map((part) => part.trim());
         return { context, incorrect, correct };
@@ -477,12 +480,14 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
         speaker_id: speakerId || null,
         speaker: person?.name || "Speaker",
         line: String(value || "").trim(),
+        line_bn: String(formData.getAll("dialogue_turn_line_bn")[index] || "").trim(),
         audio_url: nullableText(formData.getAll("dialogue_turn_audio")[index]),
         voiceover: formJsonObject(formData.getAll("dialogue_turn_voiceover")[index]),
       };
     }).filter((turn) => turn.line);
     return {
       title: nullableText(formData.get("title")),
+      title_bn: nullableText(formData.get("title_bn")),
       people,
       turns,
       voiceover_settings: {
@@ -544,9 +549,10 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       })
       .filter((row) => row.some((cell) => cell.length > 0));
     return {
-      caption: nullableText(formData.get("caption")),
-      headers,
-      rows,
+      caption: nullableText(formData.get("caption")), caption_bn: nullableText(formData.get("caption_bn")),
+      headers, rows,
+      headers_bn: splitLines(formData.get("headers_bn")),
+      rows_bn: splitLines(formData.get("rows_bn")).map((line) => line.split("|").map((cell) => cell.trim())),
       reveal_hidden: formData.get("reveal_hidden") === "on",
       mobile_layout: formData.get("mobile_layout") === "horizontal" ? "horizontal" : "stacked",
       header_fill: hexColorValue(formData.get("header_fill"), "var(--br-info)")

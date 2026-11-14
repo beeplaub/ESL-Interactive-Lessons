@@ -12,6 +12,15 @@ type BlockStyle = {
   block_background_color: string;
 };
 
+/** Shared English/Bengali authoring switch for structured lesson blocks. */
+export function BilingualFieldEditor({ label, english, bengali }: { label: string; english: ReactNode; bengali: ReactNode }) {
+  const [language, setLanguage] = useState<BlockEditorLanguage>("en");
+  return <BlockLanguageStyleSection label={label} language={language} onLanguageChange={setLanguage} languageLabel={`Choose ${label.toLowerCase()} language`} backgroundControl={null}>
+    <div className="grid gap-3" style={{ display: language === "en" ? "grid" : "none" }}>{english}</div>
+    <div className="grid gap-3" lang="bn" style={{ display: language === "bn" ? "grid" : "none" }}>{bengali}</div>
+  </BlockLanguageStyleSection>;
+}
+
 function colorValue(value: unknown) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : "";
 }
@@ -28,14 +37,14 @@ export function BlockLanguageStyleSection({
   language: BlockEditorLanguage;
   onLanguageChange: (language: BlockEditorLanguage) => void;
   languageLabel: string;
-  backgroundControl: ReactNode;
+  backgroundControl?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="grid gap-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface)] p-3">
       <div className="flex items-start justify-between gap-3">
         <p className="pt-1 text-sm font-semibold text-ink">{label}</p>
-        <div className="grid w-[min(16.125rem,58vw)] shrink-0 gap-1.5 sm:w-[16.125rem]">
+        <div className={backgroundControl ? "grid w-[min(16.125rem,58vw)] shrink-0 gap-1.5 sm:w-[16.125rem]" : "shrink-0"}>
           <div className="inline-flex w-full rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-1" role="group" aria-label={languageLabel}>
             <button type="button" aria-pressed={language === "en"} onClick={() => onLanguageChange("en")} className={`min-w-0 flex-1 rounded-lg px-2 py-1.5 text-xs font-bold transition ${language === "en" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white hover:text-[var(--br-brand)]"}`}>English</button>
             <button type="button" aria-pressed={language === "bn"} onClick={() => onLanguageChange("bn")} className={`min-w-0 flex-1 rounded-lg px-2 py-1.5 text-xs font-bold transition ${language === "bn" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white hover:text-[var(--br-brand)]"}`}>বাংলা</button>

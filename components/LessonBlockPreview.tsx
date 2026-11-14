@@ -676,19 +676,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   if (block.block_type === "QUOTE") {
-    const align = textAlignClass(content.text_align);
-    const backgroundColor = previewHexColor(content.block_background_color);
-    return (
-      <figure className={`relative overflow-hidden rounded-[22px] border border-[#ead9a8] p-4 shadow-[0_12px_28px_rgba(38,35,78,0.12)] sm:p-5 ${align}`} style={backgroundColor ? { backgroundColor } : undefined}>
-        <Quote aria-hidden="true" className="absolute left-4 top-4 text-[var(--br-action)]" size={20} strokeWidth={2.5} />
-        <blockquote className="pr-3 text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
-          &ldquo;{asString(content.body) || "Add a quote."}&rdquo;
-        </blockquote>
-        {asString(content.attribution) ? (
-          <figcaption className="mt-4 flex justify-end pr-3 text-right text-sm font-semibold text-[var(--br-text-muted)]">— {asString(content.attribution)}</figcaption>
-        ) : null}
-      </figure>
-    );
+    return <BilingualQuoteBlock content={content} />;
   }
 
   if (block.block_type === "CALLOUT") {
@@ -711,14 +699,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   if (block.block_type === "CLUES") {
-    const title = asString(content.title);
-    const items = asArray(content.items).map(String).filter(Boolean);
-    return (
-      <section className="rounded-[22px] border border-[var(--br-action)]/20 bg-[var(--br-action)]/[0.04] p-4 shadow-sm sm:p-5">
-        {title ? <h3 className="mb-4 text-base font-extrabold tracking-tight text-[var(--br-dark-card)] sm:text-lg">{title}</h3> : null}
-        {items.length ? <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"><div className="contents">{items.map((item, index) => <div key={`${item}-${index}`} className="flex min-h-12 items-center justify-center rounded-xl border-2 border-[var(--br-action)] bg-surface px-3 py-2 text-center text-sm font-bold leading-5 text-[var(--br-dark-card)] shadow-sm sm:min-h-14 sm:text-base"><FormattedText text={item} /></div>)}</div></div> : <p className="text-sm text-[var(--br-text-muted)]">Add clue items.</p>}
-      </section>
-    );
+    return <BilingualCluesBlock content={content} />;
   }
 
   if (block.block_type === "IMAGE") {
@@ -870,49 +851,11 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   if (block.block_type === "VOCABULARY") {
-    const entries = asArray(content.entries);
-    return (
-      <div className="rounded-lg border border-[var(--br-border)]">
-        <div className="border-b border-[var(--br-brand)]/15 px-4 py-3" style={{ backgroundColor: "color-mix(in srgb, var(--br-brand) 16%, var(--br-surface))" }}>
-          <h3 className="font-semibold text-[var(--br-brand)]">Vocabulary</h3>
-        </div>
-        <div className="divide-y divide-black/10">
-          {entries.length ? entries.map((item, index) => {
-            const entry = asRecord(item as Json);
-            return (
-              <div key={index} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_1fr]">
-                <div>
-                  <p className="font-semibold text-ink">{asString(entry.word) || "Word"}</p>
-                  {asString(entry.pronunciation) ? <p className="text-xs text-[var(--br-text-muted)]">{asString(entry.pronunciation)}</p> : null}
-                </div>
-                <div className="text-base leading-6 text-[var(--br-text-muted)]">
-                  <p>{asString(entry.meaning) || "Meaning"}</p>
-                  {asString(entry.example) ? <p className="mt-1 italic text-[var(--br-text-muted)]">{asString(entry.example)}</p> : null}
-                  {asString(entry.notes) ? <p className="mt-1 text-xs text-[var(--br-text-muted)]">{asString(entry.notes)}</p> : null}
-                </div>
-              </div>
-            );
-          }) : <p className="p-4 text-sm text-[var(--br-text-muted)]">Add vocabulary entries.</p>}
-        </div>
-      </div>
-    );
+    return <VocabularyBlock content={content} />;
   }
 
   if (block.block_type === "GRAMMAR") {
-    const title = asString(content.title) || "Grammar focus";
-    const examples = asArray(content.examples).map(String).filter(Boolean);
-    const hidden = content.reveal_hidden === true;
-    const headerContent = <div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">Grammar focus</p><h3 className="mt-0.5 text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]">{title}</h3></div>;
-    const grammarBody = <div className="space-y-4 p-4 sm:p-5">
-      {asString(content.explanation) ? <div className="rounded-2xl border border-[var(--br-border)] bg-white/80 px-4 py-3"><FormattedText text={asString(content.explanation)} /></div> : null}
-      {examples.length ? <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-text-muted)]">Examples</p><div className="grid gap-2 sm:grid-cols-2">{examples.map((example, index) => <div key={index} className="flex items-start gap-3 rounded-2xl border border-[var(--br-success)]/20 bg-[var(--br-success-soft)]/55 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)]"><span className="grid size-6 shrink-0 self-center place-items-center rounded-lg bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={example} /></div></div>)}</div></div> : null}
-      {asString(content.notes) ? <div className="rounded-2xl border border-[var(--br-achievement)]/25 bg-[var(--br-achievement)]/10 px-4 py-3"><p className="mb-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-achievement)]">Remember</p><FormattedText text={asString(content.notes)} /></div> : null}
-    </div>;
-    return (
-      <section className="overflow-hidden rounded-[22px] border border-[var(--br-info)]/20 bg-gradient-to-br from-[var(--br-info)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        {hidden ? <OpenCloseDetails alwaysOpen={alwaysOpen} summary={headerContent} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-info)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5">{grammarBody}</OpenCloseDetails> : <><div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">{headerContent}</div>{grammarBody}</>}
-      </section>
-    );
+    return <GrammarBlock content={content} alwaysOpen={alwaysOpen} />;
   }
 
   if (block.block_type === "READING") {
@@ -920,24 +863,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   if (block.block_type === "DIALOGUE") {
-    const turns = asArray(content.turns);
-    const people = asArray(content.people).map((item) => asRecord(item as Json));
-    return (
-      <section className="space-y-2 rounded-[22px] border border-[#ead9a8] bg-surface p-4 shadow-[0_10px_24px_rgba(38,35,78,0.08)] sm:p-5">
-        {asString(content.title) ? <h3 className="font-semibold text-ink">{asString(content.title)}</h3> : null}
-        {turns.length ? turns.map((item, index) => {
-          const turn = asRecord(item as Json);
-          const person = people.find((candidate) => asString(candidate.id) === asString(turn.speaker_id)) ?? null;
-          const speaker = asString(person?.name) || asString(turn.speaker) || "Speaker";
-          return (
-            <div key={index} className="rounded-lg border border-[var(--br-border)] bg-surface p-3">
-              <p className="w-fit rounded-full px-2 py-0.5 text-xs font-semibold text-on-dark" style={{ backgroundColor: asString(person?.color) || "var(--br-brand)" }}>{speaker}</p>
-              <div className="mt-2 flex items-start gap-2"><div className="min-w-0 flex-1"><FormattedText text={asString(turn.line) || "Dialogue line"} /></div>{asString(turn.audio_url) ? <DialogueAudioButton src={mediaUrl(asString(turn.audio_url), "audio")} speaker={speaker} /> : null}</div>
-            </div>
-          );
-        }) : <p className="rounded-lg border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">Add dialogue turns.</p>}
-      </section>
-    );
+    return <DialogueBlock content={content} />;
   }
 
   if (block.block_type === "FLASHCARD") {
@@ -961,6 +887,63 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   return null;
+}
+
+function GrammarBlock({ content, alwaysOpen }: { content: Record<string, unknown>; alwaysOpen: boolean }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const bn = language === "bn";
+  const val = (key: string) => asString(content[bn ? `${key}_bn` : key]);
+  const title = val("title") || (bn ? "ব্যাকরণ" : "Grammar focus");
+  const examples = asArray(content[bn ? "examples_bn" : "examples"]).map(String).filter(Boolean);
+  const hidden = content.reveal_hidden === true;
+  const header = <div className="min-w-0"><div className="flex items-center justify-between gap-2"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">{bn ? "ব্যাকরণ" : "Grammar focus"}</p><h3 className="mt-0.5 text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]">{title}</h3></div>{asString(content.title_bn) || asString(content.explanation_bn) || asArray(content.examples_bn).length ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}</div></div>;
+  const body = <div className="space-y-4 p-4 sm:p-5">{val("explanation") ? <div className="rounded-2xl border border-[var(--br-border)] bg-white/80 px-4 py-3"><FormattedText text={val("explanation")} /></div> : null}{examples.length ? <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-text-muted)]">{bn ? "উদাহরণ" : "Examples"}</p><div className="grid gap-2 sm:grid-cols-2">{examples.map((example,index)=><div key={index} className="flex items-start gap-3 rounded-2xl border border-[var(--br-success)]/20 bg-[var(--br-success-soft)]/55 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)]"><span className="grid size-6 shrink-0 place-items-center rounded-lg bg-[var(--br-action)] text-xs font-black text-on-dark">{index+1}</span><FormattedText text={example}/></div>)}</div></div>:null}{val("notes")?<div className="rounded-2xl border border-[var(--br-achievement)]/25 bg-[var(--br-achievement)]/10 px-4 py-3"><p className="mb-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-achievement)]">{bn?"মনে রাখুন":"Remember"}</p><FormattedText text={val("notes")}/></div>:null}</div>;
+  return <section lang={bn?"bn":undefined} className="overflow-hidden rounded-[22px] border border-[var(--br-info)]/20 bg-gradient-to-br from-[var(--br-info)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">{hidden?<OpenCloseDetails alwaysOpen={alwaysOpen} summary={header} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-info)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5">{body}</OpenCloseDetails>:<><div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">{header}</div>{body}</>}</section>;
+}
+
+function VocabularyBlock({ content }: { content: Record<string, unknown> }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const bn = language === "bn";
+  const entries = asArray(bn && Array.isArray(content.entries_bn) && content.entries_bn.length ? content.entries_bn : content.entries);
+  return <div lang={bn ? "bn" : undefined} className="rounded-lg border border-[var(--br-border)]">
+    <div className="flex items-center justify-between gap-2 border-b border-[var(--br-brand)]/15 px-4 py-3" style={{ backgroundColor: "color-mix(in srgb, var(--br-brand) 16%, var(--br-surface))" }}><h3 className="font-semibold text-[var(--br-brand)]">{bn ? "শব্দভান্ডার" : "Vocabulary"}</h3>{asArray(content.entries_bn).length ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}</div>
+    <div className="divide-y divide-black/10">{entries.length ? entries.map((item,index) => { const entry=asRecord(item as Json); return <div key={index} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_1fr]"><div><p className="font-semibold text-ink">{asString(entry.word)||"Word"}</p>{asString(entry.pronunciation)?<p className="text-xs text-[var(--br-text-muted)]">{asString(entry.pronunciation)}</p>:null}</div><div className="text-base leading-6 text-[var(--br-text-muted)]"><p>{asString(entry.meaning)||"Meaning"}</p>{asString(entry.example)?<p className="mt-1 italic">{asString(entry.example)}</p>:null}{asString(entry.notes)?<p className="mt-1 text-xs">{asString(entry.notes)}</p>:null}</div></div>; }) : <p className="p-4 text-sm text-[var(--br-text-muted)]">Add vocabulary entries.</p>}</div>
+  </div>;
+}
+
+function DialogueBlock({ content }: { content: Record<string, unknown> }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const bn = language === "bn";
+  const turns = asArray(content.turns);
+  const people = asArray(content.people).map((item) => asRecord(item as Json));
+  const hasBn = asString(content.title_bn) || turns.some((item) => asString(asRecord(item as Json).line_bn));
+  return <section lang={bn ? "bn" : undefined} className="space-y-2 rounded-[22px] border border-[#ead9a8] bg-surface p-4 shadow-[0_10px_24px_rgba(38,35,78,0.08)] sm:p-5">
+    {hasBn ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}
+    {(bn ? asString(content.title_bn) : asString(content.title)) ? <h3 className="font-semibold text-ink">{bn ? asString(content.title_bn) : asString(content.title)}</h3> : null}
+    {turns.length ? turns.map((item, index) => { const turn = asRecord(item as Json); const person = people.find((candidate) => asString(candidate.id) === asString(turn.speaker_id)) ?? null; const speaker = asString(person?.name) || asString(turn.speaker) || "Speaker"; return <div key={index} className="rounded-lg border border-[var(--br-border)] bg-surface p-3"><p className="w-fit rounded-full px-2 py-0.5 text-xs font-semibold text-on-dark" style={{ backgroundColor: asString(person?.color) || "var(--br-brand)" }}>{speaker}</p><div className="mt-2 flex items-start gap-2"><div className="min-w-0 flex-1"><FormattedText text={(bn ? asString(turn.line_bn) : asString(turn.line)) || "Dialogue line"} /></div>{asString(turn.audio_url) ? <DialogueAudioButton src={mediaUrl(asString(turn.audio_url), "audio")} speaker={speaker} /> : null}</div></div>; }) : <p className="rounded-lg border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">Add dialogue turns.</p>}
+  </section>;
+}
+
+function BilingualQuoteBlock({ content }: { content: Record<string, unknown> }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const bn = language === "bn";
+  return <figure lang={bn ? "bn" : undefined} className={`relative overflow-hidden rounded-[22px] border border-[#ead9a8] p-4 shadow-[0_12px_28px_rgba(38,35,78,0.12)] sm:p-5 ${textAlignClass(content.text_align)}`} style={previewHexColor(content.block_background_color) ? { backgroundColor: previewHexColor(content.block_background_color) } : undefined}>
+    {asString(content.body_bn) ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}<Quote aria-hidden="true" className="absolute left-4 top-4 text-[var(--br-action)]" size={20} strokeWidth={2.5} />
+    <blockquote className="pr-3 text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">&ldquo;{(bn ? asString(content.body_bn) : asString(content.body)) || "Add a quote."}&rdquo;</blockquote>
+    {(bn ? asString(content.attribution_bn) : asString(content.attribution)) ? <figcaption className="mt-4 flex justify-end pr-3 text-right text-sm font-semibold text-[var(--br-text-muted)]">— {bn ? asString(content.attribution_bn) : asString(content.attribution)}</figcaption> : null}
+  </figure>;
+}
+
+function BilingualCluesBlock({ content }: { content: Record<string, unknown> }) {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const bn = language === "bn";
+  const title = bn ? asString(content.title_bn) : asString(content.title);
+  const items = asArray(bn ? content.items_bn : content.items).map(String).filter(Boolean);
+  return <section lang={bn ? "bn" : undefined} className="rounded-[22px] border border-[var(--br-action)]/20 bg-[var(--br-action)]/[0.04] p-4 shadow-sm sm:p-5">
+    {asArray(content.items_bn).length ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}
+    {title ? <h3 className="mb-4 text-base font-extrabold tracking-tight text-[var(--br-dark-card)] sm:text-lg">{title}</h3> : null}
+    {items.length ? <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">{items.map((item, index) => <div key={`${item}-${index}`} className="flex min-h-12 items-center justify-center rounded-xl border-2 border-[var(--br-action)] bg-surface px-3 py-2 text-center text-sm font-bold leading-5 text-[var(--br-dark-card)] shadow-sm sm:min-h-14 sm:text-base"><FormattedText text={item} /></div>)}</div> : <p className="text-sm text-[var(--br-text-muted)]">Add clue items.</p>}
+  </section>;
 }
 
 function ReadingPassageBlock({ content, alwaysOpen }: { content: Record<string, unknown>; alwaysOpen: boolean }) {
@@ -1149,7 +1132,10 @@ function ReviewChecklistBlock({ blockId, content, checkedItems, onChange, always
 }
 
 function CommonMistakeBlock({ content }: { content: Record<string, unknown> }) {
-  const examples = asArray(content.examples).map((item) => asRecord(item as Json));
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const bn = language === "bn";
+  const get = (key: string) => asString(content[bn ? `${key}_bn` : key]);
+  const examples = asArray(content[bn ? "examples_bn" : "examples"]).map((item) => asRecord(item as Json));
   const pair = (incorrect: string, correct: string, context?: string) => (
     <div className="grid gap-2">
       {context ? <p className="text-sm leading-6 text-[var(--br-text-muted)]">{context}</p> : null}
@@ -1159,11 +1145,12 @@ function CommonMistakeBlock({ content }: { content: Record<string, unknown> }) {
   );
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 sm:p-5">
-      <h3 className="font-semibold text-amber-950">{asString(content.title) || "Common mistake"}</h3>
-      {asString(content.context) ? <p className="mt-2 text-base leading-6 text-amber-900">{asString(content.context)}</p> : null}
-      <div className="mt-4">{pair(asString(content.mistake), asString(content.correction))}</div>
-      {asString(content.explanation) ? <p className="mt-4 text-base leading-6 text-amber-950"><span className="font-semibold">Why:</span> {asString(content.explanation)}</p> : null}
-      {asString(content.tip) ? <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Tip:</span> {asString(content.tip)}</p> : null}
+      {(asString(content.title_bn) || asString(content.title)) ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}
+      <h3 className="font-semibold text-amber-950">{get("title") || "Common mistake"}</h3>
+      {get("context") ? <p className="mt-2 text-base leading-6 text-amber-900">{get("context")}</p> : null}
+      <div className="mt-4">{pair(get("mistake"), get("correction"), get("context"))}</div>
+      {get("explanation") ? <p className="mt-4 text-base leading-6 text-amber-950"><span className="font-semibold">{bn ? "কেন:" : "Why:"}</span> {get("explanation")}</p> : null}
+      {get("tip") ? <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">{bn ? "টিপ:" : "Tip:"}</span> {get("tip")}</p> : null}
       {examples.length ? <div className="mt-5 border-t border-amber-200 pt-4"><p className="mb-3 font-semibold text-amber-950">More examples</p><div className="space-y-4">{examples.map((example, index) => <div key={index}>{pair(asString(example.incorrect), asString(example.correct), asString(example.context))}</div>)}</div></div> : null}
     </section>
   );
@@ -1420,9 +1407,11 @@ function TongueTwisterItem({ item, title, instruction, scoreMode, disabled }: {
 }
 
 function TableBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {
-  const headers = asArray(content.headers).map((header) => asString(header));
-  const rows = asArray(content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
-  const caption = asString(content.caption);
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const bn = language === "bn" && asArray(content.headers_bn).length > 0;
+  const headers = asArray(bn ? content.headers_bn : content.headers).map((header) => asString(header));
+  const rows = asArray(bn ? content.rows_bn : content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
+  const caption = bn ? asString(content.caption_bn) : asString(content.caption);
   const hideReveal = content.reveal_hidden === true;
   const mobileLayout = content.mobile_layout === "horizontal" ? "horizontal" : "stacked";
   const [revealed, setRevealed] = useState(!hideReveal || alwaysOpen);
@@ -1459,7 +1448,7 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
       tabIndex={hideReveal && !revealed && !alwaysOpen ? 0 : undefined}
       aria-expanded={hideReveal ? alwaysOpen || revealed : undefined}
     >
-      {caption || hideReveal ? (
+      {caption || hideReveal || asArray(content.headers_bn).length ? (
         <div
           className={`flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5 ${hideReveal && revealed && !alwaysOpen ? "cursor-pointer select-none" : ""}`}
           onClick={hideReveal && revealed && !alwaysOpen ? toggleReveal : undefined}
@@ -1468,7 +1457,7 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
           tabIndex={hideReveal && revealed && !alwaysOpen ? 0 : undefined}
         >
           <div className="flex min-w-0 items-center gap-3">
-            <h3 className="min-w-0 break-words text-lg font-semibold text-ink">{caption || "Table"}</h3>
+            <div className="min-w-0"><h3 className="break-words text-lg font-semibold text-ink">{caption || (bn ? "সারণি" : "Table")}</h3>{asArray(content.headers_bn).length ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}</div>
           </div>
           {hideReveal && !alwaysOpen ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{revealed ? "Close" : "Open"}</span> : null}
         </div>

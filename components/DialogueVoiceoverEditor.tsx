@@ -5,12 +5,13 @@ import { AlertCircle, AudioLines, Check, ChevronDown, ChevronUp, Loader2, Pause,
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { DIALOGUE_KOKORO_VOICES, VOICEOVER_PACES } from "@/lib/ai/voiceoverCatalog";
+import { BlockLanguageStyleSection, type BlockEditorLanguage } from "@/components/BilingualBlockFields";
 
 const dialogueColors = ["var(--br-brand)", "var(--br-action)", "var(--br-success)", "#2563EB", "#A855F7"];
 
 type VoiceoverMeta = Record<string, unknown>;
 type Person = { id: string; name: string; color: string; voiceName: string };
-type Turn = { id: string; speakerId: string; line: string; audio: string; voiceover: VoiceoverMeta | null };
+type Turn = { id: string; speakerId: string; line: string; lineBn: string; audio: string; voiceover: VoiceoverMeta | null };
 type Preview = { generationId: string; url: string; durationSeconds: number; line: string };
 
 function stringValue(value: unknown) {
@@ -60,6 +61,8 @@ export function DialogueVoiceoverEditor({ data, lessonId, blockId }: { data: Rec
       : [{ id: "p1", name: "Speaker A", color: dialogueColors[0] }, { id: "p2", name: "Speaker B", color: dialogueColors[1] }];
   const initialVoices = DIALOGUE_KOKORO_VOICES.filter((voice) => isBritishVoice(voice) === (initialLanguage === "en-GB"));
   const [title, setTitle] = useState(stringValue(data.title));
+  const [titleBn, setTitleBn] = useState(stringValue(data.title_bn));
+  const [contentLanguage, setContentLanguage] = useState<BlockEditorLanguage>("en");
   const [people, setPeople] = useState<Person[]>(() => rawPeople.map((person, index) => {
     const savedVoice = stringValue(person.voice_name);
     return {
@@ -76,6 +79,7 @@ export function DialogueVoiceoverEditor({ data, lessonId, blockId }: { data: Rec
     id: stringValue(turn.id) || `turn-${index + 1}`,
     speakerId: stringValue(turn.speaker_id) || people.find((person) => person.name === stringValue(turn.speaker))?.id || people[0]?.id || "",
     line: stringValue(turn.line ?? turn.text),
+    lineBn: stringValue(turn.line_bn),
     audio: stringValue(turn.audio_url),
     voiceover: recordValue(turn.voiceover),
   })));
@@ -135,7 +139,7 @@ export function DialogueVoiceoverEditor({ data, lessonId, blockId }: { data: Rec
   }
 
   function addTurn() {
-    setTurns((current) => [...current, { id: crypto.randomUUID(), speakerId: people[0]?.id || "", line: "", audio: "", voiceover: null }]);
+    setTurns((current) => [...current, { id: crypto.randomUUID(), speakerId: people[0]?.id || "", line: "", lineBn: "", audio: "", voiceover: null }]);
   }
 
   function updateTurn(index: number, patch: Partial<Turn>) {
@@ -318,7 +322,11 @@ export function DialogueVoiceoverEditor({ data, lessonId, blockId }: { data: Rec
 
   return (
     <div className="grid gap-4">
-      <label className="text-sm">Dialogue title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      <input type="hidden" name="title" value={title} /><input type="hidden" name="title_bn" value={titleBn} />
+      <BlockLanguageStyleSection label="Dialogue content" language={contentLanguage} onLanguageChange={setContentLanguage} languageLabel="Choose dialogue editing language" backgroundControl={null}>
+        <div style={{ display: contentLanguage === "en" ? "grid" : "none" }}><label className="text-sm">Dialogue title<input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></div>
+        <div lang="bn" style={{ display: contentLanguage === "bn" ? "grid" : "none" }}><label className="text-sm">সংলাপের শিরোনাম<input value={titleBn} onChange={(event) => setTitleBn(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></div>
+      </BlockLanguageStyleSection>
       <input type="hidden" name="dialogue_voiceover_model" value="kokoro-82m" />
       <input type="hidden" name="dialogue_voiceover_language" value={languageCode} />
       <input type="hidden" name="dialogue_voiceover_pace" value={pace} />
@@ -376,7 +384,7 @@ export function DialogueVoiceoverEditor({ data, lessonId, blockId }: { data: Rec
           const manual = Boolean(turn.audio) && !ai;
           const status = preview ? "Preview ready" : turnErrors[turn.id] ? "Failed" : outdated ? "AI audio outdated" : manual ? "Manual audio" : ai && turn.audio ? "AI audio ready" : turn.audio ? "Audio ready" : "No audio";
           const statusClass = turnErrors[turn.id] || outdated ? "text-[var(--br-danger)]" : preview || turn.audio ? "text-[var(--br-success)]" : "text-[var(--br-text-muted)]";
-          return <article key={turn.id} className="rounded-lg border border-[var(--br-border)] p-3"><input type="hidden" name="dialogue_turn_id" value={turn.id} /><input type="hidden" name="dialogue_turn_audio" value={turn.audio} /><input type="hidden" name="dialogue_turn_voiceover" value={turn.voiceover ? JSON.stringify(turn.voiceover) : ""} /><div className="flex flex-wrap items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-surface-muted text-xs font-bold">{index + 1}</span><select name="dialogue_turn_speaker" value={turn.speakerId} onChange={(event) => updateTurn(index, { speakerId: event.target.value })} className="min-w-36 rounded-md border border-[var(--br-border)] px-2 py-1.5 text-sm">{people.map((person) => <option key={person.id} value={person.id}>{person.name || "Speaker"}</option>)}</select><span className={`ml-auto text-xs font-semibold ${statusClass}`}>{status}</span>{(preview?.url || turn.audio) ? <button type="button" onClick={() => playing === `turn:${turn.id}` ? stopAudio() : playUrl(preview?.url || turn.audio, `turn:${turn.id}`)} className="grid size-8 place-items-center rounded-full bg-[var(--br-brand)]/10 text-[var(--br-brand)]" aria-label={`Play turn ${index + 1}`}>{playing === `turn:${turn.id}` ? <Pause size={14} /> : <Volume2 size={14} />}</button> : null}<button type="button" onClick={() => setAudioIndex(index)} className="rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs font-semibold">Audio</button>{turns.length > 1 ? <button type="button" onClick={() => setTurns((current) => current.filter((_, candidate) => candidate !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}</div><textarea name="dialogue_turn_line" value={turn.line} onChange={(event) => updateTurn(index, { line: event.target.value })} rows={2} placeholder="What this person says" className="mt-2 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm leading-6" />{turnErrors[turn.id] ? <p className="mt-1 text-xs text-[var(--br-danger)]">{turnErrors[turn.id]}</p> : null}</article>;
+          return <article key={turn.id} className="rounded-lg border border-[var(--br-border)] p-3"><input type="hidden" name="dialogue_turn_id" value={turn.id} /><input type="hidden" name="dialogue_turn_audio" value={turn.audio} /><input type="hidden" name="dialogue_turn_voiceover" value={turn.voiceover ? JSON.stringify(turn.voiceover) : ""} /><input type="hidden" name="dialogue_turn_line" value={turn.line} /><input type="hidden" name="dialogue_turn_line_bn" value={turn.lineBn} /><div className="flex flex-wrap items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-surface-muted text-xs font-bold">{index + 1}</span><select name="dialogue_turn_speaker" value={turn.speakerId} onChange={(event) => updateTurn(index, { speakerId: event.target.value })} className="min-w-36 rounded-md border border-[var(--br-border)] px-2 py-1.5 text-sm">{people.map((person) => <option key={person.id} value={person.id}>{person.name || "Speaker"}</option>)}</select><span className={`ml-auto text-xs font-semibold ${statusClass}`}>{status}</span>{(preview?.url || turn.audio) ? <button type="button" onClick={() => playing === `turn:${turn.id}` ? stopAudio() : playUrl(preview?.url || turn.audio, `turn:${turn.id}`)} className="grid size-8 place-items-center rounded-full bg-[var(--br-brand)]/10 text-[var(--br-brand)]" aria-label={`Play turn ${index + 1}`}>{playing === `turn:${turn.id}` ? <Pause size={14} /> : <Volume2 size={14} />}</button> : null}<button type="button" onClick={() => setAudioIndex(index)} className="rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs font-semibold">Audio</button>{turns.length > 1 ? <button type="button" onClick={() => setTurns((current) => current.filter((_, candidate) => candidate !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}</div><textarea value={contentLanguage === "en" ? turn.line : turn.lineBn} onChange={(event) => updateTurn(index, contentLanguage === "en" ? { line: event.target.value } : { lineBn: event.target.value })} lang={contentLanguage === "bn" ? "bn" : undefined} rows={2} placeholder={contentLanguage === "en" ? "What this person says" : "বক্তার সংলাপ"} className="mt-2 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm leading-6" />{turnErrors[turn.id] ? <p className="mt-1 text-xs text-[var(--br-danger)]">{turnErrors[turn.id]}</p> : null}</article>;
         })}</div>
       </section>
 
