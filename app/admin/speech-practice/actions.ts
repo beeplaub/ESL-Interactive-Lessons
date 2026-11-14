@@ -86,12 +86,13 @@ export async function saveSpeechPrompt(input: unknown) {
   const status = hasApprovedAudio ? "ACTIVE" : "DRAFT";
   const values = { ...parsed, status, created_by: user.id, updated_at: new Date().toISOString() };
   const admin = createAdminClient();
+  const select = "id,prompt_type,title,text,cefr_level,category_id,difficulty,target_sounds,tags,audio_variants,status";
   const result = parsed.id
-    ? await admin.from("speech_practice_prompts").update(values).eq("id", parsed.id)
-    : await admin.from("speech_practice_prompts").insert(values);
-  if (result.error) throw new Error("The prompt could not be saved.");
+    ? await admin.from("speech_practice_prompts").update(values).eq("id", parsed.id).select(select).single()
+    : await admin.from("speech_practice_prompts").insert(values).select(select).single();
+  if (result.error || !result.data) throw new Error("The prompt could not be saved.");
   revalidatePath("/admin/speech-practice");
-  return { ok: true };
+  return result.data;
 }
 
 export async function archiveSpeechPrompt(id: string) {
