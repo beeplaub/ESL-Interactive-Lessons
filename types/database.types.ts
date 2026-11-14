@@ -23,6 +23,9 @@ export type Database = {
           title: string;
           text: string;
           cefr_level: string | null;
+          category_id: string | null;
+          difficulty: "EASY" | "MODERATE" | "DIFFICULT" | "VERY_DIFFICULT" | null;
+          source_key: string | null;
           target_sounds: string[];
           tags: string[];
           audio_variants: Json;
@@ -37,6 +40,9 @@ export type Database = {
           title: string;
           text: string;
           cefr_level?: string | null;
+          category_id?: string | null;
+          difficulty?: "EASY" | "MODERATE" | "DIFFICULT" | "VERY_DIFFICULT" | null;
+          source_key?: string | null;
           target_sounds?: string[];
           tags?: string[];
           audio_variants?: Json;
@@ -51,6 +57,9 @@ export type Database = {
           title?: string;
           text?: string;
           cefr_level?: string | null;
+          category_id?: string | null;
+          difficulty?: "EASY" | "MODERATE" | "DIFFICULT" | "VERY_DIFFICULT" | null;
+          source_key?: string | null;
           target_sounds?: string[];
           tags?: string[];
           audio_variants?: Json;
@@ -58,6 +67,33 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      speech_practice_categories: {
+        Row: {
+          id: string;
+          prompt_type: "SHADOWING";
+          name: string;
+          sort_order: number;
+          archived_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          prompt_type: "SHADOWING";
+          name: string;
+          sort_order?: number;
+          archived_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          prompt_type?: "SHADOWING";
+          name?: string;
+          sort_order?: number;
+          archived_at?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -972,6 +1008,10 @@ export type Database = {
       is_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
+      };
+      soft_delete_speech_practice_category: {
+        Args: { p_category_id: string };
+        Returns: undefined;
       };
     };
     Enums: {

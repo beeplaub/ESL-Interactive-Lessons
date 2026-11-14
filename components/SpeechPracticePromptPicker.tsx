@@ -2,32 +2,46 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Loader2, Plus, Search, X } from "lucide-react";
-import { listApprovedSpeechPrompts } from "@/app/admin/speech-practice/actions";
+import { listApprovedSpeechPrompts, listSpeechPracticeCategories } from "@/app/admin/speech-practice/actions";
+import { SpeechPracticeGlassSelect } from "@/components/SpeechPracticeGlassSelect";
 
-export type SpeechPromptSnapshot = { source_prompt_id: string; title: string; text: string; audio_url: string; accent: "en-GB" | "en-US"; cefr_level: string | null; target_sounds: string[]; tags: string[] };
-type LibraryPrompt = { id: string; title: string; text: string; cefr_level: string | null; target_sounds: string[]; tags: string[]; audio_variants: Record<string, { url?: string; status?: string }> };
+export type SpeechPromptSnapshot = { source_prompt_id: string; title: string; text: string; audio_url: string; accent: "en-GB" | "en-US"; cefr_level: string | null; category_id?: string | null; difficulty?: string | null; target_sounds: string[]; tags: string[] };
+type LibraryPrompt = { id: string; title: string; text: string; cefr_level: string | null; category_id: string | null; difficulty: string | null; target_sounds: string[]; tags: string[]; audio_variants: Record<string, { url?: string; status?: string }> };
+type Category = { id: string; name: string };
 
 export function SpeechPracticePromptPicker({ type, selected, onChange }: { type: "SHADOWING" | "TONGUE_TWISTER"; selected: SpeechPromptSnapshot[]; onChange: (items: SpeechPromptSnapshot[]) => void }) {
   const [open, setOpen] = useState(true);
   const [items, setItems] = useState<LibraryPrompt[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [accent, setAccent] = useState<"en-GB" | "en-US">("en-GB");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [categoryId, setCategoryId] = useState("");
+  const [targetSound, setTargetSound] = useState("");
+  const [difficulty, setDifficulty] = useState("");
   const pageSize = 3;
 
   useEffect(() => {
     if (!open || items.length) return;
     setBusy(true);
-    listApprovedSpeechPrompts(type).then((rows) => setItems(rows as LibraryPrompt[])).catch(() => setError("Could not load approved prompts.")).finally(() => setBusy(false));
+    Promise.all([listApprovedSpeechPrompts(type), type === "SHADOWING" ? listSpeechPracticeCategories("SHADOWING") : Promise.resolve([])])
+      .then(([rows, categoryRows]) => { setItems(rows as LibraryPrompt[]); setCategories(categoryRows as Category[]); })
+      .catch(() => setError("Could not load approved prompts."))
+      .finally(() => setBusy(false));
   }, [items.length, open, type]);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
-    if (!term) return items;
-    return items.filter((item) => [item.title, item.text, item.cefr_level, ...item.target_sounds, ...item.tags].some((value) => String(value ?? "").toLocaleLowerCase().includes(term)));
-  }, [items, search]);
+    return items.filter((item) => {
+      const matchesSearch = !term || [item.title, item.text, item.cefr_level, ...item.target_sounds, ...item.tags].some((value) => String(value ?? "").toLocaleLowerCase().includes(term));
+      const matchesCategory = type !== "SHADOWING" || (!!categoryId && item.category_id === categoryId);
+      const matchesSound = type !== "TONGUE_TWISTER" || !targetSound || item.target_sounds.includes(targetSound);
+      const matchesDifficulty = type !== "TONGUE_TWISTER" || !difficulty || item.difficulty === difficulty;
+      return matchesSearch && matchesCategory && matchesSound && matchesDifficulty;
+    });
+  }, [items, search, type, categoryId, targetSound, difficulty]);
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);
   const visibleItems = filteredItems.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -35,7 +49,7 @@ export function SpeechPracticePromptPicker({ type, selected, onChange }: { type:
   const add = (item: LibraryPrompt) => {
     const audio = item.audio_variants[accent];
     if (!audio?.url || audio.status !== "APPROVED" || selected.some((choice) => choice.source_prompt_id === item.id && choice.accent === accent)) return;
-    onChange([...selected, { source_prompt_id: item.id, title: item.title, text: item.text, audio_url: audio.url, accent, cefr_level: item.cefr_level, target_sounds: item.target_sounds ?? [], tags: item.tags ?? [] }]);
+    onChange([...selected, { source_prompt_id: item.id, title: item.title, text: item.text, audio_url: audio.url, accent, cefr_level: item.cefr_level, category_id: item.category_id, difficulty: item.difficulty, target_sounds: item.target_sounds ?? [], tags: item.tags ?? [] }]);
   };
   const move = (index: number, direction: -1 | 1) => {
     const next = [...selected];
@@ -70,10 +84,13 @@ export function SpeechPracticePromptPicker({ type, selected, onChange }: { type:
           <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)]" />
           <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search sentences or sounds" className="h-9 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white pl-8 pr-2 text-xs" />
         </label>
-        <label className="flex shrink-0 items-center gap-1.5 text-[11px] font-bold text-[var(--br-text-muted)]">Audio
-          <select value={accent} onChange={(event) => { setAccent(event.target.value as typeof accent); setPage(0); }} className="h-9 rounded-lg border border-[var(--br-border)] bg-white px-2 text-xs text-ink"><option value="en-GB">UK</option><option value="en-US">US</option></select>
-        </label>
+        <div className="w-36 shrink-0"><SpeechPracticeGlassSelect label="Audio accent" value={accent} options={[{ value: "en-GB", label: "UK audio" }, { value: "en-US", label: "US audio" }]} onChange={(value) => { setAccent(value as typeof accent); setPage(0); }} /></div>
       </div>
+
+      {type === "SHADOWING" ? <div className="grid gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Topic category</span><SpeechPracticeGlassSelect label="Topic category" value={categoryId} options={[{ value: "", label: "Choose a category" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} onChange={(value) => { setCategoryId(value); setPage(0); }} /></div> : <div className="grid min-w-0 grid-cols-2 gap-2">
+        <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Target sound</span><SpeechPracticeGlassSelect label="Target sound" value={targetSound} options={[{ value: "", label: "All sounds" }, ...[...new Set(items.flatMap((item) => item.target_sounds))].sort().map((sound) => ({ value: sound, label: sound }))]} onChange={(value) => { setTargetSound(value); setPage(0); }} /></div>
+        <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Difficulty</span><SpeechPracticeGlassSelect label="Difficulty" value={difficulty} options={[{ value: "", label: "All levels" }, ...[["EASY","Easy"],["MODERATE","Moderate"],["DIFFICULT","Difficult"],["VERY_DIFFICULT","Very difficult"]].map(([value,label]) => ({ value, label }))]} onChange={(value) => { setDifficulty(value); setPage(0); }} /></div>
+      </div>}
 
       {busy ? <p className="flex min-h-24 items-center justify-center gap-2 text-xs text-[var(--br-text-muted)]"><Loader2 size={14} className="animate-spin" /> Loading prompts…</p> : error ? <p className="text-xs text-coral">{error}</p> : visibleItems.length ? <div className="grid min-w-0 gap-1.5">
         {visibleItems.map((item) => {
@@ -85,7 +102,7 @@ export function SpeechPracticePromptPicker({ type, selected, onChange }: { type:
             <button type="button" disabled={!canAdd || alreadyAdded} onClick={() => add(item)} className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg bg-[var(--br-brand)] px-2.5 text-[11px] font-bold text-white disabled:opacity-40">{alreadyAdded ? <Check size={13} /> : <Plus size={13} />}{alreadyAdded ? "Added" : canAdd ? "Add" : "No audio"}</button>
           </article>;
         })}
-      </div> : <p className="grid min-h-24 place-items-center text-center text-xs text-[var(--br-text-muted)]">{items.length ? "No prompts match this search." : "No approved prompts are available yet."}</p>}
+      </div> : <p className="grid min-h-24 place-items-center text-center text-xs text-[var(--br-text-muted)]">{type === "SHADOWING" && !categoryId ? "Choose a topic category to see its approved sentences." : items.length ? "No approved prompts match these filters yet." : "No approved prompts are available yet."}</p>}
 
       {pageCount > 1 ? <div className="flex items-center justify-between border-t border-[var(--br-border)] pt-2 text-[11px] font-semibold text-[var(--br-text-muted)]">
         <span>{currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, filteredItems.length)} of {filteredItems.length}</span>

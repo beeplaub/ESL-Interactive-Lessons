@@ -2708,7 +2708,7 @@ export function ShadowingEditor({ activity, onSave }: { activity: Activity; onSa
   });
   const [libraryItems, setLibraryItems] = useState<SpeechPromptSnapshot[]>(Array.isArray(data.library_items) ? data.library_items as SpeechPromptSnapshot[] : []);
   const [maxAttempts, setMaxAttempts] = useState(Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)));
-  const [maxRecordingSeconds, setMaxRecordingSeconds] = useState(Math.max(5, Math.min(60, Number(data.max_recording_seconds ?? 15) || 15)));
+  const [maxRecordingSeconds, setMaxRecordingSeconds] = useState(Math.max(1, Math.min(600, Number(data.max_recording_seconds ?? 15) || 15)));
   const [sourceMode, setSourceMode] = useState<"library" | "manual" | null>(() => {
     if (Array.isArray(data.prompts) && data.prompts.length > 0) return "manual";
     if (Array.isArray(data.library_items) && data.library_items.length > 0) return "library";
@@ -2767,10 +2767,8 @@ export function ShadowingEditor({ activity, onSave }: { activity: Activity; onSa
 
       <div className="grid min-w-0 grid-cols-2 gap-2">
         <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">
-          Recording time
-          <select value={maxRecordingSeconds} onChange={(event) => setMaxRecordingSeconds(Number(event.target.value))} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-sm font-semibold text-ink">
-            {[5, 10, 15, 20, 30, 60].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
-          </select>
+          Recording time (seconds)
+          <input type="number" min={1} max={600} step={1} value={maxRecordingSeconds} onChange={(event) => setMaxRecordingSeconds(Math.min(600, Math.max(1, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full min-w-0 rounded-xl border border-white/90 bg-white/80 px-3 text-sm font-semibold text-ink shadow-sm ring-1 ring-slate-900/[0.05] backdrop-blur-xl outline-none focus-visible:border-indigo-300 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-indigo-300" />
         </label>
         <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">
           Attempts per learner
