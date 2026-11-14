@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { InlineRichTextField } from "@/components/InlineRichTextField";
-import { ColorPickerPopover } from "@/components/ColorPickerPopover";
+import { BlockBackgroundColorPicker } from "@/components/BlockBackgroundColorPicker";
 
 export type BlockEditorLanguage = "en" | "bn";
 type BilingualBlockKind = "heading" | "text" | "bullets" | "instruction";
@@ -11,16 +11,6 @@ type BlockStyle = {
   text_color: string;
   block_background_color: string;
 };
-
-type ColorPreset = { label: string; value: string };
-
-const BACKGROUND_COLOR_PRESETS: ColorPreset[] = [
-  { label: "No background", value: "" },
-  { label: "Soft lavender", value: "#F5F2FE" },
-  { label: "Warm cream", value: "#FFF8EE" },
-  { label: "Soft blue", value: "#F1F7FF" },
-  { label: "Soft mint", value: "#EDF7F1" },
-];
 
 function colorValue(value: unknown) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : "";
@@ -45,7 +35,7 @@ export function BlockLanguageStyleSection({
     <section className="grid gap-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface)] p-3">
       <div className="flex items-start justify-between gap-3">
         <p className="pt-1 text-sm font-semibold text-ink">{label}</p>
-        <div className="grid w-[10.75rem] shrink-0 gap-1.5">
+        <div className="grid w-[min(16.125rem,58vw)] shrink-0 gap-1.5 sm:w-[16.125rem]">
           <div className="inline-flex w-full rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-1" role="group" aria-label={languageLabel}>
             <button type="button" aria-pressed={language === "en"} onClick={() => onLanguageChange("en")} className={`min-w-0 flex-1 rounded-lg px-2 py-1.5 text-xs font-bold transition ${language === "en" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white hover:text-[var(--br-brand)]"}`}>English</button>
             <button type="button" aria-pressed={language === "bn"} onClick={() => onLanguageChange("bn")} className={`min-w-0 flex-1 rounded-lg px-2 py-1.5 text-xs font-bold transition ${language === "bn" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white hover:text-[var(--br-brand)]"}`}>বাংলা</button>
@@ -55,49 +45,6 @@ export function BlockLanguageStyleSection({
       </div>
       <div className="grid gap-3">{children}</div>
     </section>
-  );
-}
-
-function ColorPickerRow({
-  label,
-  name,
-  value,
-  presets,
-  onChange,
-}: {
-  label: string;
-  name: string;
-  value: string;
-  presets: readonly ColorPreset[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <fieldset className="min-w-0 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] px-1.5 pb-1.5 pt-0.5">
-      <legend className="px-1 text-[10px] font-bold text-[var(--br-text-muted)]">{label}</legend>
-      <input type="hidden" name={name} value={value} />
-      <div className="flex items-center gap-1">
-        <ColorPickerPopover label={`Choose custom ${label.toLowerCase()}`} value={value} defaultValue="#FFFFFF" onApply={onChange} />
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-0.5" role="group" aria-label={`${label} presets`}>
-          {presets.map((preset) => {
-            const selected = value.toLowerCase() === preset.value.toLowerCase();
-            return (
-              <button
-                key={preset.label}
-                type="button"
-                aria-label={preset.label}
-                aria-pressed={selected}
-                title={preset.label}
-                onClick={() => onChange(preset.value)}
-                className={`grid size-[18px] shrink-0 place-items-center rounded-full border transition ${selected ? "border-[var(--br-brand)] ring-1 ring-[var(--br-brand)] ring-offset-1" : "border-[var(--br-border)] hover:scale-105"}`}
-                style={{ backgroundColor: preset.value || "var(--br-surface)" }}
-              >
-                {!preset.value ? <span className="h-px w-4 rotate-[-45deg] bg-[var(--br-text-muted)]" aria-hidden /> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </fieldset>
   );
 }
 
@@ -116,7 +63,7 @@ export function BlockTextStyleControls({
     onStyleChange?.({ text_color: textColor, block_background_color: nextBackgroundColor });
   }
 
-  return <ColorPickerRow label="Background" name="block_background_color" value={backgroundColor} presets={BACKGROUND_COLOR_PRESETS} onChange={updateBackground} />;
+  return <BlockBackgroundColorPicker label="Background" name="block_background_color" value={backgroundColor} onChange={updateBackground} />;
 }
 
 function textValue(data: Record<string, unknown>, name: string, fallback = "") {

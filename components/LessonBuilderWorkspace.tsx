@@ -37,6 +37,7 @@ import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { CalloutLanguageFields } from "@/components/CalloutLanguageFields";
 import { BilingualBlockFields } from "@/components/BilingualBlockFields";
+import { SavedBlockBackgroundColorsProvider } from "@/components/SavedBlockBackgroundColors";
 import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataEditor";
 import { LessonOutcomeManager } from "@/components/LessonOutcomeManager";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
@@ -1505,7 +1506,9 @@ function BlockEditModal({
               <input type="checkbox" name="hiddenFromLearners" defaultChecked={asRecord(block.content).hidden_from_learners === true} className="mt-0.5 size-4 rounded border-[var(--br-border)] accent-[var(--br-danger)]" />
               <span><span className="block font-semibold text-ink">Hide block from learners</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Keep it in the builder; learners won’t see it.</span></span>
             </label>
-            <BlockFields blockType={block.block_type} content={block.content} lessonId={lessonId} blockId={block.id} />
+            <SavedBlockBackgroundColorsProvider lessonId={lessonId}>
+              <BlockFields blockType={block.block_type} content={block.content} lessonId={lessonId} blockId={block.id} />
+            </SavedBlockBackgroundColorsProvider>
             <div className="flex flex-wrap items-center gap-2">
               <button className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark">Save block</button>
               <button type="button" onClick={onClose} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm hover:bg-black/5">Close</button>

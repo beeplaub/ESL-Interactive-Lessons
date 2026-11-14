@@ -55,6 +55,37 @@ const signedUploadSchema = z.object({
   path: z.string().min(3)
 });
 
+const savedBlockColorsSchema = z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/)).max(24);
+
+export async function saveLessonBlockBackgroundColors(lessonId: string, input: string[]) {
+  const { user } = await requireLessonAccess(lessonId);
+  const parsed = savedBlockColorsSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Choose up to 24 valid colors." };
+  const colors = [...new Set(parsed.data.map((color) => color.toUpperCase()))];
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ saved_block_background_colors: colors }).eq("id", user.id);
+  if (error) {
+    console.error("saveLessonBlockBackgroundColors error:", error.message);
+    return { success: false, error: "Could not save your colors. Please try again." };
+  }
+  revalidatePath(`/admin/lessons/${lessonId}/builder`);
+  return { success: true, colors };
+}
+
+export async function getLessonBlockBackgroundColors(lessonId: string) {
+  const { user } = await requireLessonAccess(lessonId);
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("profiles").select("saved_block_background_colors").eq("id", user.id).maybeSingle();
+  if (error) {
+    console.error("getLessonBlockBackgroundColors error:", error.message);
+    return { colors: [], userId: user.id, error: "Saved colors are unavailable until the lesson color migration is applied." };
+  }
+  const colors = Array.isArray(data?.saved_block_background_colors)
+    ? data.saved_block_background_colors.filter((value): value is string => typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)).map((value) => value.toUpperCase()).slice(0, 24)
+    : [];
+  return { colors, userId: user.id };
+}
+
 const lessonBlockTypes = [
   "HEADING",
   "TEXT",
