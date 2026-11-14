@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import hmac
+import base64
+import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -15,7 +18,8 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
 from kokoro_mlx import KokoroTTS
 from pydantic import BaseModel, Field
 import soundfile as sf
@@ -27,6 +31,14 @@ SERVICE_TOKEN = os.getenv("KOKORO_API_KEY", "")
 WARMUP_TEXT = "BrenUp voice service is ready."
 OPUS_BITRATE = os.getenv("KOKORO_OPUS_BITRATE", "40k")
 MAX_TRANSCODE_BYTES = int(os.getenv("KOKORO_MAX_TRANSCODE_BYTES", str(25 * 1024 * 1024)))
+STT_MODEL_ID = os.getenv("KOKORO_STT_MODEL", "mlx-community/whisper-small-mlx")
+STT_MAX_UPLOAD_BYTES = int(os.getenv("KOKORO_STT_MAX_UPLOAD_BYTES", str(90 * 1024 * 1024)))
+STT_MAX_CLIP_SECONDS = int(os.getenv("KOKORO_STT_MAX_CLIP_SECONDS", "600"))
+STT_ALLOWED_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("KOKORO_STT_ALLOWED_ORIGINS", "https://www.brenup.com,https://brenup.com,http://localhost:3000").split(",")
+    if origin.strip()
+]
 
 VOICES = {
     "af_heart": ("Heart", "Female", "American English"),
@@ -63,6 +75,8 @@ model: KokoroTTS | None = None
 model_lock = threading.Lock()
 started_at = time.time()
 logger = logging.getLogger("brenup.kokoro")
+used_stt_permits: dict[str, int] = {}
+used_stt_permits_lock = threading.Lock()
 
 
 class SpeechRequest(BaseModel):
@@ -98,6 +112,13 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="BrenUp Kokoro TTS", version="1.0.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=STT_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Start-Seconds", "X-End-Seconds", "X-Language", "X-File-Name"],
+    max_age=600,
+)
 
 
 @app.get("/health")
@@ -149,6 +170,188 @@ def encode_opus(input_path: Path) -> bytes:
         return audio
     finally:
         output_path.unlink(missing_ok=True)
+
+
+def _b64url_decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def consume_stt_permit(authorization: str | None) -> dict[str, object]:
+    if not SERVICE_TOKEN:
+        raise HTTPException(status_code=503, detail="Transcription authentication is not configured.")
+    supplied = authorization.removeprefix("Bearer ").strip() if authorization else ""
+    parts = supplied.split(".")
+    if len(parts) != 3 or parts[0] != "v1":
+        raise HTTPException(status_code=401, detail="Transcription permission is invalid or expired. Request a new one.")
+
+    signing_key = hmac.new(SERVICE_TOKEN.encode(), b"brenup-kokoro-stt-permit-v1", "sha256").digest()
+    signed = f"{parts[0]}.{parts[1]}"
+    expected = base64.urlsafe_b64encode(hmac.new(signing_key, signed.encode(), "sha256").digest()).rstrip(b"=").decode()
+    if not hmac.compare_digest(expected, parts[2]):
+        raise HTTPException(status_code=401, detail="Transcription permission is invalid or expired. Request a new one.")
+
+    try:
+        claims = json.loads(_b64url_decode(parts[1]))
+        now = int(time.time())
+        issued = int(claims["iat"])
+        expires = int(claims["exp"])
+        user_id = str(claims["sub"])
+        nonce = str(claims["jti"])
+        if (
+            claims.get("aud") != "brenup-kokoro-stt"
+            or claims.get("scope") != "transcribe"
+            or claims.get("role") not in {"ADMIN", "TEACHER", "SCHOOL_ADMIN"}
+            or not user_id
+            or not nonce
+            or issued > now + 30
+            or expires <= now
+            or expires - issued > 120
+        ):
+            raise ValueError("Invalid claims")
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        raise HTTPException(status_code=401, detail="Transcription permission is invalid or expired. Request a new one.") from None
+
+    with used_stt_permits_lock:
+        for old_nonce, old_expiry in list(used_stt_permits.items()):
+            if old_expiry <= now:
+                used_stt_permits.pop(old_nonce, None)
+        if nonce in used_stt_permits:
+            raise HTTPException(status_code=401, detail="This transcription permission was already used. Request a new one.")
+        if len(used_stt_permits) >= 4096:
+            raise HTTPException(status_code=429, detail="The local transcription service is busy. Try again shortly.")
+        used_stt_permits[nonce] = expires
+    return claims
+
+
+def safe_file_suffix(value: str | None) -> str:
+    name = (value or "audio").split("?", 1)[0].split("#", 1)[0]
+    suffix = Path(name).suffix.lower()
+    return suffix if re.fullmatch(r"\.[a-z0-9]{1,8}", suffix) else ".media"
+
+
+def probe_media(path: Path) -> float:
+    result = subprocess.run(
+        [
+            shutil.which("ffprobe") or "ffprobe", "-v", "error", "-show_entries",
+            "format=duration:stream=codec_type", "-of", "json", str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    metadata = json.loads(result.stdout)
+    if not any(stream.get("codec_type") == "audio" for stream in metadata.get("streams", [])):
+        raise ValueError("This file does not contain an audio track.")
+    duration = float(metadata.get("format", {}).get("duration", 0))
+    if not duration or duration <= 0:
+        raise ValueError("Could not read the media duration.")
+    return duration
+
+
+def transcribe_clip(source_path: Path, start: float, end: float, language: str | None) -> dict[str, object]:
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temporary:
+        clip_path = Path(temporary.name)
+    try:
+        subprocess.run(
+            [
+                ffmpeg_path(), "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{start:.3f}",
+                "-i", str(source_path), "-t", f"{end - start:.3f}", "-map", "0:a:0", "-vn",
+                "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(clip_path),
+            ],
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        import mlx_whisper
+
+        with model_lock:
+            result = mlx_whisper.transcribe(
+                str(clip_path),
+                path_or_hf_repo=STT_MODEL_ID,
+                language=language,
+                temperature=0.0,
+                verbose=False,
+            )
+        transcript = str(result.get("text") or "").strip()
+        segments = []
+        for segment in result.get("segments", []):
+            text = str(segment.get("text") or "").strip()
+            if not text:
+                continue
+            segment_start = float(segment.get("start", 0)) + start
+            segment_end = float(segment.get("end", 0)) + start
+            segments.append({"text": text[:2000], "start": round(segment_start, 2), "end": round(segment_end, 2)})
+        return {"transcript": transcript[:50_000], "segments": segments[:1500], "language": result.get("language")}
+    finally:
+        clip_path.unlink(missing_ok=True)
+
+
+@app.post("/v1/audio/transcriptions")
+async def transcriptions(request: Request, authorization: str | None = Header(default=None)) -> JSONResponse:
+    consume_stt_permit(authorization)
+    try:
+        start = float(request.headers.get("x-start-seconds", "0"))
+        end = float(request.headers.get("x-end-seconds", "0"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Choose a valid start and end time.") from None
+    if start < 0 or end <= start or end - start > STT_MAX_CLIP_SECONDS:
+        raise HTTPException(status_code=400, detail=f"Choose a clip up to {STT_MAX_CLIP_SECONDS // 60} minutes long.")
+
+    language_value = request.headers.get("x-language", "auto").strip().lower()
+    if language_value not in {"auto", "en", "bn"}:
+        raise HTTPException(status_code=400, detail="Choose automatic, English, or Bengali detection.")
+    language = None if language_value == "auto" else language_value
+
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > STT_MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail="The selected file is too large. Keep it under 90 MB.")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="The upload size is invalid.") from None
+
+    suffix = safe_file_suffix(request.headers.get("x-file-name"))
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+        source_path = Path(temporary.name)
+        total_bytes = 0
+        try:
+            async for chunk in request.stream():
+                total_bytes += len(chunk)
+                if total_bytes > STT_MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="The selected file is too large. Keep it under 90 MB.")
+                temporary.write(chunk)
+        except Exception:
+            source_path.unlink(missing_ok=True)
+            raise
+
+    try:
+        if total_bytes == 0:
+            raise HTTPException(status_code=400, detail="Choose an audio or video file first.")
+        try:
+            source_duration = await run_in_threadpool(probe_media, source_path)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=415, detail="This file could not be read as audio or video.") from None
+        if end > source_duration + 0.1:
+            raise HTTPException(status_code=400, detail="The selected end time is longer than the media.")
+        try:
+            result = await run_in_threadpool(transcribe_clip, source_path, start, end, language)
+        except HTTPException:
+            raise
+        except ImportError:
+            logger.exception("Local STT dependency is unavailable")
+            raise HTTPException(status_code=503, detail="Local transcription is not installed on the Mac yet.") from None
+        except Exception:
+            logger.exception("Local speech transcription failed")
+            raise HTTPException(status_code=503, detail="The Mac could not transcribe this clip. Try a shorter section.") from None
+        if not result["transcript"]:
+            raise HTTPException(status_code=422, detail="No speech was detected in that section.")
+        return JSONResponse(
+            result,
+            headers={"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"},
+        )
+    finally:
+        source_path.unlink(missing_ok=True)
 
 
 def synthesize(request: SpeechRequest) -> tuple[bytes, float, str]:

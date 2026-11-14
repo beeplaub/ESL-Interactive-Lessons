@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AudioLines, ArrowRight, Clapperboard, ImageIcon, Link2, MessageCircle, Radio, Sparkles, Subtitles } from "lucide-react";
+import { AudioLines, ArrowRight, Clapperboard, FileAudio, ImageIcon, Link2, MessageCircle, Radio, Sparkles } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 
 export default async function CreatorToolsPage() {
@@ -51,7 +51,10 @@ export default async function CreatorToolsPage() {
           <h2 className="mt-5 text-lg font-semibold">Audio QR Code Maker</h2><p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">Turn any public audio link into a downloadable QR code for worksheets and classroom materials.</p><span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--br-action)]">Make a QR code <ArrowRight size={15} className="transition group-hover:translate-x-1" /></span>
         </Link>
 
-        <ToolPlaceholder icon={Subtitles} title="Transcript & captions" description="Generate accessible transcripts and timed captions from creator audio." />
+        <Link href="/admin/creator-tools/transcriber" className="group rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          <div className="flex items-start justify-between gap-4"><span className="grid size-11 place-items-center rounded-xl bg-[var(--br-action)]/10 text-[var(--br-action)]"><FileAudio size={22} /></span><span className="rounded-full bg-[var(--br-success)]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--br-success)]">Local · Mac</span></div>
+          <h2 className="mt-5 text-lg font-semibold">Local Audio Transcriber</h2><p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">Choose a time range and transcribe audio or video on BrenUp’s Mac without storing the recording.</p><span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--br-action)]">Transcribe media <ArrowRight size={15} className="transition group-hover:translate-x-1" /></span>
+        </Link>
         <ToolPlaceholder icon={ImageIcon} title="Visual studio" description="Create lesson thumbnails, image prompts, and accessible alt text." />
       </section>
     </main>
