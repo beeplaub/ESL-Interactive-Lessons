@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, GripVertical, PenLine, Plus, Trash2, Volume2 } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, GripVertical, Plus, Trash2, Volume2 } from "lucide-react";
 import { deleteSlideActivity, reorderLessonSlideActivities, updateSlideActivity } from "@/app/admin/lessons/actions";
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
@@ -2694,58 +2694,75 @@ export function ShadowingEditor({ activity, onSave }: { activity: Activity; onSa
   const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
   const [heading, setHeading] = useState(String(data.title ?? "Listen. Say it. Compare."));
   const [description, setDescription] = useState(String(data.description ?? ""));
-  const [manualPrompts, setManualPrompts] = useState<Array<{ id: string; text: string; audio_url: string }>>(() => {
-    const saved = Array.isArray(data.prompts) ? data.prompts.map((item) => asRecord(item as Json)).map((item, index) => ({
-      id: String(item.id ?? `manual-${index + 1}`),
+  type EditablePrompt = { id: string; text: string; audio_url: string; source_prompt_id?: string; accent?: "en-GB" | "en-US"; cefr_level?: string | null; category_id?: string | null; difficulty?: string | null; target_sounds?: string[]; tags?: string[] };
+  const [manualPrompts, setManualPrompts] = useState<EditablePrompt[]>(() => {
+    const savedPrompts = Array.isArray(data.prompts) ? data.prompts.map((item) => asRecord(item as Json)).map((item, index) => ({
+      ...item,
+      id: String(item.id ?? `sentence-${index + 1}`),
       text: String(item.text ?? ""),
       audio_url: String(item.audio_url ?? ""),
+      source_prompt_id: item.source_prompt_id ? String(item.source_prompt_id) : undefined,
+      accent: item.accent === "en-GB" || item.accent === "en-US" ? String(item.accent) as "en-GB" | "en-US" : undefined,
+      cefr_level: item.cefr_level ? String(item.cefr_level) : null,
+      category_id: item.category_id ? String(item.category_id) : null,
+      difficulty: item.difficulty ? String(item.difficulty) : null,
+      target_sounds: Array.isArray(item.target_sounds) ? item.target_sounds.map(String) : [],
+      tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
     })) : [];
-    return saved.length ? saved : [{ id: "manual-1", text: shadowingSentenceText(data), audio_url: String(data.audio_url ?? "") }];
+    if (savedPrompts.length) return savedPrompts;
+    const oldLibraryItems = Array.isArray(data.library_items) ? data.library_items.map((item) => asRecord(item as Json)).map((item, index) => ({
+      id: `library-${String(item.source_prompt_id ?? index + 1)}-${index}`,
+      text: String(item.text ?? ""), audio_url: String(item.audio_url ?? ""),
+      source_prompt_id: item.source_prompt_id ? String(item.source_prompt_id) : undefined,
+      accent: item.accent === "en-GB" || item.accent === "en-US" ? String(item.accent) as "en-GB" | "en-US" : undefined,
+      cefr_level: item.cefr_level ? String(item.cefr_level) : null,
+      category_id: item.category_id ? String(item.category_id) : null,
+      difficulty: item.difficulty ? String(item.difficulty) : null,
+      target_sounds: Array.isArray(item.target_sounds) ? item.target_sounds.map(String) : [],
+      tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+    })) : [];
+    if (oldLibraryItems.length) return oldLibraryItems;
+    const oldText = shadowingSentenceText(data);
+    const oldAudio = String(data.audio_url ?? "");
+    return oldText || oldAudio ? [{ id: "manual-1", text: oldText, audio_url: oldAudio }] : [];
   });
-  const [expandedManualPromptId, setExpandedManualPromptId] = useState(() => {
-    const firstPrompt = Array.isArray(data.prompts) && data.prompts.length ? asRecord(data.prompts[0] as Json) : null;
-    return String(firstPrompt?.id ?? "manual-1");
-  });
-  const [libraryItems, setLibraryItems] = useState<SpeechPromptSnapshot[]>(Array.isArray(data.library_items) ? data.library_items as SpeechPromptSnapshot[] : []);
+  const [expandedManualPromptId, setExpandedManualPromptId] = useState("");
+  const [libraryChooserForId, setLibraryChooserForId] = useState("");
   const [maxAttempts, setMaxAttempts] = useState(Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)));
   const [maxRecordingSeconds, setMaxRecordingSeconds] = useState(Math.max(1, Math.min(600, Number(data.max_recording_seconds ?? 15) || 15)));
-  const [sourceMode, setSourceMode] = useState<"library" | "manual" | null>(() => {
-    if (Array.isArray(data.prompts) && data.prompts.length > 0) return "manual";
-    if (Array.isArray(data.library_items) && data.library_items.length > 0) return "library";
-    return [data.target_text, data.audio_url].some((value) => String(value ?? "").trim()) ? "manual" : null;
-  });
-  const selectedPrompt = sourceMode === "library" ? libraryItems[0] : undefined;
-  const firstManualPrompt = manualPrompts[0];
-  const savedText = selectedPrompt?.text ?? (sourceMode === "manual" ? firstManualPrompt?.text ?? "" : "");
-  const savedAudioUrl = selectedPrompt?.audio_url ?? (sourceMode === "manual" ? firstManualPrompt?.audio_url ?? "" : "");
-  const needsReview = sourceMode === "library"
-    ? libraryItems.length === 0
-    : sourceMode !== "manual" || manualPrompts.length === 0 || manualPrompts.some((item) => !item.text.trim() || !item.audio_url.trim());
+  const needsReview = manualPrompts.length === 0 || manualPrompts.some((item) => !item.text.trim() || !item.audio_url.trim());
 
   function addManualPrompt() {
     const id = crypto.randomUUID();
     setManualPrompts((current) => [...current, { id, text: "", audio_url: "" }]);
     setExpandedManualPromptId(id);
+    setLibraryChooserForId("");
   }
-
-  function updateManualPrompt(id: string, patch: Partial<{ text: string; audio_url: string }>) {
-    setManualPrompts((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+  function updateManualPrompt(id: string, patch: Partial<EditablePrompt>) {
+    setManualPrompts((current) => current.map((item) => item.id === id ? { ...item, ...patch, ...((patch.text !== undefined || patch.audio_url !== undefined) ? { source_prompt_id: undefined } : {}) } : item));
   }
-
+  function chooseLibraryPrompt(id: string, choice: SpeechPromptSnapshot) {
+    setManualPrompts((current) => current.map((item) => item.id === id ? { ...item, text: choice.text, audio_url: choice.audio_url, source_prompt_id: choice.source_prompt_id, accent: choice.accent, cefr_level: choice.cefr_level, category_id: choice.category_id, difficulty: choice.difficulty, target_sounds: choice.target_sounds, tags: choice.tags } : item));
+    setLibraryChooserForId("");
+    setExpandedManualPromptId("");
+  }
   function removeManualPrompt(id: string) {
-    const remaining = manualPrompts.filter((item) => item.id !== id);
-    setManualPrompts(remaining);
-    if (expandedManualPromptId === id) setExpandedManualPromptId(remaining[0]?.id ?? "");
+    setManualPrompts((current) => current.filter((item) => item.id !== id));
+    if (expandedManualPromptId === id) setExpandedManualPromptId("");
+    if (libraryChooserForId === id) setLibraryChooserForId("");
   }
-
   function moveManualPrompt(id: string, direction: -1 | 1) {
-    const index = manualPrompts.findIndex((item) => item.id === id);
-    const targetIndex = index + direction;
-    if (index < 0 || targetIndex < 0 || targetIndex >= manualPrompts.length) return;
-    const reordered = [...manualPrompts];
-    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
-    setManualPrompts(reordered);
+    setManualPrompts((current) => {
+      const index = current.findIndex((item) => item.id === id);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) return current;
+      const reordered = [...current];
+      [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+      return reordered;
+    });
   }
+  const firstPrompt = manualPrompts[0];
+
   return (
     <div className="grid min-w-0 gap-3">
       <details className="group rounded-xl border border-[var(--br-border)] bg-white">
@@ -2754,94 +2771,46 @@ export function ShadowingEditor({ activity, onSave }: { activity: Activity; onSa
           <ChevronDown size={16} className="shrink-0 text-[var(--br-text-muted)] transition group-open:rotate-180" />
         </summary>
         <div className="grid gap-3 border-t border-[var(--br-border)] p-3 sm:grid-cols-2">
-          <label className="min-w-0 text-sm font-medium">
-            Main heading
-            <input value={heading} onChange={(event) => setHeading(event.target.value)} maxLength={100} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2" />
-          </label>
-          <label className="min-w-0 text-sm font-medium">
-            Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
-            <input value={description} onChange={(event) => setDescription(event.target.value)} maxLength={240} placeholder="A short note for learners" className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2" />
-          </label>
+          <label className="min-w-0 text-sm font-medium">Main heading<input value={heading} onChange={(event) => setHeading(event.target.value)} maxLength={100} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
+          <label className="min-w-0 text-sm font-medium">Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={description} onChange={(event) => setDescription(event.target.value)} maxLength={240} placeholder="A short note for learners" className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
         </div>
       </details>
 
       <div className="grid min-w-0 grid-cols-2 gap-2">
-        <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">
-          Recording time (seconds)
-          <input type="number" min={1} max={600} step={1} value={maxRecordingSeconds} onChange={(event) => setMaxRecordingSeconds(Math.min(600, Math.max(1, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full min-w-0 rounded-xl border border-white/90 bg-white/80 px-3 text-sm font-semibold text-ink shadow-sm ring-1 ring-slate-900/[0.05] backdrop-blur-xl outline-none focus-visible:border-indigo-300 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-indigo-300" />
-        </label>
-        <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">
-          Attempts per learner
-          <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-sm font-semibold text-ink" />
-        </label>
+        <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">Recording time (seconds)<input type="number" min={1} max={600} step={1} value={maxRecordingSeconds} onChange={(event) => setMaxRecordingSeconds(Math.min(600, Math.max(1, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full min-w-0 rounded-xl border border-white/90 bg-white/80 px-3 text-sm font-semibold text-ink shadow-sm ring-1 ring-slate-900/[0.05] backdrop-blur-xl outline-none focus-visible:border-indigo-300 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-indigo-300" /></label>
+        <label className="min-w-0 text-xs font-bold text-[var(--br-text-muted)]">Attempts per learner<input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 block min-h-10 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white px-2.5 text-sm font-semibold text-ink" /></label>
       </div>
       <p className="-mt-1 text-[11px] text-[var(--br-text-muted)]">The recording stops at the selected time. Each submitted recording uses one attempt.</p>
 
-      <div className="grid min-w-0 grid-cols-2 gap-2 rounded-xl bg-slate-100/80 p-1.5" aria-label="Choose a sentence source">
-        <button type="button" aria-pressed={sourceMode === "library"} onClick={() => setSourceMode("library")} className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-sm font-bold transition ${sourceMode === "library" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600 hover:bg-white/70"}`}>
-          <BookOpen size={16} className="shrink-0" /> <span className="truncate">Choose from library</span>
-        </button>
-        <button type="button" aria-pressed={sourceMode === "manual"} onClick={() => setSourceMode("manual")} className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-sm font-bold transition ${sourceMode === "manual" ? "bg-white text-violet-800 shadow-sm" : "text-slate-600 hover:bg-white/70"}`}>
-          <PenLine size={16} className="shrink-0" /> <span className="truncate">Add manually</span>
-        </button>
-      </div>
-
-      {sourceMode === "manual" ? <div className="grid min-w-0 gap-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div><p className="text-sm font-extrabold text-[var(--br-dark-card)]">Your sentences</p><p className="text-xs text-[var(--br-text-muted)]">Each sentence gets its own Listen → Say it → Compare flow.</p></div>
-          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">{manualPrompts.length} {manualPrompts.length === 1 ? "prompt" : "prompts"}</span>
-        </div>
-        <ol className="grid min-w-0 gap-2">
+      <div className="grid min-w-0 gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-extrabold text-[var(--br-dark-card)]">Your sentences</p><p className="text-xs text-[var(--br-text-muted)]">Each sentence gets its own Listen → Say it → Compare flow.</p></div><span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">{manualPrompts.length} {manualPrompts.length === 1 ? "sentence" : "sentences"}</span></div>
+        {manualPrompts.length ? <ol className="grid min-w-0 gap-2">
           {manualPrompts.map((item, index) => {
             const expanded = expandedManualPromptId === item.id;
+            const choosingFromLibrary = libraryChooserForId === item.id;
+            const hasAudio = !!item.audio_url.trim();
+            const showLibraryAction = choosingFromLibrary || (!item.text.trim() && !item.audio_url.trim() && !item.source_prompt_id);
             return <li key={item.id} className="min-w-0 overflow-hidden rounded-xl border border-[var(--br-border)] bg-white">
               <div className="flex min-w-0 items-center gap-2 p-2.5">
                 <button type="button" aria-expanded={expanded} onClick={() => setExpandedManualPromptId(expanded ? "" : item.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                   <span className="grid size-7 shrink-0 place-items-center rounded-full bg-violet-50 text-xs font-extrabold text-violet-800">{index + 1}</span>
-                  <span className="min-w-0 flex-1"><span className="block text-xs font-bold text-[var(--br-dark-card)]">Sentence {index + 1}</span><span className="block truncate text-xs text-[var(--br-text-muted)]">{item.text.trim() || "Add a sentence and model audio"}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block text-xs font-bold text-[var(--br-dark-card)]">Sentence {index + 1}</span>{!choosingFromLibrary ? <span className="block truncate text-xs text-[var(--br-text-muted)]">{item.text.trim() || "Add a sentence and model audio"}</span> : null}</span>
+                  <span title={hasAudio ? "Audio added" : "Audio missing"} aria-label={hasAudio ? "Audio added" : "Audio missing"}><Volume2 size={16} className={`shrink-0 ${hasAudio ? "text-emerald-600" : "text-slate-300"}`} /></span>
+                  {item.source_prompt_id ? <span title="Chosen from the speech practice library" aria-label="From library" className="hidden shrink-0 rounded-full bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700 sm:inline">Library</span> : null}
                   <ChevronDown size={15} className={`shrink-0 text-[var(--br-text-muted)] transition ${expanded ? "rotate-180" : ""}`} />
                 </button>
-                {manualPrompts.length > 1 ? <>
-                  <div className="flex shrink-0 items-center">
-                    <button type="button" onClick={() => moveManualPrompt(item.id, -1)} disabled={index === 0} aria-label={`Move sentence ${index + 1} up`} className="grid size-7 place-items-center rounded text-[var(--br-text-muted)] hover:bg-slate-100 disabled:opacity-30"><ArrowUp size={14} /></button>
-                    <button type="button" onClick={() => moveManualPrompt(item.id, 1)} disabled={index === manualPrompts.length - 1} aria-label={`Move sentence ${index + 1} down`} className="grid size-7 place-items-center rounded text-[var(--br-text-muted)] hover:bg-slate-100 disabled:opacity-30"><ArrowDown size={14} /></button>
-                  </div>
-                  <button type="button" onClick={() => removeManualPrompt(item.id)} aria-label={`Remove sentence ${index + 1}`} className="grid size-8 shrink-0 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-rose-50 hover:text-rose-700"><Trash2 size={15} /></button>
-                </> : null}
+                {manualPrompts.length > 1 ? <div className="flex shrink-0 items-center"><button type="button" onClick={() => moveManualPrompt(item.id, -1)} disabled={index === 0} aria-label={`Move sentence ${index + 1} up`} className="grid size-7 place-items-center rounded text-[var(--br-text-muted)] hover:bg-slate-100 disabled:opacity-30"><ArrowUp size={14} /></button><button type="button" onClick={() => moveManualPrompt(item.id, 1)} disabled={index === manualPrompts.length - 1} aria-label={`Move sentence ${index + 1} down`} className="grid size-7 place-items-center rounded text-[var(--br-text-muted)] hover:bg-slate-100 disabled:opacity-30"><ArrowDown size={14} /></button></div> : null}
+                <button type="button" onClick={() => removeManualPrompt(item.id)} aria-label={`Remove sentence ${index + 1}`} className="grid size-8 shrink-0 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-rose-50 hover:text-rose-700"><Trash2 size={15} /></button>
               </div>
-              {expanded ? <div className="border-t border-[var(--br-border)] p-2.5"><ShadowingSentenceEditor audioUrl={item.audio_url} targetText={item.text} promptNumber={index + 1} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={(audio_url) => updateManualPrompt(item.id, { audio_url })} onTargetTextChange={(text) => updateManualPrompt(item.id, { text })} /></div> : null}
+              {expanded ? <div className="min-w-0 border-t border-[var(--br-border)] p-2.5"><div className="mb-2.5 flex min-w-0 items-center justify-between gap-2"><h3 className="text-sm font-black text-[var(--br-dark-card)]">Sentence {index + 1}</h3>{showLibraryAction ? <button type="button" aria-expanded={choosingFromLibrary} onClick={() => setLibraryChooserForId(choosingFromLibrary ? "" : item.id)} className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-violet-200 bg-white px-2 text-[11px] font-bold text-violet-800 hover:bg-violet-50 sm:gap-1.5 sm:px-2.5 sm:text-xs"><BookOpen size={14} className="shrink-0" /><span>{choosingFromLibrary ? "Add manually" : "Choose from library"}</span></button> : null}</div>{choosingFromLibrary ? <SpeechPracticePromptPicker type="SHADOWING" selected={[]} onChange={() => undefined} selectionMode="single" onChooseItem={(choice) => chooseLibraryPrompt(item.id, choice)} /> : <ShadowingSentenceEditor audioUrl={item.audio_url} targetText={item.text} promptNumber={index + 1} showHeading={false} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={(audio_url) => updateManualPrompt(item.id, { audio_url })} onTargetTextChange={(text) => updateManualPrompt(item.id, { text })} />}</div> : null}
             </li>;
           })}
-        </ol>
+        </ol> : <p className="rounded-xl border border-dashed border-[var(--br-border)] px-3 py-5 text-center text-sm text-[var(--br-text-muted)]">No sentences added yet.</p>}
         <button type="button" onClick={addManualPrompt} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-dashed border-violet-300 bg-violet-50/50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-50"><Plus size={16} /> Add another sentence</button>
-      </div> : null}
-      {sourceMode === "library" ? <SpeechPracticePromptPicker type="SHADOWING" selected={libraryItems} onChange={setLibraryItems} /> : null}
-      {!sourceMode ? <p className="rounded-xl border border-dashed border-[var(--br-border-strong)] px-3 py-4 text-center text-sm text-[var(--br-text-muted)]">Choose a source to add the sentence and its model audio.</p> : null}
+      </div>
 
       <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap gap-3 border-t border-[var(--br-border)] bg-white/95 px-1 py-2 backdrop-blur-sm">
-        <SaveButton
-          onClick={() =>
-            onSave(
-              {
-                title: heading.trim() || "Listen. Say it. Compare.",
-                description: description.trim() || null,
-                prompt: heading.trim() || "Listen. Say it. Compare.",
-                shadowing_mode: "SENTENCE_AB",
-                layered_flow: true,
-                max_attempts: maxAttempts,
-                max_recording_seconds: maxRecordingSeconds,
-                audio_url: savedAudioUrl,
-                target_text: savedText,
-                accent: selectedPrompt?.accent ?? String(data.accent ?? ""),
-                cefr_level: selectedPrompt?.cefr_level ?? String(data.cefr_level ?? ""),
-                library_items: sourceMode === "library" ? libraryItems : [],
-                prompts: sourceMode === "manual" ? manualPrompts : [],
-                correct_answer: savedText,
-              } as Json,
-              needsReview
-            )
-          }
-        />
+        <SaveButton onClick={() => onSave({ title: heading.trim() || "Listen. Say it. Compare.", description: description.trim() || null, prompt: heading.trim() || "Listen. Say it. Compare.", shadowing_mode: "SENTENCE_AB", layered_flow: true, max_attempts: maxAttempts, max_recording_seconds: maxRecordingSeconds, audio_url: firstPrompt?.audio_url ?? "", target_text: firstPrompt?.text ?? "", accent: firstPrompt?.accent ?? String(data.accent ?? ""), cefr_level: firstPrompt?.cefr_level ?? String(data.cefr_level ?? ""), library_items: [], prompts: manualPrompts, correct_answer: firstPrompt?.text ?? "" } as unknown as Json, needsReview)} />
       </div>
     </div>
   );

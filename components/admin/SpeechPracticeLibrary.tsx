@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { AudioLines, Check, ChevronDown, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { AudioLines, Check, ChevronDown, Pencil, Plus, Search, SlidersHorizontal, Sparkles, Trash2, Volume2, X } from "lucide-react";
 import { createSpeechPracticeCategory, renameSpeechPracticeCategory, saveSpeechPrompt, softDeleteSpeechPracticeCategory } from "@/app/admin/speech-practice/actions";
 import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
 import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
@@ -133,6 +133,8 @@ export function SpeechPracticeLibrary({ initialPrompts, initialCategories }: { i
   const [deleteConfirmCategory, setDeleteConfirmCategory] = useState<Category | null>(null);
   const [categoryActionError, setCategoryActionError] = useState("");
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [playingPromptId, setPlayingPromptId] = useState("");
   const [audioAccent, setAudioAccent] = useState<"en-GB" | "en-US">("en-GB");
   const [error, setError] = useState("");
   const [busy, startTransition] = useTransition();
@@ -170,7 +172,15 @@ export function SpeechPracticeLibrary({ initialPrompts, initialCategories }: { i
         default: return item.text;
       }
     };
-    return filtered.sort((a, b) => valueFor(a).localeCompare(valueFor(b), undefined, { sensitivity: "base" }) * (sortDirection === "asc" ? 1 : -1));
+    return filtered.sort((a, b) => {
+      const showUncategorizedFirst = !categoryFilter && (filter === "ALL" || filter === "SHADOWING");
+      if (showUncategorizedFirst) {
+        const aUncategorizedShadowing = a.prompt_type === "SHADOWING" && !a.category_id;
+        const bUncategorizedShadowing = b.prompt_type === "SHADOWING" && !b.category_id;
+        if (aUncategorizedShadowing !== bUncategorizedShadowing) return aUncategorizedShadowing ? -1 : 1;
+      }
+      return valueFor(a).localeCompare(valueFor(b), undefined, { sensitivity: "base" }) * (sortDirection === "asc" ? 1 : -1);
+    });
   }, [filter, levelFilter, categoryFilter, soundFilter, difficultyFilter, normalizedPrompts, query, sortDirection, sortField]);
   const displayedPrompts = visible.slice(0, visibleLimit);
   const counts = useMemo(() => ({ all: prompts.filter((item) => item.status !== "ARCHIVED").length, active: prompts.filter((item) => item.status === "ACTIVE").length, drafts: prompts.filter((item) => item.status === "DRAFT").length }), [prompts]);
@@ -224,6 +234,24 @@ export function SpeechPracticeLibrary({ initialPrompts, initialCategories }: { i
   const currentVariant = draft.audio_variants[audioAccent] ?? { url: "", status: "PENDING" as const };
   const voiceSettings = audioAccent === "en-GB" ? settings : usSettings;
   const openDetails = (item: Prompt) => setSelectedPrompt(item);
+  const playPromptAudio = (item: Prompt) => {
+    const approved = (["en-GB", "en-US"] as const).map((key) => item.audio_variants[key]).find((audio) => audio?.url?.trim() && audio.status === "APPROVED");
+    if (!approved?.url) return;
+    if (playingPromptId === item.id && previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.currentTime = 0;
+      previewAudioRef.current = null;
+      setPlayingPromptId("");
+      return;
+    }
+    previewAudioRef.current?.pause();
+    const audio = new Audio(approved.url);
+    previewAudioRef.current = audio;
+    setPlayingPromptId(item.id);
+    audio.onended = () => { if (previewAudioRef.current === audio) { previewAudioRef.current = null; setPlayingPromptId(""); } };
+    audio.onerror = () => { if (previewAudioRef.current === audio) { previewAudioRef.current = null; setPlayingPromptId(""); } };
+    void audio.play().catch(() => { if (previewAudioRef.current === audio) { previewAudioRef.current = null; setPlayingPromptId(""); } });
+  };
   const edit = (item: Prompt) => { setSelectedPrompt(null); setDraft({ id: item.id, prompt_type: item.prompt_type, title: item.title, text: item.text, cefr_level: item.cefr_level, category_id: item.category_id, difficulty: item.difficulty, target_sounds: item.target_sounds, tags: item.tags, audio_variants: item.audio_variants }); setAudioAccent("en-GB"); setError(""); setModalOpen(true); };
 
   return <>
@@ -247,7 +275,7 @@ export function SpeechPracticeLibrary({ initialPrompts, initialCategories }: { i
 
         {error && !modalOpen ? <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p> : null}
         <p className="mt-3 text-xs font-medium text-slate-500">Showing {displayedPrompts.length} of {visible.length} matching prompts</p>
-        {visible.length ? <><ol className="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-3 sm:px-4">{displayedPrompts.map((item, index) => <li key={item.id} className="flex items-stretch gap-3 transition hover:bg-indigo-50/50 sm:gap-4"><span aria-hidden="true" className="flex w-8 shrink-0 items-center justify-center self-stretch text-xs font-bold tabular-nums text-slate-400">{index + 1}</span><button type="button" onClick={() => openDetails(item)} aria-label={`View details for ${item.text}`} className="min-h-14 flex-1 py-4 text-left text-sm font-semibold leading-6 text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-300">{item.text}</button></li>)}</ol>{displayedPrompts.length < visible.length ? <button type="button" onClick={() => setVisibleLimit((limit) => limit + 10)} className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl border border-indigo-100 bg-white/80 px-4 text-sm font-bold text-indigo-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50">Show more sentences</button> : null}</> : <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600"><AudioLines size={22} /></div><h2 className="mt-4 text-lg font-extrabold text-slate-900">{categoryFilter || soundFilter || difficultyFilter || query || levelFilter !== "ALL" || filter !== "ALL" ? "No prompts in this selection yet" : "Your library is ready for its first prompt"}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{categoryFilter ? "This category is ready. Add or move prompts into it whenever you like." : soundFilter || difficultyFilter ? "No tongue twisters match both selected filters yet." : "Add a sentence or tongue twister, attach its audio, then review the clip before creators use it."}</p>{!query && levelFilter === "ALL" && filter === "ALL" && prompts.length === 0 ? <button type="button" onClick={openNew} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"><Plus size={16} /> Add your first prompt</button> : null}</div>}
+        {visible.length ? <><ol className="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-3 sm:px-4">{displayedPrompts.map((item, index) => { const hasReadyAudio = Object.values(item.audio_variants).some((audio) => audio.url?.trim() && audio.status === "APPROVED"); const isPlaying = playingPromptId === item.id; return <li key={item.id} className="flex items-stretch gap-3 transition hover:bg-indigo-50/50 sm:gap-4"><span aria-hidden="true" className="flex w-8 shrink-0 items-center justify-center self-stretch text-xs font-bold tabular-nums text-slate-400">{index + 1}</span><button type="button" onClick={() => openDetails(item)} aria-label={`View details for ${item.text}`} className="min-h-14 min-w-0 flex-1 py-4 text-left text-sm font-semibold leading-6 text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-300">{item.text}</button><button type="button" disabled={!hasReadyAudio} onClick={() => playPromptAudio(item)} aria-label={hasReadyAudio ? `${isPlaying ? "Stop" : "Play"} approved audio for ${item.text}` : `No approved audio for ${item.text}`} title={hasReadyAudio ? `${isPlaying ? "Stop" : "Play"} approved audio` : "No approved audio yet"} className={`grid shrink-0 place-items-center px-2 transition ${hasReadyAudio ? "text-emerald-600 hover:text-emerald-800" : "cursor-not-allowed text-slate-300"}`}><Volume2 size={18} aria-hidden="true" className={isPlaying ? "animate-pulse" : ""} /></button></li>; })}</ol>{displayedPrompts.length < visible.length ? <button type="button" onClick={() => setVisibleLimit((limit) => limit + 10)} className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl border border-indigo-100 bg-white/80 px-4 text-sm font-bold text-indigo-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50">Show more sentences</button> : null}</> : <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600"><AudioLines size={22} /></div><h2 className="mt-4 text-lg font-extrabold text-slate-900">{categoryFilter || soundFilter || difficultyFilter || query || levelFilter !== "ALL" || filter !== "ALL" ? "No prompts in this selection yet" : "Your library is ready for its first prompt"}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{categoryFilter ? "This category is ready. Add or move prompts into it whenever you like." : soundFilter || difficultyFilter ? "No tongue twisters match both selected filters yet." : "Add a sentence or tongue twister, attach its audio, then review the clip before creators use it."}</p>{!query && levelFilter === "ALL" && filter === "ALL" && prompts.length === 0 ? <button type="button" onClick={openNew} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700"><Plus size={16} /> Add your first prompt</button> : null}</div>}
       </div>
     </section>
 
