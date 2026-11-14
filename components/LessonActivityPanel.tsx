@@ -290,7 +290,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         description: shadowingDescription,
         options: {
           audio_url: String(item.audio_url ?? ""), target_text: targetText, shadowing_mode: "SENTENCE_AB",
-          layered_flow: data.layered_flow === true,
+          layered_flow: true,
           activity_label: "Shadowing practice",
           accent: String(item.accent ?? ""), cefr_level: String(item.cefr_level ?? ""),
           max_attempts: Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)),
@@ -301,7 +301,8 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         correct_answer: targetText as Json,
       };
     });
-    const audioUrl = String(data.audio_url ?? "");
+    const phases = shadowingPhases(data);
+    const audioUrl = String(data.audio_url ?? phases[0]?.audioUrl ?? "");
     const targetText = shadowingSentenceText(data);
     return [{
       id: "1",
@@ -312,13 +313,13 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       options: {
         audio_url: audioUrl,
         target_text: targetText,
-        layered_flow: data.layered_flow === true,
+        layered_flow: true,
         activity_label: "Shadowing practice",
         accent: String(data.accent ?? ""), cefr_level: String(data.cefr_level ?? ""),
         max_recording_seconds: maxRecordingSeconds,
         shadowing_mode: data.shadowing_mode === "CHUNK_AB" || data.shadowing_mode === "SENTENCE_AB" ? String(data.shadowing_mode) : "LEGACY_PHASES",
         max_attempts: Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)),
-        phases: shadowingPhases(data).map((phase) => ({ id: phase.id, target_text: phase.targetText, audio_url: phase.audioUrl })),
+        phases: phases.map((phase) => ({ id: phase.id, target_text: phase.targetText, audio_url: phase.audioUrl })),
         repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),
         require_all_green: data.require_all_green !== false,
         show_live_match: data.show_live_match !== false,
@@ -1926,7 +1927,7 @@ function GenericLessonActivityPanel({
   const hasSubjectiveQuestions = subjectiveQuestions.length > 0;
   const isPronunciationActivity = questions.length > 0 && questions.every((question) => question.question_type === "PRONUNCIATION");
   const isShadowingActivity = questions.length > 0 && questions.every((question) => question.question_type === "SHADOWING");
-  const isLayeredShadowing = isShadowingActivity && questions.every((question) => asRecord(question.options).layered_flow === true);
+  const isLayeredShadowing = isShadowingActivity;
   const allAnswered = questions.length > 0 && questions.every((question) => hasAnswer(question, answers[question.id]));
   const shadowingComparisonHeard = isShadowingActivity && questions.every((question) => asRecord(answers[question.id] as Json).comparison_heard === true);
   const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);

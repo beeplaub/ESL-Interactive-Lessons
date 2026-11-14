@@ -3463,6 +3463,12 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
   const learnerCompareHeardRef = useRef(false);
   const readyToRecord = Boolean(audioUrl && targetText.trim());
 
+  const saveProgress = useCallback((next: ShadowingValue) => {
+    // Keep fields written by the older phase/repetition workflow when this activity is resumed
+    // in the newer Listen → Say it → Compare flow.
+    onChange({ ...asRecord(value as Json), ...next } as ShadowingValue);
+  }, [onChange, value]);
+
   const stopComparison = useCallback(() => {
     loopTokenRef.current += 1;
     activeAudioRef.current?.pause();
@@ -3498,7 +3504,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
     if (comparisonHeardRef.current) return;
     comparisonHeardRef.current = true;
     setComparisonHeard(true);
-    onChange({ completed: true, comparison_heard: true, word_coverage: wordCoverageRef.current, attempts_used: attemptsUsedRef.current });
+    saveProgress({ completed: true, comparison_heard: true, word_coverage: wordCoverageRef.current, attempts_used: attemptsUsedRef.current });
   }
 
   function handleModelEnded() {
@@ -3533,7 +3539,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
     const nextAttemptsUsed = attemptsUsedRef.current + 1;
     attemptsUsedRef.current = nextAttemptsUsed;
     setAttemptsUsed(nextAttemptsUsed);
-    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
+    saveProgress({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
     const form = new FormData();
     form.append("file", blob, `shadowing.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
     form.append("durationSeconds", String(durationSeconds));
@@ -3544,16 +3550,16 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
       const coverage = shadowingWordCoverage(targetText, result.transcript);
       wordCoverageRef.current = coverage;
       setWordCoverage(coverage);
-      onChange({ completed: false, comparison_heard: false, word_coverage: coverage, attempts_used: nextAttemptsUsed });
+      saveProgress({ completed: false, comparison_heard: false, word_coverage: coverage, attempts_used: nextAttemptsUsed });
     } catch (caught) {
       wordCoverageRef.current = null;
       setWordCoverage(null);
-      onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
+      saveProgress({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: nextAttemptsUsed });
       setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again.");
     } finally {
       setProcessing(false);
     }
-  }, [onChange, stopComparison, targetText]);
+  }, [saveProgress, stopComparison, targetText]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state !== "recording") return;
@@ -3571,7 +3577,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
     setError(null);
     setModelLoopEnabled(false);
     if (modelAudioRef.current) modelAudioRef.current.loop = false;
-    onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: attemptsUsedRef.current });
+    saveProgress({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: attemptsUsedRef.current });
     stopComparison();
     modelAudioRef.current?.pause();
     learnerAudioRef.current?.pause();
@@ -3620,7 +3626,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
       mediaStreamRef.current = null;
       setError("Microphone access was blocked. Please allow microphone access and try again.");
     }
-  }, [disabled, maxAttempts, maxRecordingSeconds, onChange, processRecording, processing, recording, stopComparison]);
+  }, [disabled, maxAttempts, maxRecordingSeconds, processRecording, processing, recording, saveProgress, stopComparison]);
 
   useEffect(() => {
     if (countdown === null) return;
