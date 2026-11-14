@@ -1,16 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { CALLOUT_BACKGROUNDS, calloutBackgroundKey, type CalloutBackgroundKey } from "@/lib/calloutBackgrounds";
+import { CALLOUT_BACKGROUNDS, calloutBackgroundKey } from "@/lib/calloutBackgrounds";
 import { BlockLanguageStyleSection, type BlockEditorLanguage } from "@/components/BilingualBlockFields";
+import { BlockBackgroundColorPicker, type BlockBackgroundColorPreset } from "@/components/BlockBackgroundColorPicker";
 
 function asString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
-export function CalloutLanguageFields({ data, onBackgroundChange, onContentChange }: { data: Record<string, unknown>; onBackgroundChange?: (key: CalloutBackgroundKey) => void; onContentChange?: (field: string, value: string) => void }) {
+const CALLOUT_COLOR_PRESETS: readonly BlockBackgroundColorPreset[] = [
+  { label: "No background", value: "" },
+  ...Object.values(CALLOUT_BACKGROUNDS).map((option) => ({ label: option.label, value: option.color })),
+];
+
+export function CalloutLanguageFields({ data, onBackgroundChange, onContentChange }: { data: Record<string, unknown>; onBackgroundChange?: (color: string) => void; onContentChange?: (field: string, value: string) => void }) {
   const [language, setLanguage] = useState<BlockEditorLanguage>("en");
-  const [background, setBackground] = useState<CalloutBackgroundKey>(calloutBackgroundKey(data.background_color));
+  const legacyBackgroundKey = calloutBackgroundKey(data.background_color);
+  const storedBackground = asString(data.block_background_color);
+  const hasCustomBackground = Object.prototype.hasOwnProperty.call(data, "block_background_color");
+  const [background, setBackground] = useState(hasCustomBackground ? (/^#[0-9a-fA-F]{6}$/.test(storedBackground) ? storedBackground : "") : CALLOUT_BACKGROUNDS[legacyBackgroundKey].color);
 
   return (
     <BlockLanguageStyleSection
@@ -19,27 +28,19 @@ export function CalloutLanguageFields({ data, onBackgroundChange, onContentChang
       onLanguageChange={setLanguage}
       languageLabel="Choose callout editing language"
       backgroundControl={
-        <div>
-          <input type="hidden" name="callout_background" value={background} />
-          <div className="grid w-full grid-cols-4 gap-1" role="group" aria-label="Choose callout background color">
-            {Object.entries(CALLOUT_BACKGROUNDS).map(([key, option]) => (
-              <button
-                key={key}
-                type="button"
-                aria-label={option.label}
-                aria-pressed={background === key}
-                title={option.label}
-                onClick={() => {
-                  const next = key as CalloutBackgroundKey;
-                  setBackground(next);
-                  onBackgroundChange?.(next);
-                }}
-                className={`h-5 min-w-0 rounded-md border transition ${background === key ? "border-[var(--br-brand)] ring-2 ring-[var(--br-brand)] ring-offset-1" : "border-black/10 hover:border-[var(--br-brand)]"}`}
-                style={{ backgroundColor: option.color }}
-              />
-            ))}
-          </div>
-        </div>
+        <>
+          <input type="hidden" name="callout_background" value={legacyBackgroundKey} />
+          <BlockBackgroundColorPicker
+            label="Background"
+            name="block_background_color"
+            value={background}
+            presets={CALLOUT_COLOR_PRESETS}
+            onChange={(color) => {
+              setBackground(color);
+              onBackgroundChange?.(color);
+            }}
+          />
+        </>
       }
     >
       <div style={{ display: language === "en" ? "grid" : "none" }} className="gap-3">

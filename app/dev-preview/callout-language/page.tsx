@@ -4,7 +4,6 @@ import { useState } from "react";
 import { CalloutLanguageFields } from "@/components/CalloutLanguageFields";
 import { LessonBlockPreview, type PreviewLessonBlock } from "@/components/LessonBlockPreview";
 import type { Json } from "@/types/database.types";
-import type { CalloutBackgroundKey } from "@/lib/calloutBackgrounds";
 
 const sampleContent = {
   title: "Remember the context",
@@ -15,12 +14,12 @@ const sampleContent = {
 
 export default function CalloutLanguagePreviewPage() {
   const [hideUntilRevealed, setHideUntilRevealed] = useState(true);
-  const [background, setBackground] = useState<CalloutBackgroundKey>("ivory");
+  const [background, setBackground] = useState("#FFF8EE");
   const sampleBlock: PreviewLessonBlock = {
     id: "callout-language-demo",
     position: 1,
     block_type: "CALLOUT",
-    content: { ...sampleContent, background_color: background, reveal_hidden: hideUntilRevealed } as unknown as Json,
+    content: { ...sampleContent, block_background_color: background, reveal_hidden: hideUntilRevealed } as unknown as Json,
   };
 
   return (
@@ -37,7 +36,7 @@ export default function CalloutLanguagePreviewPage() {
               <h2 className="mt-1 text-lg font-extrabold">Edit both language versions</h2>
             </div>
             <div className="grid gap-5">
-              <CalloutLanguageFields data={{ ...sampleContent, background_color: background }} onBackgroundChange={setBackground} />
+              <CalloutLanguageFields data={{ ...sampleContent, block_background_color: background }} onBackgroundChange={setBackground} />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="reveal_hidden" checked={hideUntilRevealed} onChange={(event) => setHideUntilRevealed(event.target.checked)} /> Hide text until the learner reveals it</label>
             </div>
           </section>

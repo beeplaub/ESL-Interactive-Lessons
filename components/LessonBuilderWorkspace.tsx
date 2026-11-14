@@ -37,6 +37,7 @@ import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { CalloutLanguageFields } from "@/components/CalloutLanguageFields";
 import { BilingualBlockFields } from "@/components/BilingualBlockFields";
+import { BlockBackgroundColorPicker } from "@/components/BlockBackgroundColorPicker";
 import { SavedBlockBackgroundColorsProvider } from "@/components/SavedBlockBackgroundColors";
 import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataEditor";
 import { LessonOutcomeManager } from "@/components/LessonOutcomeManager";
@@ -1770,6 +1771,7 @@ function FlashcardEditor({ data, lessonId }: { data: Record<string, unknown>; le
 // ── BlockFields ────────────────────────────────────────────────────────────────
 function BlockFields({ blockType, content, lessonId, blockId }: { blockType: string; content: Json; lessonId: string; blockId: string }) {
   const data = asRecord(content);
+  const [blockBackgroundColor, setBlockBackgroundColor] = useState(() => /^#[0-9a-fA-F]{6}$/.test(asString(data.block_background_color)) ? asString(data.block_background_color) : "");
   const [imagePairPaths, setImagePairPaths] = useState(() => [asString(data.left_path), asString(data.right_path)]);
   const [tongueTwisters, setTongueTwisters] = useState(() => {
     const items = Array.isArray(data.items) ? data.items as Record<string, unknown>[] : [];
@@ -1911,6 +1913,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   if (blockType === "QUOTE") {
     return (
       <div className="grid gap-3">
+        <BlockBackgroundColorPicker label="Background" name="block_background_color" value={blockBackgroundColor} onChange={setBlockBackgroundColor} />
         <label className="text-sm">Quote text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Attribution <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
@@ -2082,6 +2085,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="grid gap-3">
         <label className="text-sm">Block title<input name="title" defaultValue={asString(data.title)} placeholder="Commonly confused words" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Instruction <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="instruction" defaultValue={asString(data.instruction)} placeholder="Choose a pair to compare." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <BlockBackgroundColorPicker label="Background" name="block_background_color" value={blockBackgroundColor} onChange={setBlockBackgroundColor} />
         <input type="hidden" name="pairs_json" value={JSON.stringify(contrastPairs.map((pair) => ({ title: pair.title, context: pair.context || null, left_term: pair.leftTerm, left_meaning: pair.leftMeaning, left_pattern: pair.leftPattern || null, left_examples: pair.leftExamples.split(/\r?\n/).map((example) => example.trim()).filter(Boolean), left_color: pair.leftColor, right_term: pair.rightTerm, right_meaning: pair.rightMeaning, right_pattern: pair.rightPattern || null, right_examples: pair.rightExamples.split(/\r?\n/).map((example) => example.trim()).filter(Boolean), right_color: pair.rightColor, key_difference: pair.keyDifference || null, common_mistake: pair.commonMistake || null })))} />
         <div className="grid gap-3">
           {contrastPairs.map((pair, index) => <div key={index} className="rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)]/25 p-3 sm:p-4">

@@ -521,7 +521,10 @@ function CalloutBlock({ content, align, alwaysOpen }: { content: Record<string, 
   const title = isBengali ? bengaliTitle : englishTitle;
   const body = isBengali ? bengaliBody : englishBody;
   const hidden = content.reveal_hidden === true;
-  const backgroundColor = CALLOUT_BACKGROUNDS[calloutBackgroundKey(content.background_color)].color;
+  const hasCustomBackground = Object.prototype.hasOwnProperty.call(content, "block_background_color");
+  const backgroundColor = hasCustomBackground
+    ? previewHexColor(content.block_background_color)
+    : CALLOUT_BACKGROUNDS[calloutBackgroundKey(content.background_color)].color;
   const revealed = !hidden || alwaysOpen || isOpen;
   const actions = <LearnerActionGroup
     language={hasBengali ? language : undefined}
