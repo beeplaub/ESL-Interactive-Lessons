@@ -1408,10 +1408,15 @@ function TongueTwisterItem({ item, title, instruction, scoreMode, disabled }: {
 
 function TableBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {
   const [language, setLanguage] = useState<"en" | "bn">("en");
-  const bn = language === "bn" && asArray(content.headers_bn).length > 0;
-  const headers = asArray(bn ? content.headers_bn : content.headers).map((header) => asString(header));
-  const rows = asArray(bn ? content.rows_bn : content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
-  const caption = bn ? asString(content.caption_bn) : asString(content.caption);
+  const hasBengaliContent = Boolean(asString(content.caption_bn).trim())
+    || asArray(content.headers_bn).some((header) => asString(header).trim())
+    || asArray(content.rows_bn).some((row) => asArray(row).some((cell) => asString(cell).trim()));
+  const bn = language === "bn" && hasBengaliContent;
+  const bengaliHeaders = asArray(content.headers_bn);
+  const bengaliRows = asArray(content.rows_bn);
+  const headers = asArray(bn && bengaliHeaders.some((header) => asString(header).trim()) ? bengaliHeaders : content.headers).map((header) => asString(header));
+  const rows = asArray(bn && bengaliRows.length ? bengaliRows : content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
+  const caption = bn ? asString(content.caption_bn).trim() || asString(content.caption) : asString(content.caption);
   const hideReveal = content.reveal_hidden === true;
   const mobileLayout = content.mobile_layout === "horizontal" ? "horizontal" : "stacked";
   const mergedRegions = asArray(content.merged_regions).map((item) => asRecord(item as Json)).map((region) => ({ startRow: Number(region.startRow) || 0, startCol: Number(region.startCol) || 0, rowSpan: Math.max(1, Number(region.rowSpan) || 1), colSpan: Math.max(1, Number(region.colSpan) || 1) }));
@@ -1451,7 +1456,7 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
       tabIndex={hideReveal && !revealed && !alwaysOpen ? 0 : undefined}
       aria-expanded={hideReveal ? alwaysOpen || revealed : undefined}
     >
-      {caption || hideReveal || asArray(content.headers_bn).length ? (
+      {caption || hideReveal || hasBengaliContent ? (
         <div
           className={`flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5 ${hideReveal && revealed && !alwaysOpen ? "cursor-pointer select-none" : ""}`}
           onClick={hideReveal && revealed && !alwaysOpen ? toggleReveal : undefined}
@@ -1460,7 +1465,7 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
           tabIndex={hideReveal && revealed && !alwaysOpen ? 0 : undefined}
         >
           <div className="flex min-w-0 items-center gap-3">
-            <div className="min-w-0"><h3 className="break-words text-lg font-semibold text-ink">{caption || (bn ? "সারণি" : "Table")}</h3>{asArray(content.headers_bn).length ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}</div>
+            <div className="min-w-0">{caption ? <h3 className="break-words text-lg font-semibold text-ink">{caption}</h3> : null}{hasBengaliContent ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}</div>
           </div>
           {hideReveal && !alwaysOpen ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{revealed ? "Close" : "Open"}</span> : null}
         </div>
