@@ -1464,10 +1464,13 @@ function TableBlock({ content, alwaysOpen = false }: { content: Record<string, u
           role={hideReveal && revealed && !alwaysOpen ? "button" : undefined}
           tabIndex={hideReveal && revealed && !alwaysOpen ? 0 : undefined}
         >
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="min-w-0">{caption ? <h3 className="break-words text-lg font-semibold text-ink">{caption}</h3> : null}{hasBengaliContent ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}</div>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {caption ? <h3 className="break-words text-lg font-semibold text-ink">{caption}</h3> : null}
           </div>
-          {hideReveal && !alwaysOpen ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{revealed ? "Close" : "Open"}</span> : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {hasBengaliContent ? <LearnerActionGroup language={language} onLanguageChange={setLanguage} /> : null}
+            {hideReveal && !alwaysOpen ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{revealed ? "Close" : "Open"}</span> : null}
+          </div>
         </div>
       ) : null}
       {revealed || alwaysOpen ? <>
