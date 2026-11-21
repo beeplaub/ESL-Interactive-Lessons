@@ -17,7 +17,12 @@ export async function GET(
   if (!room || room.status === "ENDED" || (room.status === "PAUSED" && Date.parse(room.pause_until ?? room.expires_at) <= Date.now()))
     return NextResponse.json({ status: "ENDED" });
   if (participant?.status === "WAITING")
-    await admin.from("instant_live_participants").update({ last_seen_at: new Date().toISOString() }).eq("room_id", id).eq("user_id", user.id).eq("status", "WAITING");
+    await admin.from("instant_live_participants")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("room_id", id)
+      .eq("user_id", user.id)
+      .eq("status", "WAITING")
+      .lt("last_seen_at", new Date(Date.now() - 30_000).toISOString());
   return NextResponse.json({ status: participant?.status ?? "WAITING" }, { headers: { "Cache-Control": "private, no-store" } });
 }
 

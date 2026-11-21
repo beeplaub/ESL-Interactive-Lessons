@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { AudioSetup } from "./AudioSetup";
+import type { LiveAudioDiagnostics, MicrophoneInputStatus } from "./useLiveTransport";
 
 export type RoomSettings = {
   room_locked: boolean;
@@ -29,6 +30,10 @@ type Props = {
   onResetFolder: () => void;
   onEnableSound: () => Promise<void>;
   onSelectMicrophone: (id: string) => Promise<unknown>;
+  onReconnectMedia: () => void;
+  onGetDiagnostics: () => Promise<LiveAudioDiagnostics>;
+  microphoneOn: boolean;
+  microphoneStatus: MicrophoneInputStatus;
   connections: Record<string, RTCPeerConnectionState>;
 };
 
@@ -73,6 +78,10 @@ export function SettingsPanel({
   onResetFolder,
   onEnableSound,
   onSelectMicrophone,
+  onReconnectMedia,
+  onGetDiagnostics,
+  microphoneOn,
+  microphoneStatus,
   connections,
 }: Props) {
   const [tab, setTab] = useState<"room" | "audio" | "recording">(creator ? "room" : "audio");
@@ -168,6 +177,10 @@ export function SettingsPanel({
               onClose={onClose}
               onEnableSound={onEnableSound}
               onSelectMicrophone={onSelectMicrophone}
+              onReconnectMedia={onReconnectMedia}
+              onGetDiagnostics={onGetDiagnostics}
+              microphoneOn={microphoneOn}
+              microphoneStatus={microphoneStatus}
               connections={connections}
             />
           </div>

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uniquePeople, type LivePerson } from "@/lib/instant-live/types";
+import { microphoneErrorMessage } from "./microphoneErrorMessage";
 
 type Signal = {
   from: string;
@@ -19,6 +20,25 @@ type Peer = {
   restarts: number;
 };
 type Envelope = { from: string; userId: string; event: string; data: unknown };
+export type MicrophoneInputStatus = "idle" | "ready" | "muted" | "ended" | "error";
+export type LiveAudioDiagnostics = {
+  microphone: {
+    status: MicrophoneInputStatus;
+    toggleOn: boolean;
+    trackState: MediaStreamTrackState | "none";
+    enabled: boolean;
+    muted: boolean;
+  };
+  peerCount: number;
+  peers: Array<{
+    connectionState: RTCPeerConnectionState;
+    iceState: RTCIceConnectionState;
+    selectedRoute: string;
+    audioBytesSent: number;
+    audioBytesReceived: number;
+    statsAvailable: boolean;
+  }>;
+};
 function isReceiveOnlySupportDescription(description: RTCSessionDescriptionInit) {
   if (!description.sdp) return false;
   const sections = description.sdp.split(/(?=^m=)/m).filter(section => section.startsWith("m="));
@@ -79,6 +99,7 @@ export function useLiveTransport({
   const [remote, setRemote] = useState<Record<string, MediaStream>>({});
   const [audioActivity, setAudioActivity] = useState<Record<string, { level: number; speaking: boolean; tilt: number }>>({});
   const [micOn, setMicOn] = useState(false);
+  const [microphoneStatus, setMicrophoneStatus] = useState<MicrophoneInputStatus>("idle");
   const [microphone, setMicrophone] = useState<MediaStream | null>(null);
   const [connections, setConnections] = useState<Record<string, RTCPeerConnectionState>>({});
   const [iceConfig, setIceConfig] = useState<{
@@ -104,6 +125,8 @@ export function useLiveTransport({
     const context = new AudioContextConstructor();
     const previous = new Map<string, { level: number; speaking: boolean; quietFrames: number; tilt: number }>();
     const analysers = new Map<string, AnalyserNode>();
+    const sampleBuffers = new Map<string, Uint8Array<ArrayBuffer>>();
+    let lastActivityPublishAt = 0;
     let timer = 0;
     let disposed = false;
 
@@ -116,6 +139,7 @@ export function useLiveTransport({
       for (const key of analysers.keys()) {
         if (activeKeys.has(key)) continue;
         analysers.delete(key);
+        sampleBuffers.delete(key);
         previous.delete(key);
       }
       for (const [key, stream] of sources) {
@@ -126,6 +150,7 @@ export function useLiveTransport({
           analyser.smoothingTimeConstant = 0.35;
           context.createMediaStreamSource(stream).connect(analyser);
           analysers.set(key, analyser);
+          sampleBuffers.set(key, new Uint8Array(analyser.fftSize));
         } catch {
           // A browser may refuse analysis for a stream; mic controls still work.
         }
@@ -133,10 +158,15 @@ export function useLiveTransport({
     };
     const sample = () => {
       if (disposed) return;
+      if (document.hidden) {
+        setAudioActivity(current => Object.keys(current).length ? {} : current);
+        return;
+      }
       syncSources();
       const next: Record<string, { level: number; speaking: boolean; tilt: number }> = {};
       for (const [key, analyser] of analysers) {
-        const samples = new Uint8Array(analyser.fftSize);
+        const samples = sampleBuffers.get(key);
+        if (!samples) continue;
         analyser.getByteTimeDomainData(samples);
         let sumSquares = 0;
         for (const sample of samples) {
@@ -156,20 +186,40 @@ export function useLiveTransport({
       }
       setAudioActivity(current => {
         const keys = Object.keys(next);
-        if (keys.length === Object.keys(current).length && keys.every(key => {
+        const unchanged = keys.length === Object.keys(current).length && keys.every(key => {
           const a = current[key]; const b = next[key];
           return a && a.speaking === b.speaking && Math.abs(a.level - b.level) < 0.035 && Math.abs(a.tilt - b.tilt) < 2;
-        })) return current;
+        });
+        if (unchanged) return current;
+        const speakingChanged = keys.length !== Object.keys(current).length || keys.some(key => current[key]?.speaking !== next[key]?.speaking);
+        const now = Date.now();
+        if (!speakingChanged && now - lastActivityPublishAt < 200) return current;
+        lastActivityPublishAt = now;
         return next;
       });
-      timer = window.setTimeout(sample, 55);
+      timer = window.setTimeout(sample, 100);
     };
-    void context.resume().catch(() => undefined);
-    sample();
+    const handleVisibilityChange = () => {
+      window.clearTimeout(timer);
+      if (document.hidden) {
+        setAudioActivity(current => Object.keys(current).length ? {} : current);
+        void context.suspend().catch(() => undefined);
+      } else {
+        void context.resume().then(sample).catch(() => undefined);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    if (document.hidden) void context.suspend().catch(() => undefined);
+    else {
+      void context.resume().catch(() => undefined);
+      sample();
+    }
     return () => {
       disposed = true;
       window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       analysers.clear();
+      sampleBuffers.clear();
       previous.clear();
       void context.close().catch(() => undefined);
     };
@@ -180,7 +230,7 @@ export function useLiveTransport({
     !forceMutedRef.current &&
     Boolean(
       mic.current?.getAudioTracks().some(
-        (track) => track.readyState === "live" && track.enabled,
+        (track) => track.readyState === "live" && !track.muted && track.enabled,
       ),
     );
 
@@ -523,7 +573,7 @@ export function useLiveTransport({
       recordingStartedAt,
       mic: isMicPublishing(),
     });
-  }, [forceMuted, micOn, microphone, paused, ready, self, recordingStartedAt, superseded]);
+  }, [forceMuted, micOn, microphone, microphoneStatus, paused, ready, self, recordingStartedAt, superseded]);
   useEffect(() => { if (forceMuted || superseded) setMicOn(false); }, [forceMuted, superseded]);
   useEffect(() => {
     mic.current?.getTracks().forEach((t) => {
@@ -535,14 +585,21 @@ export function useLiveTransport({
   }, [forceMuted, paused, micOn, superseded]);
   useEffect(
     () => () => {
-      mic.current?.getTracks().forEach((t) => t.stop());
+      mic.current?.getTracks().forEach((t) => {
+        t.onended = null;
+        t.onmute = null;
+        t.onunmute = null;
+        t.stop();
+      });
       presentation.current?.getTracks().forEach((t) => t.stop());
     },
     [],
   );
   const prepareMicrophone = async (deviceId?: string) => {
     if (micBusy.current) throw new Error("Microphone setup is already in progress.");
-    if (deviceId === undefined && mic.current?.getAudioTracks().some(t => t.readyState === "live")) return mic.current;
+    const existingStream = mic.current;
+    const currentTrack = existingStream?.getAudioTracks()[0];
+    if (deviceId === undefined && existingStream && currentTrack?.readyState === "live" && !currentTrack.muted) return existingStream;
     micBusy.current = true;
     try {
       const next = await navigator.mediaDevices.getUserMedia({
@@ -551,6 +608,10 @@ export function useLiveTransport({
       });
       const old = mic.current;
       const track = next.getAudioTracks()[0];
+      if (!track) {
+        next.getTracks().forEach((item) => item.stop());
+        throw new Error("The selected device did not provide an audio track.");
+      }
       track.enabled = micOn && !forceMutedRef.current && !paused && !superseded;
       try {
         await Promise.all([...peers.current.values()].map(async ({pc}) => {
@@ -561,9 +622,38 @@ export function useLiveTransport({
       } catch (error) { next.getTracks().forEach(t => t.stop()); throw error; }
       mic.current = next;
       setMicrophone(next);
-      old?.getTracks().forEach(t => t.stop());
-      track.onended = () => { setMicOn(false); setMicrophone(null); mic.current = null; };
+      setMicrophoneStatus(track.muted ? "muted" : "ready");
+      track.onmute = () => {
+        if (mic.current !== next) return;
+        setMicrophoneStatus("muted");
+      };
+      track.onunmute = () => {
+        if (mic.current !== next) return;
+        setMicrophoneStatus("ready");
+      };
+      track.onended = () => {
+        if (mic.current !== next) return;
+        setMicOn(false);
+        setMicrophone(null);
+        setMicrophoneStatus("ended");
+        // Keep the ended stream reference until the next capture attempt so
+        // its sender can be replaced instead of adding another audio sender.
+      };
+      old?.getTracks().forEach(t => {
+        t.onended = null;
+        t.onmute = null;
+        t.onunmute = null;
+        t.stop();
+      });
       return next;
+    } catch (error) {
+      const activeTrack = mic.current?.getAudioTracks()[0];
+      if (!activeTrack || activeTrack.readyState !== "live") {
+        setMicrophoneStatus("error");
+      } else {
+        setMicrophoneStatus(activeTrack.muted ? "muted" : "ready");
+      }
+      throw error;
     } finally { micBusy.current = false; }
   };
   const toggleMic = async () => {
@@ -575,9 +665,8 @@ export function useLiveTransport({
       setMicOn(next);
       if (self && ready) await presenceChannel.current?.track({ ...self, recordingStartedAt: recordingRef.current, mic: isMicPublishing() });
     } catch (error) {
-      callbacks.current.onNotice(error instanceof DOMException && error.name === "NotAllowedError"
-        ? "Microphone access was denied. Allow it in this site's browser settings, then try again."
-        : "The microphone could not start. Close other apps using it, check your selected device, then try again.");
+      setMicOn(false);
+      callbacks.current.onNotice(microphoneErrorMessage(error));
     }
   };
   const stopPresentation = useCallback(() => {
@@ -611,6 +700,60 @@ export function useLiveTransport({
     }
     void send("state-request", {});
   };
+  const collectDiagnostics = async (): Promise<LiveAudioDiagnostics> => {
+    const track = mic.current?.getAudioTracks()[0];
+    const peerEntries = [...peers.current.values()];
+    const peerDiagnostics = await Promise.all(peerEntries.map(async ({ pc }) => {
+      const base: LiveAudioDiagnostics["peers"][number] = {
+        connectionState: pc.connectionState,
+        iceState: pc.iceConnectionState,
+        selectedRoute: "unknown",
+        audioBytesSent: 0,
+        audioBytesReceived: 0,
+        statsAvailable: false,
+      };
+      try {
+        const report = await pc.getStats();
+        const entries = [...report.values()].map(item => item as unknown as Record<string, unknown>);
+        const byId = new Map(entries.map(item => [String(item.id), item]));
+        const candidatePairs = entries.filter(item => item.type === "candidate-pair");
+        const selectedPairId = entries.find(item => item.type === "transport")?.selectedCandidatePairId;
+        const selectedPair = candidatePairs.find(item => item.id === selectedPairId)
+          ?? candidatePairs.find(item => item.selected === true)
+          ?? candidatePairs.find(item => item.nominated === true && item.state === "succeeded");
+        if (selectedPair) {
+          const local = byId.get(String(selectedPair.localCandidateId));
+          const remoteCandidate = byId.get(String(selectedPair.remoteCandidateId));
+          const localType = typeof local?.candidateType === "string" ? local.candidateType : "unknown";
+          const remoteType = typeof remoteCandidate?.candidateType === "string" ? remoteCandidate.candidateType : "unknown";
+          base.selectedRoute = `${localType} → ${remoteType}`;
+        }
+        for (const item of entries) {
+          const kind = item.kind ?? item.mediaType;
+          if (kind !== "audio") continue;
+          const bytes = Number(item.bytesSent ?? item.bytesReceived ?? 0);
+          if (!Number.isFinite(bytes)) continue;
+          if (item.type === "outbound-rtp") base.audioBytesSent += bytes;
+          if (item.type === "inbound-rtp") base.audioBytesReceived += bytes;
+        }
+        base.statsAvailable = true;
+      } catch {
+        // Closed or unavailable peers remain visible as state-only diagnostics.
+      }
+      return base;
+    }));
+    return {
+      microphone: {
+        status: microphoneStatus,
+        toggleOn: micOn,
+        trackState: track?.readyState ?? "none",
+        enabled: Boolean(track?.enabled),
+        muted: Boolean(track?.muted),
+      },
+      peerCount: peerDiagnostics.length,
+      peers: peerDiagnostics,
+    };
+  };
   return {
     ready,
     people,
@@ -619,6 +762,7 @@ export function useLiveTransport({
     local,
     micOn,
     microphone,
+    microphoneStatus,
     connections,
     prepareMicrophone,
     toggleMic,
@@ -626,6 +770,7 @@ export function useLiveTransport({
     stopPresentation,
     send,
     reconnect,
+    collectDiagnostics,
     superseded,
   };
 }

@@ -28,22 +28,42 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const access = await roomAccess(id, false, new URL(request.url).searchParams.get("adminSupport") === "1");
+  const searchParams = new URL(request.url).searchParams;
+  const access = await roomAccess(id, false, searchParams.get("adminSupport") === "1");
   if (access.error) return access.error;
   const { admin, user, room, creator } = access;
-  const { error: initError } = await admin
-    .from("instant_live_state")
-    .upsert({ room_id: id }, { onConflict: "room_id", ignoreDuplicates: true });
-  if (initError)
-    return fail(
-      "Live classroom update is not ready. Please try again shortly.",
-      503,
-    );
-  const { data, error } = await admin
+  const heartbeatCutoff = new Date(Date.now() - 30_000).toISOString();
+  if (searchParams.get("heartbeatOnly") === "1") {
+    const { error } = await admin
+      .from("instant_live_participants")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("room_id", id)
+      .eq("user_id", user.id)
+      .eq("status", "JOINED")
+      .lt("last_seen_at", heartbeatCutoff);
+    if (error) return fail("Could not refresh classroom presence.", 503);
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "private, no-store" } });
+  }
+
+  let { data, error } = await admin
     .from("instant_live_state")
     .select("*")
     .eq("room_id", id)
-    .single();
+    .maybeSingle();
+  if (!error && !data) {
+    const { error: initError } = await admin
+      .from("instant_live_state")
+      .upsert({ room_id: id }, { onConflict: "room_id", ignoreDuplicates: true });
+    if (initError)
+      return fail("Live classroom update is not ready. Please try again shortly.", 503);
+    const initialized = await admin
+      .from("instant_live_state")
+      .select("*")
+      .eq("room_id", id)
+      .single();
+    data = initialized.data;
+    error = initialized.error;
+  }
   if (error) return fail("Could not load the live stage.", 503);
   let state = data as SharedState;
   if (
@@ -74,7 +94,8 @@ export async function GET(
     .update({ last_seen_at: new Date().toISOString() })
     .eq("room_id", id)
     .eq("user_id", user.id)
-    .eq("status", "JOINED");
+    .eq("status", "JOINED")
+    .lt("last_seen_at", heartbeatCutoff);
   let query = admin
     .from("instant_live_assets")
     .select("id,owner_id,name,width,height,created_at")

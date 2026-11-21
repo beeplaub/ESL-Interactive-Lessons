@@ -47,6 +47,7 @@ import { LiveBoard } from "./instant-live/LiveBoard";
 import { LivePdfStage } from "./instant-live/LivePdfStage";
 import { LiveImageStage } from "./instant-live/LiveImageStage";
 import { useLiveTransport } from "./instant-live/useLiveTransport";
+import { LivePauseCountdown, LiveTimeDisplay } from "./instant-live/LiveTimeDisplay";
 import { createZip } from "@/lib/instant-live/createZip";
 import {
   boardSchema,
@@ -77,6 +78,7 @@ type ChatMessage = {
 type ParticipantModeration = { userId: string; micMuted: boolean };
 type ServerParticipant = Pick<LivePerson, "userId" | "name" | "role" | "joinedAt"> & { micMuted: boolean };
 type WaitingParticipant = { userId: string; name: string; joinedAt: number };
+type RefreshOptions = { includeChat?: boolean };
 type InviteScopeOption = { scopeType: "CLASS" | "COURSE"; scopeId: string; title: string; context?: string };
 type InviteLearner = { id: string; name: string };
 type RoomClock = {
@@ -135,7 +137,6 @@ export function InstantLiveClassroom({
     active_started_at: startedAt,
     expires_at: "",
   });
-  const [now, setNow] = useState(Date.now());
   const statusRef = useRef(clock.status);
   statusRef.current = clock.status;
   const [busy, setBusy] = useState(false);
@@ -207,6 +208,7 @@ export function InstantLiveClassroom({
   const drawerDragMoved = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshInFlight = useRef<Promise<boolean> | null>(null);
   const previewTime = useRef(0);
   const previewBoard = useRef<BoardObject[]>([]);
   const pointerTime = useRef(0);
@@ -216,9 +218,6 @@ export function InstantLiveClassroom({
   const transportRef = useRef<ReturnType<typeof useLiveTransport> | null>(null);
   const paused = clock.status !== "LIVE";
   const ended = clock.status === "ENDED";
-  const pauseRemaining = clock.pause_until
-    ? Math.max(0, Math.floor((Date.parse(clock.pause_until) - now) / 1000))
-    : 15 * 60;
   const api = `/api/instant-live/rooms/${roomId}`;
   const forceMuted = (!creator && !roomSettings.learner_mic_enabled) || moderation.some(
     (participant) => participant.userId === userId && participant.micMuted,
@@ -273,54 +272,66 @@ export function InstantLiveClassroom({
     stateRef.current = merged;
     setState(merged);
   }, []);
-  const refresh = useCallback(async () => {
-    if (roomRevoked) return false;
-    const settingsVersionAtRequest = roomSettingsVersion.current;
-    const settingsRefreshId = ++roomSettingsRefreshId.current;
-    try {
-      const response = await fetch(`${api}/state${adminSupport ? "?adminSupport=1" : ""}`, { cache: "no-store" });
-      const result = await response.json();
-      if (!response.ok) {
-        if (response.status === 403 || response.status === 404) {
-          setRoomRevoked(true);
-          setLoaded(true);
+  const refresh = useCallback((options: RefreshOptions = {}) => {
+    if (roomRevoked) return Promise.resolve(false);
+    if (refreshInFlight.current) return refreshInFlight.current;
+
+    const request = (async () => {
+      const settingsVersionAtRequest = roomSettingsVersion.current;
+      const settingsRefreshId = ++roomSettingsRefreshId.current;
+      try {
+        const query = new URLSearchParams();
+        if (adminSupport) query.set("adminSupport", "1");
+        const queryString = query.toString();
+        const suffix = queryString ? `?${queryString}` : "";
+        const response = await fetch(`${api}/state${suffix}`, { cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok) {
+          if (response.status === 403 || response.status === 404) {
+            setRoomRevoked(true);
+            setLoaded(true);
+          }
+          throw new Error(result.error || "Could not load the live stage.");
         }
-        throw new Error(result.error || "Could not load the live stage.");
+        const chatResponse = options.includeChat && !adminSupport
+          ? await fetch(`${api}/chat`, { cache: "no-store" })
+          : null;
+        const chatResult = chatResponse?.ok ? await chatResponse.json() : null;
+        applyState(result.state);
+        setAssets(result.assets);
+        setModeration(result.moderation ?? []);
+        if (Array.isArray(result.participants)) setServerParticipants(result.participants);
+        if (chatResult?.messages) setChat(chatResult.messages);
+        setClock(result.room);
+        if (
+          settingsVersionAtRequest === roomSettingsVersion.current &&
+          settingsRefreshId === roomSettingsRefreshId.current
+        ) {
+          const nextRoomSettings = {
+            room_locked: Boolean(result.room?.room_locked),
+            learner_mic_enabled: result.room?.learner_mic_enabled !== false,
+            learner_chat_enabled: result.room?.learner_chat_enabled !== false,
+            learner_screen_share_enabled: result.room?.learner_screen_share_enabled !== false,
+          };
+          roomSettingsRef.current = nextRoomSettings;
+          setRoomSettings(nextRoomSettings);
+        }
+        if (creator && Array.isArray(result.waitingParticipants)) setWaitingParticipants(result.waitingParticipants);
+        setLoaded(true);
+        return true;
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Could not load the classroom.");
+        return false;
       }
-      const chatResponse = adminSupport ? null : await fetch(`${api}/chat`, { cache: "no-store" });
-      const chatResult = chatResponse?.ok ? await chatResponse.json() : null;
-      applyState(result.state);
-      setAssets(result.assets);
-      setModeration(result.moderation ?? []);
-      if (Array.isArray(result.participants)) setServerParticipants(result.participants);
-      if (chatResult?.messages) setChat(chatResult.messages);
-      setClock(result.room);
-      if (
-        settingsVersionAtRequest === roomSettingsVersion.current &&
-        settingsRefreshId === roomSettingsRefreshId.current
-      ) {
-        const nextRoomSettings = {
-          room_locked: Boolean(result.room?.room_locked),
-          learner_mic_enabled: result.room?.learner_mic_enabled !== false,
-          learner_chat_enabled: result.room?.learner_chat_enabled !== false,
-          learner_screen_share_enabled: result.room?.learner_screen_share_enabled !== false,
-        };
-        roomSettingsRef.current = nextRoomSettings;
-        setRoomSettings(nextRoomSettings);
-      }
-      if (creator && Array.isArray(result.waitingParticipants)) setWaitingParticipants(result.waitingParticipants);
-      setLoaded(true);
-      return true;
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "Could not load the classroom.",
-      );
-      return false;
-    }
+    })();
+    const sharedRequest = request.finally(() => {
+      if (refreshInFlight.current === sharedRequest) refreshInFlight.current = null;
+    });
+    refreshInFlight.current = sharedRequest;
+    return sharedRequest;
   }, [api, applyState, creator, roomRevoked, adminSupport]);
   const scheduleRefresh = useCallback(() => {
+    if (document.hidden) return;
     if (refreshTimer.current) return;
     refreshTimer.current = setTimeout(() => {
       refreshTimer.current = null;
@@ -509,32 +520,30 @@ export function InstantLiveClassroom({
     : state.presenter_session
       ? transport.remote[state.presenter_session]
       : null;
-  const elapsed = Math.max(
-    0,
-    clock.elapsed_seconds +
-      (paused
-        ? 0
-        : Math.floor((now - Date.parse(clock.active_started_at)) / 1000)),
-  );
-  const elapsedLabel =
-    elapsed >= 3600
-      ? `${Math.floor(elapsed / 3600)}:${String(Math.floor(elapsed / 60) % 60).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`
-      : `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   useEffect(() => {
-    void refresh();
-    const interval = setInterval(() => {
-      void refresh();
-    }, adminSupport ? 2500 : 15000);
+    const refreshVisible = () => {
+      if (!document.hidden) void refresh({ includeChat: true });
+    };
+    const poll = () => {
+      if (!document.hidden) {
+        void refresh();
+        return;
+      }
+      const query = new URLSearchParams({ heartbeatOnly: "1" });
+      if (adminSupport) query.set("adminSupport", "1");
+      void fetch(`${api}/state?${query.toString()}`, { cache: "no-store" }).catch(() => {});
+    };
+    refreshVisible();
+    const interval = window.setInterval(poll, 30000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    window.addEventListener("online", refreshVisible);
     return () => {
-      clearInterval(interval);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshVisible);
+      window.removeEventListener("online", refreshVisible);
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [refresh, adminSupport]);
-  useEffect(() => {
-    if (ended) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [ended]);
+  }, [api, refresh, adminSupport]);
   useEffect(() => {
     if (!creator || clock.status !== "LIVE") return;
     const heartbeat = () => {
@@ -1163,7 +1172,6 @@ export function InstantLiveClassroom({
         expires_at: result.pauseUntil ?? old.expires_at,
         pause_until: result.pauseUntil ?? null,
       }));
-      setNow(Date.now());
       void transport.send("state-changed", {});
       setEndClassOpen(false);
       if (action === "quit") setQuitPrompt(false);
@@ -1289,7 +1297,7 @@ export function InstantLiveClassroom({
   }
   async function syncClassroom() {
     setNotice("Refreshing classroom and reconnecting media…");
-    const synced = await refresh();
+    const synced = await refresh({ includeChat: true });
     if (synced) {
       transport.reconnect();
       setNotice("Classroom refreshed. Media reconnect requested.");
@@ -1424,14 +1432,11 @@ export function InstantLiveClassroom({
           <i />
           {paused ? "Paused" : "Live"}
         </span>
-        <time className="live-clock" aria-label="Class elapsed time">
-          {elapsedLabel}
-        </time>
+        <LiveTimeDisplay elapsedSeconds={clock.elapsed_seconds} activeStartedAt={clock.active_started_at} paused={paused} recordingStartedAt={visibleRecordingAt} />
         <span className="live-count">
           <UsersRound size={15} />
           {visiblePeople.length || 1}
         </span>
-        {visibleRecordingAt ? <span className="live-recording-badge" role="status"><i/> REC {new Date(Math.max(0, now-visibleRecordingAt)).toISOString().slice(11,19)}</span> : null}
         <div className="live-header-actions">
           {creator ? (
             <button className="live-copy" onClick={() => void copyLink()}>
@@ -1577,9 +1582,7 @@ export function InstantLiveClassroom({
               <div className="live-paused-overlay">
                 <div>
                   <h2>Class paused</h2>
-                  <p>
-                    {`The class will close automatically in ${Math.floor(pauseRemaining / 60)}:${String(pauseRemaining % 60).padStart(2, "0")}.`}
-                  </p>
+                  <p>The class will close automatically in <LivePauseCountdown pauseUntil={clock.pause_until} />.</p>
                   {creator ? (
                     <div className="live-paused-actions">
                       <button onClick={() => void lifecycle("restart")} disabled={busy}>
@@ -1919,7 +1922,7 @@ export function InstantLiveClassroom({
           onBlocked={() => setSoundBlocked(true)}
         />
       ))}
-      {settingsOpen ? <SettingsPanel creator={creator} settings={roomSettings} recordingLocation={isBrenUpNativeApp() ? "Choose on save" : recordingDirectoryName} canChooseFolder={canChooseRecordingFolder} onClose={() => setSettingsOpen(false)} onRoomChange={(key,value) => void updateRoomSetting(key,value)} onChooseFolder={() => void chooseRecordingFolder()} onResetFolder={() => { setRecordingDirectory(null); setRecordingDirectoryName("Browser downloads"); }} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} connections={transport.connections}/>: null}
+      {settingsOpen ? <SettingsPanel creator={creator} settings={roomSettings} recordingLocation={isBrenUpNativeApp() ? "Choose on save" : recordingDirectoryName} canChooseFolder={canChooseRecordingFolder} onClose={() => setSettingsOpen(false)} onRoomChange={(key,value) => void updateRoomSetting(key,value)} onChooseFolder={() => void chooseRecordingFolder()} onResetFolder={() => { setRecordingDirectory(null); setRecordingDirectoryName("Browser downloads"); }} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} onReconnectMedia={transport.reconnect} onGetDiagnostics={transport.collectDiagnostics} microphoneOn={transport.micOn} microphoneStatus={transport.microphoneStatus} connections={transport.connections}/>: null}
       {contentPicker && creator ? <ContentPicker api={api} onClose={() => setContentPicker(false)} onChoose={chooseContent}/> : null}
       {endClassOpen && creator ? (
         <div className="live-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !busy) setEndClassOpen(false); }}>

@@ -1651,6 +1651,9 @@
 .root :global(.live-audio-actions .live-audio-primary) { background:linear-gradient(120deg,#ff8664,#ff674f); border-color:#ff9c7655; color:white; }
 .root :global(.live-audio-success) { display:flex; align-items:center; gap:8px; color:#83e7c6!important; font-weight:700; }
 .root :global(.live-audio-success span) { display:grid; place-items:center; width:20px; height:20px; border-radius:50%; color:#14231e; background:#83e7c6; }
+.root :global(.live-audio-status) { padding:10px 12px; border:1px solid #8583ad66; border-radius:12px; background:#34384e; }
+.root :global(.live-audio-status.is-ready) { border-color:#83e7c655; }
+.root :global(.live-audio-status.is-muted), .root :global(.live-audio-status.is-ended), .root :global(.live-audio-status.is-error) { border-color:#ff866477; }
 @media (prefers-reduced-motion: reduce) {
   .root :global(.live-audio-settings),
   .root :global(.live-control.is-mic-on .live-control-icon svg),

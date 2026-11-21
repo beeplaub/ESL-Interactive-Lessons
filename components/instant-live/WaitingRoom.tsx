@@ -7,7 +7,10 @@ export function WaitingRoom({ roomId, title }: { roomId: string; title: string }
   const [status, setStatus] = useState<"WAITING" | "JOINED" | "ENDED" | "REMOVED">("WAITING");
   useEffect(() => {
     let alive = true;
+    let polling = false;
     const poll = async () => {
+      if (polling) return;
+      polling = true;
       try {
         const response = await fetch(`/api/instant-live/rooms/${roomId}/join`, { cache: "no-store" });
         const data = await response.json();
@@ -15,11 +18,12 @@ export function WaitingRoom({ roomId, title }: { roomId: string; title: string }
         if (data.status === "JOINED") { setStatus("JOINED"); window.location.reload(); }
         else if (data.status === "ENDED" || data.status === "REMOVED") setStatus(data.status);
       } catch { /* Retry on the next interval. */ }
+      finally { polling = false; }
     };
     let timer: number | undefined;
     const schedule = () => {
       if (timer !== undefined) window.clearInterval(timer);
-      timer = document.hidden ? undefined : window.setInterval(() => void poll(), 2500);
+      timer = document.hidden ? undefined : window.setInterval(() => void poll(), 5000);
     };
     const visibility = () => {
       if (!document.hidden) void poll();

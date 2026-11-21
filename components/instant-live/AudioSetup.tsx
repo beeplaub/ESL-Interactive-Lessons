@@ -1,14 +1,18 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Mic, Volume2, X } from "lucide-react";
+import { Copy, Mic, Volume2, X } from "lucide-react";
+import type { LiveAudioDiagnostics, MicrophoneInputStatus } from "./useLiveTransport";
+import { microphoneErrorMessage } from "./microphoneErrorMessage";
 
-export function AudioSetup({ embedded = false, onClose, onEnableSound, onSelectMicrophone, onMicTested, onMicTestReset, connections }: {
+export function AudioSetup({ embedded = false, onClose, onEnableSound, onSelectMicrophone, onReconnectMedia, onGetDiagnostics, microphoneOn, microphoneStatus, connections }: {
   embedded?: boolean;
   onClose: () => void;
   onEnableSound: () => Promise<void>;
   onSelectMicrophone: (id: string) => Promise<unknown>;
-  onMicTested?: () => void;
-  onMicTestReset?: () => void;
+  onReconnectMedia: () => void;
+  onGetDiagnostics: () => Promise<LiveAudioDiagnostics>;
+  microphoneOn: boolean;
+  microphoneStatus: MicrophoneInputStatus;
   connections: Record<string, RTCPeerConnectionState>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -18,6 +22,7 @@ export function AudioSetup({ embedded = false, onClose, onEnableSound, onSelectM
   const [level, setLevel] = useState(0);
   const [testing, setTesting] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [copyingDiagnostics, setCopyingDiagnostics] = useState(false);
   const [message, setMessage] = useState("");
   const [voiceDetected, setVoiceDetected] = useState(false);
   const voiceFrames = useRef(0);
@@ -26,16 +31,28 @@ export function AudioSetup({ embedded = false, onClose, onEnableSound, onSelectM
   useEffect(() => {
     mounted.current = true;
     if (!embedded) dialog.current?.showModal();
-    void navigator.mediaDevices?.enumerateDevices().then(setDevices).catch(() => {});
-    return () => { mounted.current = false; cleanup.current(); };
+    const refreshDevices = () => void navigator.mediaDevices?.enumerateDevices().then(items => {
+      if (mounted.current) setDevices(items);
+    }).catch(() => {});
+    refreshDevices();
+    navigator.mediaDevices?.addEventListener("devicechange", refreshDevices);
+    return () => {
+      mounted.current = false;
+      navigator.mediaDevices?.removeEventListener("devicechange", refreshDevices);
+      cleanup.current();
+    };
   }, [embedded]);
   async function testMic() {
-    if (testing) { cleanup.current(); setTesting(false); setLevel(0); return; }
+    if (testing) { cleanup.current(); cleanup.current = () => {}; setTesting(false); setLevel(0); return; }
     setBusy(true);
-    const context = new AudioContext();
-    void context.resume();
+    setVoiceDetected(false);
+    voiceDetectedRef.current = false;
+    voiceFrames.current = 0;
+    let context: AudioContext | undefined;
     let stream: MediaStream | undefined;
     try {
+      context = new AudioContext();
+      await context.resume();
       stream = await navigator.mediaDevices.getUserMedia({ audio: device ? { deviceId: {exact: device}, echoCancellation: true } : true });
       if (!mounted.current) { stream.getTracks().forEach(t => t.stop()); await context.close(); return; }
       const source = context.createMediaStreamSource(stream);
@@ -55,50 +72,87 @@ export function AudioSetup({ embedded = false, onClose, onEnableSound, onSelectM
         if (voiceFrames.current >= 9 && !voiceDetectedRef.current) {
           voiceDetectedRef.current = true;
           setVoiceDetected(true);
-          onMicTested?.();
-          setMessage("Your microphone is working. We detected your voice; you can close this check.");
+          setMessage("Your voice reaches this device. This test does not confirm that other participants can hear you.");
         }
         frame = requestAnimationFrame(measure);
       };
-      cleanup.current = () => { cancelAnimationFrame(frame); stream?.getTracks().forEach(t => t.stop()); source.disconnect(); void context.close(); };
+      cleanup.current = () => { cancelAnimationFrame(frame); stream?.getTracks().forEach(t => t.stop()); source.disconnect(); void context?.close(); };
       voiceFrames.current = 0;
       voiceDetectedRef.current = false;
       setVoiceDetected(false);
       measure(); setTesting(true);
-      setDevices(await navigator.mediaDevices.enumerateDevices());
-      setMessage("Speak normally. The meter will move when your microphone picks up your voice. This test is private.");
+      const updatedDevices = await navigator.mediaDevices.enumerateDevices();
+      if (mounted.current) {
+        setDevices(updatedDevices);
+        setMessage("Speak normally. The meter will move when your microphone picks up your voice. This test is private.");
+      }
     } catch (error) {
-      stream?.getTracks().forEach(t => t.stop()); void context.close();
-      setMessage(error instanceof DOMException && error.name === "NotAllowedError" ? "Allow microphone access in your browser's site settings, then test again." : "Cannot open this microphone. Check its connection or close another app using it.");
+      stream?.getTracks().forEach(t => t.stop());
+      void context?.close();
+      if (mounted.current) setMessage(microphoneErrorMessage(error));
     } finally { if (mounted.current) setBusy(false); }
   }
   async function testSpeaker() {
-    const context = new AudioContext();
+    let context: AudioContext | undefined;
     try {
+      context = new AudioContext();
       await context.resume();
       const tone = context.createOscillator(), gain = context.createGain();
       tone.frequency.value = 440; gain.gain.value = 0.08;
       tone.connect(gain).connect(context.destination); tone.start(); tone.stop(context.currentTime + .45);
-      tone.onended = () => void context.close();
+      tone.onended = () => void context?.close();
       await onEnableSound();
-      setMessage("Did you hear the tone? If not, raise device volume and check Bluetooth/headphones or the device's audio output. Speaker routing is controlled by your device.");
-    } catch { void context.close(); setMessage("Playback is blocked. Tap the speaker test again and check device volume."); }
+      if (mounted.current) setMessage("Did you hear the tone? If not, raise device volume and check Bluetooth/headphones or the device's audio output. Speaker routing is controlled by your device.");
+    } catch {
+      void context?.close();
+      if (mounted.current) setMessage("Playback is blocked. Tap the speaker test again and check device volume.");
+    }
+  }
+  async function copyDiagnostics() {
+    setCopyingDiagnostics(true);
+    try {
+      const diagnostics = await onGetDiagnostics();
+      await navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+      if (mounted.current) setMessage("Private connection summary copied. It contains no names, IP addresses, or audio.");
+    } catch {
+      if (mounted.current) setMessage("Could not copy diagnostics. Allow clipboard access and try again.");
+    } finally {
+      if (mounted.current) setCopyingDiagnostics(false);
+    }
   }
   const states = Object.values(connections);
+  const connectedCount = states.filter(state => state === "connected").length;
+  const connectionSummary = states.length
+    ? `${connectedCount} of ${states.length} peer media links connected.`
+    : "No peer media link yet.";
   const content = <section>
       <header><h2>Microphone and speaker</h2>{!embedded ? <button aria-label="Close audio settings" onClick={onClose}><X size={19}/></button> : null}</header>
-      <p>Your microphone works when you turn it on. Use these checks only if you cannot be heard or hear the class.</p>
+      <p>Turn on Mic to speak. Use these checks if you cannot hear the class or others cannot hear you.</p>
       <label>Microphone<select value={device} disabled={testing || busy} onChange={async e => {
-        const id = e.target.value; setDevice(id); setBusy(true);
-        try { await onSelectMicrophone(id); setVoiceDetected(false); voiceDetectedRef.current = false; voiceFrames.current = 0; onMicTestReset?.(); setMessage("Microphone selected. Test it to confirm it is working."); }
-        catch { setMessage("Could not select that microphone. Try the default device."); }
-        finally { setBusy(false); }
+        const id = e.target.value; setBusy(true);
+        try {
+          await onSelectMicrophone(id);
+          if (!mounted.current) return;
+          setDevice(id); setVoiceDetected(false); voiceDetectedRef.current = false; voiceFrames.current = 0;
+          setMessage("Microphone selected for the classroom. Check input below, then turn on Mic to speak.");
+        }
+        catch (error) { if (mounted.current) setMessage(microphoneErrorMessage(error)); }
+        finally { if (mounted.current) setBusy(false); }
       }}><option value="">Device default</option>{devices.filter(d => d.kind === "audioinput" && d.deviceId && d.deviceId !== "default").map((d,i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${i+1}`}</option>)}</select></label>
-      <div className={`live-audio-meter${testing ? " is-testing" : ""}`} role="meter" aria-label="Microphone input level" aria-valuenow={level} aria-valuemin={0} aria-valuemax={100}><i style={{width: `${level}%`}}/></div>
-      <div className="live-audio-actions"><button className="live-audio-primary" disabled={busy} onClick={() => void testMic()}><Mic size={17}/>{testing ? "Stop test" : voiceDetected ? "Test again" : "Check microphone"}</button><button onClick={() => void testSpeaker()}><Volume2 size={17}/>Test speaker</button></div>
-      {voiceDetected ? <p className="live-audio-success"><span aria-hidden="true">✓</span> Microphone ready</p> : null}
+      <p className={`live-audio-status is-${microphoneStatus}`} role="status">
+        <strong>Mic input:</strong>{" "}
+        {microphoneStatus === "ready" ? microphoneOn ? "Track is enabled in this browser." : "Device is ready; Mic is currently off." : null}
+        {microphoneStatus === "idle" ? "Not connected yet. Turn on Mic to request a device." : null}
+        {microphoneStatus === "muted" ? "Device input is temporarily unavailable. Try Mic off, then on, or select another device." : null}
+        {microphoneStatus === "ended" ? "The device track ended. Select a device or turn Mic on to reconnect." : null}
+        {microphoneStatus === "error" ? "No working device track. Check permissions or choose another microphone." : null}
+      </p>
+      <div className={`live-audio-meter${testing ? " is-testing" : ""}`} role="meter" aria-label="Local microphone test input level" aria-valuenow={level} aria-valuemin={0} aria-valuemax={100}><i style={{width: `${level}%`}}/></div>
+      <div className="live-audio-actions"><button className="live-audio-primary" disabled={busy} onClick={() => void testMic()}><Mic size={17}/>{testing ? "Stop test" : voiceDetected ? "Test again" : "Check microphone"}</button><button onClick={() => void testSpeaker()}><Volume2 size={17}/>Test speaker</button><button type="button" disabled={copyingDiagnostics} onClick={() => void copyDiagnostics()}><Copy size={16}/>{copyingDiagnostics ? "Copying…" : "Copy diagnostics"}</button></div>
+      {voiceDetected ? <p className="live-audio-success"><span aria-hidden="true">✓</span> Local input detected</p> : null}
       <p role="status">{message}</p>
-      <small>{states.length ? `${states.filter(s => s === "connected").length} of ${states.length} media connections connected.` : "Waiting for another participant to test the live connection."} {states.some(s => s === "failed" || s === "disconnected") ? "Your network may block direct audio. Try another network and reconnect." : "Microphone permission and media connection are separate checks."}</small>
+      <small>{connectionSummary} This is transport status; local mic input is checked separately.</small>
+      {states.some(s => s === "failed" || s === "disconnected") ? <div className="live-audio-actions"><button type="button" onClick={() => { onReconnectMedia(); setMessage("Media reconnect requested. Check the connection status above."); }}>Reconnect media</button><small>Your network may block direct media. Reconnecting does not request microphone permission again.</small></div> : null}
     </section>;
   return embedded ? (
     <div className="live-audio-dialog live-audio-embedded">{content}</div>
