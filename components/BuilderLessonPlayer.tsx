@@ -15,6 +15,7 @@ import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
 import { NarrationFullScript, NarrationGlossaryPanel, NarrationGlossaryWord, NarrationReadPreview, PinnedNarrationReadPreview, narrationGlossary, type NarrationGlossaryEntry } from "@/components/NarrationStudyAssist";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { resolveLessonPlayerSteps, supportsAutoplay, type LessonPhaseItem, type LessonTemplate, type PracticeLearnLink } from "@/lib/lessonTemplates";
+import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null; lesson_template?: LessonTemplate; autoplay_enabled?: boolean; autoplay_mode?: "FIXED_DURATION" | "NARRATION_DURATION"; autoplay_duration_seconds?: number };
 type Slide = {
@@ -38,6 +39,15 @@ type InstantClassMode = {
   responses: Array<{ activity_id: string; answers: Json }>;
 };
 type LiveSessionMode = { sessionId: string; role: "TEACHER" | "STUDENT"; initialSlideNumber: number; navigationLocked: boolean };
+
+function practiceActivityTitle(activity: Activity | null) {
+  if (!activity) return null;
+  const data = activity.activity_data && typeof activity.activity_data === "object" && !Array.isArray(activity.activity_data)
+    ? activity.activity_data as Record<string, unknown>
+    : {};
+  const title = typeof data.title === "string" ? data.title.trim() : "";
+  return title || lessonActivityDefinition(activity.activity_type)?.label || activity.activity_type.replaceAll("_", " ");
+}
 
 function activityQuestionCount(activity: Activity) {
   const data = activity.activity_data && typeof activity.activity_data === "object" && !Array.isArray(activity.activity_data)
@@ -682,6 +692,9 @@ export function BuilderLessonPlayer({
   const practiceSubmitted = slideActivities.length > 0 && slideActivities.every((a) => latestAttemptByActivity.has(a.id));
   const learnLocked = practiceFirst && Boolean(slide?.require_practice_before_learn) && practiceAvailable && !practiceSubmitted && !instantClass?.creator;
   const activePracticeActivity = slideActivities[practiceActivityIndex] ?? slideActivities[0] ?? null;
+  const displayedSlideTitle = template === "LTP" && slide?.player_phase === "PRACTICE"
+    ? practiceActivityTitle(activePracticeActivity) ?? "Practice"
+    : slide?.title;
 
   function handleActivityNext() {
     if (practiceActivityIndex < slideActivities.length - 1) {
@@ -1185,7 +1198,7 @@ export function BuilderLessonPlayer({
               </div>
 
               {/* Line 2 — slide title */}
-              <h2 className="mt-1 text-[22px] font-extrabold">{slide.title}</h2>
+              <h2 className="mt-1 text-[22px] font-extrabold">{displayedSlideTitle}</h2>
 
               {/* Line 3 — section label */}
               {slide.section_label && (
