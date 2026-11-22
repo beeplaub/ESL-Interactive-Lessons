@@ -14,16 +14,6 @@ import { CEFR_LEVELS, expandLevelToBands, type CefrLevel } from "@/lib/levels";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
 import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
 
-/** Accessible tooltip text for each CEFR band pill (not shown in the pill label itself). */
-const LEVEL_DESCRIPTORS: Record<CefrLevel, string> = {
-  A1: "Beginner",
-  A2: "Elementary",
-  B1: "Intermediate",
-  B2: "Upper Intermediate",
-  C1: "Advanced",
-  C2: "Proficiency",
-};
-
 export default async function CoursesPage({
   searchParams,
 }: {
@@ -76,17 +66,6 @@ export default async function CoursesPage({
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  const levelPills = CEFR_LEVELS;
-  function levelHref(level: string) {
-    const sp = new URLSearchParams();
-    if (level) sp.set("level", level);
-    if (searchQuery) sp.set("q", searchQuery);
-    if (sort !== "popular") sp.set("sort", sort);
-    selectedTopics.forEach((topic) => sp.append("topic", topic));
-    const qs = sp.toString();
-    return qs ? `/courses?${qs}` : "/courses";
-  }
-
   return (
     <LearnerAppShell active="courses" showRightSidebar>
         <section className="flex min-w-0 flex-col gap-5">
@@ -104,41 +83,11 @@ export default async function CoursesPage({
             </Link>
           </LearnerResumeHero>
 
-          <section id="course-library" className="relative z-30 flex flex-col items-stretch gap-2 pb-0.5 sm:flex-row sm:items-center sm:gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-              <Link
-                href={levelHref("")}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-                  !activeLevel
-                    ? "bg-[var(--br-chart-primary)] text-on-dark"
-                    : "border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-primary)]/40"
-                }`}
-              >
-                All Levels
-              </Link>
-              {levelPills.map((band) => (
-                <Link
-                  key={band}
-                  href={levelHref(band)}
-                  title={LEVEL_DESCRIPTORS[band]}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-                    activeLevel === band
-                      ? "bg-[var(--br-chart-primary)] text-on-dark"
-                      : "border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-primary)]/40"
-                  }`}
-                >
-                  {band}
-                </Link>
-              ))}
-            </div>
-            <div className="relative z-50 w-full sm:ml-auto sm:w-auto sm:shrink-0">
-              <CourseFilterControls
-                level={activeLevel}
-                q={searchQuery}
-                sort={sort}
-                selectedTopics={selectedTopics}
-              />
-            </div>
+          <section id="course-library" className="relative z-30 min-w-0 pb-0.5">
+            <CourseFilterControls
+              level={activeLevel}
+              sort={sort}
+            />
           </section>
 
           {(activeLevel || searchQuery || selectedTopics.length > 0) ? (
