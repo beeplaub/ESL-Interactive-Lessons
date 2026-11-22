@@ -492,7 +492,6 @@ export function BuilderLessonPlayer({
   const [jumpMenuPosition, setJumpMenuPosition] = useState<{ left: number; bottom: number } | null>(null);
   const jumpButtonRef = useRef<HTMLButtonElement>(null);
   const mobileSlideMapRef = useRef<HTMLDivElement>(null);
-  const desktopSlideRailRef = useRef<HTMLDivElement>(null);
   const [practiceActivityIndex, setPracticeActivityIndex] = useState(0);
   const [reviewChecklistState, setReviewChecklistState] = useState<Record<string, boolean[]>>({});
 
@@ -951,15 +950,6 @@ export function BuilderLessonPlayer({
       const trackCenter = trackRect.left + mobileTrack.clientWidth / 2;
       mobileTrack.scrollTo({ left: mobileTrack.scrollLeft + activeCenter - trackCenter, behavior: "smooth" });
     }
-    const desktopTrack = desktopSlideRailRef.current;
-    const desktopActive = desktopTrack?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
-    if (desktopTrack && desktopActive) {
-      const top = desktopActive.offsetTop - desktopTrack.offsetTop;
-      if (top < desktopTrack.scrollTop) desktopTrack.scrollTo({ top, behavior: "smooth" });
-      else if (top + desktopActive.offsetHeight > desktopTrack.scrollTop + desktopTrack.clientHeight) {
-        desktopTrack.scrollTo({ top: top + desktopActive.offsetHeight - desktopTrack.clientHeight, behavior: "smooth" });
-      }
-    }
   }, [index]);
 
   function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
@@ -1116,24 +1106,7 @@ export function BuilderLessonPlayer({
       {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
       {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={liveNavigationLocked} /> : null}
 
-      <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
-      {!practiceModuleMode ? <aside className="hidden min-[1180px]:block">
-        <div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1">
-          {autoplayConfigured ? <button type="button" onClick={() => setAutoplayPaused((value) => !value)} className="flex min-h-10 w-10 shrink-0 flex-col items-center justify-center rounded-2xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-[var(--br-shadow)] transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"} title={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null}
-          <div className="flex max-h-[calc(100dvh-2.5rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]">
-            <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button>
-            {pinnedMobileRailPhase ? <div className="grid size-7 shrink-0 place-items-center rounded-full bg-surface"><PhaseGateMarker phase={pinnedMobileRailPhase} onClick={pinnedMobileRailPhase === "PRACTICE" ? openPracticeGate : openLearnGate} /></div> : null}
-            <nav ref={desktopSlideRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {slides.map((item, slideIndex) => <div key={item.phase_item_id ?? item.id} className="flex flex-col items-center gap-1">
-                {showLearnRailMarker && pinnedMobileRailPhase !== "LEARN" && slideIndex === learnRailStart ? <PhaseGateMarker phase="LEARN" onClick={openLearnGate} /> : null}
-                {showPracticeRailMarker && pinnedMobileRailPhase !== "PRACTICE" && slideIndex === practiceRailStart ? <PhaseGateMarker phase="PRACTICE" onClick={openPracticeGate} /> : null}
-                <button key={item.phase_item_id ?? item.id} type="button" data-slide-index={slideIndex} disabled={(isLiveStudent && liveNavigationLocked) || !canOpenSlide(item)} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-7 shrink-0 place-items-center rounded-full border text-[10px] font-extrabold transition ${slideIndex === index ? item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)] bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-transparent bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : `bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-[var(--br-border)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-transparent"}`} disabled:cursor-not-allowed disabled:opacity-45`}>{slideIndex + 1}</button>
-              </div>)}
-            </nav>
-            <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button>
-          </div>
-        </div>
-      </aside> : null}
+      <div className="grid min-w-0 grid-cols-1">
       <div
         className="relative min-w-0 overflow-hidden"
         style={{ touchAction: "pan-x pan-y" }}
@@ -1228,7 +1201,7 @@ export function BuilderLessonPlayer({
               onTouchMove={(event) => event.stopPropagation()}
               onTouchEnd={(event) => event.stopPropagation()}
               onTouchCancel={(event) => event.stopPropagation()}
-              className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] [touch-action:pan-x_pan-y] min-[1180px]:hidden"
+              className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] [touch-action:pan-x_pan-y]"
             >
               {autoplayConfigured ? <button type="button" onClick={() => setAutoplayPaused((value) => !value)} className="flex h-9 w-10 shrink-0 flex-col items-center justify-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-sm transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"} title={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null}
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>
