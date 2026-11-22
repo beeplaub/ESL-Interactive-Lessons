@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Fragment, type TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Languages, List, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, Timer, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronLeft, ChevronRight, Languages, List, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, Timer, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints, lessonActivityScore } from "@/components/LessonActivityPanel";
 import { LessonContentTabs } from "@/components/LessonContentTabs";
@@ -91,7 +91,7 @@ function PhaseGateMarker({ phase, onClick, compact = false }: { phase: "LEARN" |
   const label = phase === "LEARN" ? "L" : "P";
   const title = phase === "LEARN" ? "Open Start Learning" : "Open Start Practicing";
   const color = phase === "LEARN" ? "bg-[var(--br-chart-primary)]" : "bg-[var(--br-chart-secondary)]";
-  const className = `grid shrink-0 place-items-center rounded-full ${color} font-black text-on-dark ${compact ? "size-8 text-[11px] shadow-sm min-[1180px]:size-7 min-[1180px]:text-[10px]" : "size-7 text-[10px]"}`;
+  const className = `grid shrink-0 place-items-center rounded-full ${color} font-black text-on-dark ${compact ? "size-8 text-[11px] shadow-sm" : "size-7 text-[10px]"}`;
   return onClick
     ? <button type="button" onClick={onClick} aria-label={title} title={title} className={`${className} transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-brand)]`}>{label}</button>
     : <span aria-label={title} title={title} className={className}>{label}</span>;
@@ -103,7 +103,6 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
   autoplayAvailable?: boolean; autoplayPaused?: boolean; unlockedPhases?: Array<"LEARN" | "PRACTICE">; onToggleAutoplay?: () => void;
   onSelectGate?: (phase: "LEARN" | "PRACTICE") => void; onSelectSlide?: (index: number) => void; onStart: () => void;
 }) {
-  const desktopGateRailRef = useRef<HTMLDivElement>(null);
   const mobileGateRailRef = useRef<HTMLDivElement>(null);
   const practiceStart = slides.findIndex((item) => item.player_phase === "PRACTICE");
   const learnStart = slides.findIndex((item) => item.player_phase === "LEARN");
@@ -121,37 +120,26 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
       const slideRect = mobileSlide.getBoundingClientRect();
       mobileRail.scrollTo({ left: mobileRail.scrollLeft + slideRect.left - railRect.left, behavior: "auto" });
     }
-    const desktopFrame = window.requestAnimationFrame(() => {
-      const desktopRail = desktopGateRailRef.current;
-      if (!desktopRail?.getClientRects().length) return;
-      const desktopSlide = desktopRail.querySelector<HTMLElement>(`[data-gate-slide-index="${targetIndex}"]`);
-      if (!desktopSlide) return;
-      const railRect = desktopRail.getBoundingClientRect();
-      const slideRect = desktopSlide.getBoundingClientRect();
-      desktopRail.scrollTo({ top: desktopRail.scrollTop + slideRect.top - railRect.top, behavior: "auto" });
-    });
-    return () => window.cancelAnimationFrame(desktopFrame);
   }, [phase, pinnedGatePhase, practiceStart]);
   const rail = <>
     {slides.map((item, index) => <div key={`${item.title}-${index}`} className="flex shrink-0 items-center gap-1">
       {showLearnMarker && pinnedGatePhase !== "LEARN" && index === (learnStart >= 0 ? learnStart : 0) ? <PhaseGateMarker phase="LEARN" onClick={() => onSelectGate?.("LEARN")} compact /> : null}
       {showPracticeMarker && pinnedGatePhase !== "PRACTICE" && index === practiceStart ? <PhaseGateMarker phase="PRACTICE" onClick={() => onSelectGate?.("PRACTICE")} compact /> : null}
-      <button type="button" data-gate-slide-index={index} disabled={!onSelectSlide || !unlockedPhases.includes(item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN"))} onClick={() => onSelectSlide?.(index)} aria-label={`Slide ${index + 1}: ${item.title}`} className={`grid size-8 shrink-0 place-items-center rounded-full border bg-[var(--br-canvas-elevated)] text-[11px] font-extrabold text-[var(--br-text-muted)] min-[1180px]:size-7 min-[1180px]:text-[10px] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"} ${unlockedPhases.includes(item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN")) ? "" : "opacity-60"}`}>{index + 1}</button>
+      <button type="button" data-gate-slide-index={index} disabled={!onSelectSlide || !unlockedPhases.includes(item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN"))} onClick={() => onSelectSlide?.(index)} aria-label={`Slide ${index + 1}: ${item.title}`} className={`grid size-8 shrink-0 place-items-center rounded-full border bg-[var(--br-canvas-elevated)] text-[11px] font-extrabold text-[var(--br-text-muted)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"} ${unlockedPhases.includes(item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN")) ? "" : "opacity-60"}`}>{index + 1}</button>
     </div>)}
   </>;
   const autoButton = autoplayAvailable ? <button type="button" onClick={onToggleAutoplay} className="flex min-h-10 w-10 shrink-0 flex-col items-center justify-center rounded-2xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-[var(--br-shadow)] transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Enable autoplay after starting" : "Disable autoplay after starting"} title={autoplayPaused ? "Enable autoplay after starting" : "Disable autoplay after starting"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null;
   const slideMap = <div ref={mobileGateRailRef} className="flex min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: "pan-x pan-y" }}>{rail}</div>;
 
   return <main className="mx-auto max-w-7xl overflow-x-hidden px-1 py-3 sm:px-4 sm:py-5 min-[1180px]:px-0">
-    <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
-      <aside className="hidden min-[1180px]:block"><div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1">{autoButton}<div className="flex max-h-[calc(100dvh-2.5rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]"><button type="button" onClick={() => desktopGateRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button>{pinnedGatePhase ? <div className="grid size-7 shrink-0 place-items-center rounded-full bg-surface"><PhaseGateMarker phase={pinnedGatePhase} onClick={() => onSelectGate?.(pinnedGatePhase)} /></div> : null}<nav ref={desktopGateRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{slides.map((item, index) => { const itemPhase = item.player_phase ?? (practiceOnlyStart ? "PRACTICE" : "LEARN"); const itemUnlocked = unlockedPhases.includes(itemPhase); return <div key={`${item.title}-rail-${index}`} className="flex flex-col items-center gap-1 py-0.5">{showLearnMarker && pinnedGatePhase !== "LEARN" && index === (learnStart >= 0 ? learnStart : 0) ? <PhaseGateMarker phase="LEARN" onClick={() => onSelectGate?.("LEARN")} /> : null}{showPracticeMarker && pinnedGatePhase !== "PRACTICE" && index === practiceStart ? <PhaseGateMarker phase="PRACTICE" onClick={() => onSelectGate?.("PRACTICE")} /> : null}<button type="button" data-gate-slide-index={index} disabled={!onSelectSlide || !itemUnlocked} onClick={() => onSelectSlide?.(index)} aria-label={`Slide ${index + 1}: ${item.title}`} className={`grid size-7 place-items-center rounded-full border bg-[var(--br-canvas-elevated)] text-[10px] font-extrabold text-[var(--br-text-muted)] ${item.player_phase === "PRACTICE" ? "border-[var(--br-chart-secondary)]" : item.player_phase === "LEARN" ? "border-[var(--br-chart-primary)]" : "border-[var(--br-surface-strong)]"} ${itemUnlocked ? "" : "opacity-60"}`}>{index + 1}</button></div>; })}</nav><button type="button" onClick={() => desktopGateRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button></div></div></aside>
+    <div className="grid min-w-0 grid-cols-1">
       <section className="min-w-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
         <header className="mb-2 rounded-[18px] bg-[var(--br-brand)] px-4 py-3 text-white sm:mb-3">
           <div className="flex items-center justify-between gap-2">{backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"><ArrowLeft size={15} /></Link> : <span />}</div>
           <h1 className="mt-1 text-[22px] font-extrabold">{title}</h1>
           <p className="mt-1 text-sm text-white/60">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
         </header>
-        <div className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] min-[1180px]:hidden">{autoButton}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>{pinnedGatePhase ? <div className="grid size-8 shrink-0 place-items-center rounded-full bg-white"><PhaseGateMarker phase={pinnedGatePhase} onClick={() => onSelectGate?.(pinnedGatePhase)} compact /></div> : null}{slideMap}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button></div>
+        <div className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)]">{autoButton}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>{pinnedGatePhase ? <div className="grid size-8 shrink-0 place-items-center rounded-full bg-white"><PhaseGateMarker phase={pinnedGatePhase} onClick={() => onSelectGate?.(pinnedGatePhase)} compact /></div> : null}{slideMap}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button></div>
         <div className="grid place-items-center px-1 pb-1 sm:px-2 sm:pb-2">
           <div className="relative grid aspect-[9/16] w-full max-w-[360px] place-items-center overflow-hidden rounded-[18px] border border-[var(--br-surface-strong)] bg-[radial-gradient(ellipse_at_20%_15%,var(--br-brand-soft),transparent_55%),linear-gradient(145deg,var(--br-canvas-elevated),var(--br-surface))] p-5 shadow-inner sm:aspect-video sm:max-w-none sm:p-8">
             {imageUrl ? <>
