@@ -400,7 +400,7 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
     ref={frameRef}
     data-zoomable-image-stage
     data-image-zoom={zoom}
-    className={`group relative grid w-full max-w-full place-items-center overflow-hidden ${fullscreen ? "h-full" : "min-h-0"} ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : ""}`}
+    className={`group relative grid w-full max-w-full place-items-center overflow-hidden ${fullscreen ? "h-full grid-rows-[minmax(0,1fr)]" : "min-h-0"} ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : ""}`}
     style={{ touchAction: fullscreen || zoom > 1 ? "none" : "pan-y" }}
     onPointerEnter={(event) => { if (event.pointerType === "mouse") setControlsVisible(true); }}
     onPointerLeave={(event) => { if (event.pointerType === "mouse") setControlsVisible(false); }}
@@ -415,7 +415,7 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
     }}
   >
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img ref={imageRef} src={src} alt={alt} draggable={false} className={`${fullscreen ? "max-h-full max-w-full object-contain" : imageClassName} select-none`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "center center", pointerEvents: "none" }} />
+    <img ref={imageRef} src={src} alt={alt} draggable={false} className={`${fullscreen ? "h-full w-full object-contain" : imageClassName} select-none`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "center center", pointerEvents: "none" }} />
     {controls}
   </div>;
 }
@@ -424,11 +424,63 @@ function ZoomableImage({ src, alt, className }: { src: string; alt: string; clas
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<ImagePan>({ x: 0, y: 0 });
+  const [mobilePortrait, setMobilePortrait] = useState(false);
+  const [landscapeFallback, setLandscapeFallback] = useState(false);
 
   const closeFullscreen = useCallback(() => {
     setOpen(false);
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setLandscapeFallback(false);
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    try {
+      const orientation = window.screen.orientation as (ScreenOrientation & { unlock?: () => void }) | undefined;
+      orientation?.unlock?.();
+    } catch {
+      // Orientation unlock is not available in every browser.
+    }
+  }, []);
+
+  const openFullscreen = useCallback(async () => {
+    const isMobile = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+    setOpen(true);
+    if (!isMobile) return;
+
+    // Prefer real device rotation when the browser supports fullscreen
+    // orientation locking. The rotated viewport below is the cross-browser fallback.
+    setLandscapeFallback(true);
+    try {
+      const root = document.documentElement;
+      if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: "hide" });
+      else return;
+
+      const orientation = window.screen.orientation as (ScreenOrientation & {
+        lock?: (value: "landscape") => Promise<void>;
+      }) | undefined;
+      if (!orientation?.lock) return;
+      await orientation.lock("landscape");
+      setLandscapeFallback(false);
+    } catch {
+      setLandscapeFallback(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const updateOrientation = () => {
+      const isMobile = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+      setMobilePortrait(isMobile && window.matchMedia("(orientation: portrait)").matches);
+    };
+    const orientation = window.screen.orientation as (ScreenOrientation & {
+      addEventListener?: (type: "change", listener: () => void) => void;
+      removeEventListener?: (type: "change", listener: () => void) => void;
+    }) | undefined;
+    updateOrientation();
+    window.addEventListener("resize", updateOrientation);
+    orientation?.addEventListener?.("change", updateOrientation);
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      orientation?.removeEventListener?.("change", updateOrientation);
+    };
   }, []);
 
   useEffect(() => {
@@ -443,17 +495,17 @@ function ZoomableImage({ src, alt, className }: { src: string; alt: string; clas
     };
   }, [closeFullscreen, open]);
 
-  const inlineStage = <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={() => setOpen(true)} onCloseFullscreen={closeFullscreen} />;
+  const inlineStage = <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />;
 
   return <>
     <div className="relative max-w-full overflow-hidden">{inlineStage}</div>
     {open && typeof document !== "undefined" ? createPortal(
-      <div className="fixed inset-0 z-[150] bg-black/90 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" style={{ touchAction: "none" }} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()} onTouchCancel={(event) => event.stopPropagation()} onClick={closeFullscreen}>
-        <div className="absolute inset-3 sm:inset-6" onClick={(event) => event.stopPropagation()}>
-          <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} fullscreen onZoomChange={setZoom} onPanChange={setPan} onFullscreen={() => setOpen(true)} onCloseFullscreen={closeFullscreen} />
+      <div className="fixed inset-0 z-[150] bg-black p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" style={{ touchAction: "none" }} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()} onTouchCancel={(event) => event.stopPropagation()} onClick={closeFullscreen}>
+        <div className={`${landscapeFallback && mobilePortrait ? "fixed left-1/2 top-1/2 h-[100vw] w-[100dvh] -translate-x-1/2 -translate-y-1/2 rotate-90 overflow-hidden p-3" : "absolute inset-3 sm:inset-6"}`} onClick={(event) => event.stopPropagation()}>
+          <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} fullscreen onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />
+          <div className="absolute left-1 top-1 text-xs font-semibold text-white/70">Tap outside or press Esc to close</div>
+          <button type="button" onClick={closeFullscreen} className="absolute right-1 top-1 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20" aria-label="Close expanded image"><Minimize size={18} /></button>
         </div>
-        <div className="absolute left-4 top-4 text-xs font-semibold text-white/70">Tap outside or press Esc to close</div>
-        <button type="button" onClick={closeFullscreen} className="absolute right-4 top-4 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20" aria-label="Close expanded image"><Minimize size={18} /></button>
       </div>,
       document.body,
     ) : null}
