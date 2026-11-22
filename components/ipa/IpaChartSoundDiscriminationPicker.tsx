@@ -99,8 +99,23 @@ export function IpaChartSoundDiscriminationPicker({
         const pairs = result?.pairs as Partial<Record<Accent, ChartPair[]>> | undefined;
         const safePairs = pairs ?? {};
         setData(safePairs);
-        const available = safePairs[initialAccent] ?? [];
         const savedRounds = Array.isArray(initial.current.rounds) ? initial.current.rounds as SoundDiscriminationRound[] : [];
+        // Keep saved curated rounds visible even when the current generated chart
+        // endpoint does not include their pair id.
+        const savedFallbacks = savedRounds.flatMap(round => {
+          if (safePairs[initialAccent]?.some(pair => pair.id === round.chart_pair_id) || round.pairs.length < 2) return [];
+          const [left, right] = round.pairs;
+          return [{
+            id: round.chart_pair_id,
+            accent: initialAccent,
+            contrastType: round.contrast_type,
+            left: { wordId: left.word_id, word: left.word, ipa: left.phonetic, soundId: left.sound_id, audioUrl: left.audio_url },
+            right: { wordId: right.word_id, word: right.word, ipa: right.phonetic, soundId: right.sound_id, audioUrl: right.audio_url },
+            contrastSymbols: round.contrast_symbols,
+          } satisfies ChartPair];
+        });
+        const available = [...(safePairs[initialAccent] ?? []), ...savedFallbacks];
+        setData({ ...safePairs, [initialAccent]: available });
         const previousIds = savedRounds.length ? savedRounds.map(round => round.chart_pair_id) : [String(initial.current.chart_pair_id ?? "")].filter(Boolean);
         const restored = previousIds.flatMap(id => {
           const pair = available.find(item => item.id === id);
