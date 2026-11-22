@@ -5,11 +5,12 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Loader2, Plus
 import { listApprovedSpeechPrompts, listSpeechPracticeCategories } from "@/app/admin/speech-practice/actions";
 import { SpeechPracticeGlassSelect } from "@/components/SpeechPracticeGlassSelect";
 
-export type SpeechPromptSnapshot = { source_prompt_id: string; title: string; text: string; audio_url: string; accent: "en-GB" | "en-US"; cefr_level: string | null; category_id?: string | null; difficulty?: string | null; target_sounds: string[]; tags: string[] };
-type LibraryPrompt = { id: string; title: string; text: string; cefr_level: string | null; category_id: string | null; difficulty: string | null; target_sounds: string[]; tags: string[]; audio_variants: Record<string, { url?: string; status?: string }> };
+export type SpeechWordMetadata = { ipa?: string; syllables?: Array<{ text: string; stress: "primary" | "secondary" | "unstressed" }>; part_of_speech?: string; meaning?: string; example_sentence?: string; common_mistake?: string };
+export type SpeechPromptSnapshot = { source_prompt_id: string; title: string; text: string; audio_url: string; accent: "en-GB" | "en-US"; cefr_level: string | null; category_id?: string | null; difficulty?: string | null; target_sounds: string[]; tags: string[]; word_metadata?: SpeechWordMetadata };
+type LibraryPrompt = { id: string; title: string; text: string; cefr_level: string | null; category_id: string | null; difficulty: string | null; target_sounds: string[]; tags: string[]; word_metadata?: SpeechWordMetadata; audio_variants: Record<string, { url?: string; status?: string }> };
 type Category = { id: string; name: string };
 
-export function SpeechPracticePromptPicker({ type, selected, onChange, selectionMode = "multiple", onChooseItem }: { type: "SHADOWING" | "TONGUE_TWISTER"; selected: SpeechPromptSnapshot[]; onChange: (items: SpeechPromptSnapshot[]) => void; selectionMode?: "multiple" | "single"; onChooseItem?: (item: SpeechPromptSnapshot) => void }) {
+export function SpeechPracticePromptPicker({ type, selected, onChange, selectionMode = "multiple", onChooseItem }: { type: "SHADOWING" | "TONGUE_TWISTER" | "WORD"; selected: SpeechPromptSnapshot[]; onChange: (items: SpeechPromptSnapshot[]) => void; selectionMode?: "multiple" | "single"; onChooseItem?: (item: SpeechPromptSnapshot) => void }) {
   const [open, setOpen] = useState(true);
   const [items, setItems] = useState<LibraryPrompt[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -31,13 +32,14 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
       .catch(() => setError("Could not load approved prompts."))
       .finally(() => setBusy(false));
   }, [items.length, open, type]);
+  useEffect(() => { setItems([]); setPage(0); setTargetSound(""); setDifficulty(""); }, [type]);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
     return items.filter((item) => {
       const matchesSearch = !term || [item.title, item.text, item.cefr_level, ...item.target_sounds, ...item.tags].some((value) => String(value ?? "").toLocaleLowerCase().includes(term));
       const matchesCategory = type !== "SHADOWING" || !categoryId || item.category_id === categoryId;
-      const matchesSound = type !== "TONGUE_TWISTER" || !targetSound || item.target_sounds.includes(targetSound);
+      const matchesSound = (type !== "TONGUE_TWISTER" && type !== "WORD") || !targetSound || item.target_sounds.includes(targetSound);
       const matchesDifficulty = type !== "TONGUE_TWISTER" || !difficulty || item.difficulty === difficulty;
       return matchesSearch && matchesCategory && matchesSound && matchesDifficulty;
     });
@@ -48,8 +50,9 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
 
   const add = (item: LibraryPrompt) => {
     const audio = item.audio_variants[accent];
-    if (!audio?.url || audio.status !== "APPROVED" || selected.some((choice) => choice.source_prompt_id === item.id && choice.accent === accent)) return;
-    const choice = { source_prompt_id: item.id, title: item.title, text: item.text, audio_url: audio.url, accent, cefr_level: item.cefr_level, category_id: item.category_id, difficulty: item.difficulty, target_sounds: item.target_sounds ?? [], tags: item.tags ?? [] };
+    const hasApprovedAudio = Boolean(audio?.url && audio.status === "APPROVED");
+    if ((!hasApprovedAudio && type !== "WORD") || selected.some((choice) => choice.source_prompt_id === item.id && choice.accent === accent)) return;
+    const choice = { source_prompt_id: item.id, title: item.title, text: item.text, audio_url: hasApprovedAudio ? audio.url! : "", accent, cefr_level: item.cefr_level, category_id: item.category_id, difficulty: item.difficulty, target_sounds: item.target_sounds ?? [], tags: item.tags ?? [], word_metadata: item.word_metadata };
     if (selectionMode === "single") onChooseItem?.(choice);
     else onChange([...selected, choice]);
   };
@@ -66,7 +69,7 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-extrabold text-[var(--br-dark-card)]">Prompt library</p>
-          <p className="text-xs text-[var(--br-text-muted)]">Approved text and audio are copied into this activity.</p>
+          <p className="text-xs text-[var(--br-text-muted)]">{type === "WORD" ? "Words can be scored without model audio; choose a reference clip when available." : "Approved text and audio are copied into this activity."}</p>
         </div>
         {selectionMode === "multiple" && selected.length ? <details className="group relative">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-bold text-violet-800 [&::-webkit-details-marker]:hidden">{selected.length} selected <ChevronDown size={14} className="transition group-open:rotate-180" /></summary>
@@ -84,24 +87,24 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
         <label className="relative block min-w-0">
           <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)]" />
-          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search sentences or sounds" className="h-9 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white pl-8 pr-2 text-xs" />
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder={type === "WORD" ? "Search words or sounds" : "Search sentences or sounds"} className="h-9 w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-white pl-8 pr-2 text-xs" />
         </label>
         <div className="w-36 shrink-0"><SpeechPracticeGlassSelect label="Audio accent" value={accent} options={[{ value: "en-GB", label: "UK audio" }, { value: "en-US", label: "US audio" }]} onChange={(value) => { setAccent(value as typeof accent); setPage(0); }} /></div>
       </div>
 
-      {type === "SHADOWING" ? <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 text-xs font-bold text-[var(--br-text-muted)]"><label className="grid min-w-0 gap-1"><span>Topic category</span><SpeechPracticeGlassSelect label="Topic category" value={categoryId} options={[{ value: "", label: "All categories" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} onChange={(value) => { setCategoryId(value); setPage(0); }} /></label><button type="button" aria-pressed={!categoryId} onClick={() => { setCategoryId(""); setPage(0); }} className={`mb-px min-h-10 rounded-lg border px-3 text-xs font-bold ${!categoryId ? "border-violet-300 bg-violet-50 text-violet-800" : "border-[var(--br-border)] bg-white text-[var(--br-text-muted)] hover:bg-slate-50"}`}>All</button></div> : <div className="grid min-w-0 grid-cols-2 gap-2">
+      {type === "SHADOWING" ? <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 text-xs font-bold text-[var(--br-text-muted)]"><label className="grid min-w-0 gap-1"><span>Topic category</span><SpeechPracticeGlassSelect label="Topic category" value={categoryId} options={[{ value: "", label: "All categories" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} onChange={(value) => { setCategoryId(value); setPage(0); }} /></label><button type="button" aria-pressed={!categoryId} onClick={() => { setCategoryId(""); setPage(0); }} className={`mb-px min-h-10 rounded-lg border px-3 text-xs font-bold ${!categoryId ? "border-violet-300 bg-violet-50 text-violet-800" : "border-[var(--br-border)] bg-white text-[var(--br-text-muted)] hover:bg-slate-50"}`}>All</button></div> : type === "TONGUE_TWISTER" ? <div className="grid min-w-0 grid-cols-2 gap-2">
         <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Target sound</span><SpeechPracticeGlassSelect label="Target sound" value={targetSound} options={[{ value: "", label: "All sounds" }, ...[...new Set(items.flatMap((item) => item.target_sounds))].sort().map((sound) => ({ value: sound, label: sound }))]} onChange={(value) => { setTargetSound(value); setPage(0); }} /></div>
         <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Difficulty</span><SpeechPracticeGlassSelect label="Difficulty" value={difficulty} options={[{ value: "", label: "All levels" }, ...[["EASY","Easy"],["MODERATE","Moderate"],["DIFFICULT","Difficult"],["VERY_DIFFICULT","Very difficult"]].map(([value,label]) => ({ value, label }))]} onChange={(value) => { setDifficulty(value); setPage(0); }} /></div>
-      </div>}
+      </div> : <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Target sound</span><SpeechPracticeGlassSelect label="Target sound" value={targetSound} options={[{ value: "", label: "All sounds" }, ...[...new Set(items.flatMap((item) => item.target_sounds))].sort().map((sound) => ({ value: sound, label: sound }))]} onChange={(value) => { setTargetSound(value); setPage(0); }} /></div>}
 
       {busy ? <p className="flex min-h-24 items-center justify-center gap-2 text-xs text-[var(--br-text-muted)]"><Loader2 size={14} className="animate-spin" /> Loading prompts…</p> : error ? <p className="text-xs text-coral">{error}</p> : visibleItems.length ? <div className="grid min-w-0 gap-1.5">
         {visibleItems.map((item) => {
           const audio = item.audio_variants[accent];
           const alreadyAdded = selected.some((choice) => choice.source_prompt_id === item.id && choice.accent === accent);
-          const canAdd = audio?.status === "APPROVED" && !!audio.url;
+          const canAdd = type === "WORD" || (audio?.status === "APPROVED" && !!audio.url);
           return <article key={item.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--br-border)] bg-slate-50/70 px-2.5 py-2">
-            <div className="min-w-0 flex-1"><p className="truncate text-xs font-extrabold">{item.title} <span className="font-normal text-[var(--br-text-muted)]">· {item.cefr_level ?? "Level unset"}</span></p><p className="truncate text-xs text-[var(--br-text-muted)]">{item.text}</p></div>
-            <button type="button" disabled={!canAdd || (selectionMode === "multiple" && alreadyAdded)} onClick={() => add(item)} className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg bg-[var(--br-brand)] px-2.5 text-[11px] font-bold text-white disabled:opacity-40">{selectionMode === "single" ? <Check size={13} /> : alreadyAdded ? <Check size={13} /> : <Plus size={13} />}{selectionMode === "single" ? canAdd ? "Use sentence" : "No audio" : alreadyAdded ? "Added" : canAdd ? "Add" : "No audio"}</button>
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-extrabold">{item.title}{item.word_metadata?.ipa ? <span className="ml-1 font-mono font-medium text-[var(--br-text-muted)]">/{item.word_metadata.ipa}/</span> : null} <span className="font-normal text-[var(--br-text-muted)]">· {item.cefr_level ?? "Level unset"}</span></p><p className="truncate text-xs text-[var(--br-text-muted)]">{item.word_metadata?.meaning || item.text}</p></div>
+            <button type="button" disabled={!canAdd || (selectionMode === "multiple" && alreadyAdded)} onClick={() => add(item)} className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg bg-[var(--br-brand)] px-2.5 text-[11px] font-bold text-white disabled:opacity-40">{selectionMode === "single" ? <Check size={13} /> : alreadyAdded ? <Check size={13} /> : <Plus size={13} />}{selectionMode === "single" ? canAdd ? type === "WORD" ? "Use word" : "Use sentence" : "No audio" : alreadyAdded ? "Added" : canAdd ? "Add" : "No audio"}{type === "WORD" && !audio?.url ? <span className="ml-0.5 text-[9px] font-semibold opacity-80">· no model audio</span> : null}</button>
           </article>;
         })}
       </div> : <p className="grid min-h-24 place-items-center text-center text-xs text-[var(--br-text-muted)]">{items.length ? "No approved prompts match these filters yet." : "No approved prompts are available yet."}</p>}

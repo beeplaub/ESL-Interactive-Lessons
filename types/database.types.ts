@@ -19,7 +19,7 @@ export type Database = {
       speech_practice_prompts: {
         Row: {
           id: string;
-          prompt_type: "SHADOWING" | "TONGUE_TWISTER";
+          prompt_type: "SHADOWING" | "TONGUE_TWISTER" | "WORD";
           title: string;
           text: string;
           cefr_level: string | null;
@@ -29,6 +29,7 @@ export type Database = {
           target_sounds: string[];
           tags: string[];
           audio_variants: Json;
+          word_metadata: Json;
           status: "DRAFT" | "ACTIVE" | "ARCHIVED";
           created_by: string | null;
           created_at: string;
@@ -36,7 +37,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          prompt_type: "SHADOWING" | "TONGUE_TWISTER";
+          prompt_type: "SHADOWING" | "TONGUE_TWISTER" | "WORD";
           title: string;
           text: string;
           cefr_level?: string | null;
@@ -46,6 +47,7 @@ export type Database = {
           target_sounds?: string[];
           tags?: string[];
           audio_variants?: Json;
+          word_metadata?: Json;
           status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
           created_by?: string | null;
           created_at?: string;
@@ -53,7 +55,7 @@ export type Database = {
         };
         Update: {
           id?: string;
-          prompt_type?: "SHADOWING" | "TONGUE_TWISTER";
+          prompt_type?: "SHADOWING" | "TONGUE_TWISTER" | "WORD";
           title?: string;
           text?: string;
           cefr_level?: string | null;
@@ -63,6 +65,7 @@ export type Database = {
           target_sounds?: string[];
           tags?: string[];
           audio_variants?: Json;
+          word_metadata?: Json;
           status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
           created_by?: string | null;
           created_at?: string;

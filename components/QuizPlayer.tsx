@@ -2566,7 +2566,7 @@ function DragDrop({
   );
 }
 
-type PronunciationTarget = { id: string; text: string; color: string; audioUrl?: string };
+type PronunciationTarget = { id: string; text: string; color: string; audioUrl?: string; accent?: "en-GB" | "en-US"; cefrLevel?: string | null; wordMetadata?: { ipa?: string; syllables?: Array<{ text: string; stress: "primary" | "secondary" | "unstressed" }>; part_of_speech?: string; meaning?: string; example_sentence?: string; common_mistake?: string } };
 
 function OralResponse({
   question,
@@ -2824,7 +2824,7 @@ function Pronunciation({
   const targets: PronunciationTarget[] = Array.isArray(opts.targets)
     ? opts.targets.map((t) => {
         const row = asRecord(t as Json);
-        return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "var(--br-achievement)"), audioUrl: String(row.audio_url ?? row.audioUrl ?? "") };
+        return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "var(--br-achievement)"), audioUrl: String(row.audio_url ?? row.audioUrl ?? ""), accent: (row.accent === "en-GB" || row.accent === "en-US" ? row.accent : undefined) as PronunciationTarget["accent"], cefrLevel: typeof row.cefr_level === "string" ? row.cefr_level : null, wordMetadata: row.word_metadata && typeof row.word_metadata === "object" ? row.word_metadata as PronunciationTarget["wordMetadata"] : undefined };
       }).filter((target) => target.text.trim())
     : [];
   const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
@@ -2938,7 +2938,7 @@ function Pronunciation({
           form.append("file", wav, "pronunciation.wav");
           form.append("durationSeconds", String(durationSeconds));
           form.append("referenceText", level === "word" ? currentTargets.map((target) => target.text).join(" ") : passage);
-          form.append("locale", "en-US");
+          form.append("locale", currentTargets[0]?.accent ?? "en-US");
           const response = await fetch("/api/speech/pronunciation-assess", { method: "POST", body: form });
           const body = await response.json().catch(() => ({})) as { transcript?: string; error?: string; overallScore?: number; accuracyScore?: number; fluencyScore?: number; completenessScore?: number; prosodyScore?: number; words?: PronunciationAssessmentSummary["words"] };
           if (!response.ok || typeof body.overallScore !== "number") throw new Error(body.error || (response.status === 422 ? "We could not hear clear speech. Please move closer to the microphone and try again." : "Pronunciation feedback is temporarily unavailable."));
@@ -3077,6 +3077,7 @@ function Pronunciation({
           <div className="space-y-2">
             {currentTarget.audioUrl ? <AudioTrackPlayer key={`${currentTarget.id}-${currentTarget.audioUrl}`} variant="compact" value={[{ id: currentTarget.id, url: currentTarget.audioUrl, label: `Listen to ${currentTarget.text}` }]} className="justify-center" /> : <button type="button" disabled title="Example audio has not been added yet" aria-label={`Example audio for ${currentTarget.text} is not available yet`} className="mx-auto grid size-12 place-items-center rounded-full bg-orange-100 text-orange-700 opacity-60"><Volume2 size={21} /></button>}
             <h3 className="break-words text-4xl font-black tracking-tight sm:text-5xl" style={{ color: currentTarget.color }}>{currentTarget.text}</h3>
+            {currentTarget.wordMetadata?.ipa || currentTarget.cefrLevel || currentTarget.wordMetadata?.syllables?.length || currentTarget.wordMetadata?.meaning ? <div className="mx-auto max-w-xl space-y-2 text-center">{currentTarget.wordMetadata?.ipa || currentTarget.cefrLevel ? <div className="flex flex-wrap items-center justify-center gap-2">{currentTarget.wordMetadata?.ipa ? <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-mono text-sm font-semibold text-violet-800">/{currentTarget.wordMetadata.ipa}/</span> : null}{currentTarget.cefrLevel ? <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-600">{currentTarget.cefrLevel}</span> : null}</div> : null}{currentTarget.wordMetadata?.syllables?.length ? <div className="flex flex-wrap items-center justify-center gap-1 text-sm font-bold text-slate-700" aria-label="Syllables and word stress">{currentTarget.wordMetadata.syllables.map((syllable, index) => <span key={`${syllable.text}-${index}`} className={`rounded-md px-1.5 py-0.5 ${syllable.stress === "primary" ? "bg-orange-100 text-orange-800 underline decoration-2 underline-offset-2" : syllable.stress === "secondary" ? "bg-violet-50 text-violet-800" : "bg-slate-50 text-slate-600"}`}>{syllable.text}</span>)}</div> : null}{currentTarget.wordMetadata?.meaning ? <p className="text-sm text-slate-600">{currentTarget.wordMetadata.meaning}</p> : null}</div> : null}
           </div>
 
           <div className="relative grid place-items-center">

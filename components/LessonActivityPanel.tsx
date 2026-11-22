@@ -647,6 +647,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         text: String(row.text ?? ""),
         color: String(row.color ?? "var(--br-achievement)"),
         audio_url: String(row.audio_url ?? row.audioUrl ?? ""),
+        accent: row.accent === "en-GB" || row.accent === "en-US" ? row.accent : undefined,
       };
     });
     const level = data.level === "sentence" || data.level === "paragraph" ? "sentence" : "word";

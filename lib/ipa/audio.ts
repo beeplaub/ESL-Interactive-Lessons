@@ -96,3 +96,24 @@ export async function getIpaChartAudioAdminState(): Promise<{ configured: boolea
     assets: (assetsResult.data ?? []).map(row => ({ id: row.id, accent: row.accent as IpaAccent, soundId: row.sound_id, assetType: row.asset_type as "sound" | "word", word: row.word || "", wordId: wordIdByAssetId.get(row.id) ?? null, status: row.status as IpaChartAudioAsset["status"], livePublicUrl: row.live_public_url, pendingPublicUrl: row.pending_public_url, mimeType: row.mime_type, voiceName: row.voice_name, style: row.style, pace: row.pace, settingsRevision: row.settings_revision, generatedBy: row.generated_by, reviewedBy: row.reviewed_by, reviewedAt: row.reviewed_at, errorMessage: row.error_message })),
   };
 }
+
+/** Read the shared accent voice settings without loading the full IPA asset catalog. */
+export async function getIpaChartAudioSettings(): Promise<{ configured: boolean; settings: IpaChartAudioSettings[] }> {
+  const { data, error } = await createAdminClient().from("ipa_chart_audio_settings")
+    .select("accent,voice_name,style,pace,settings_revision").order("accent");
+  if (error) {
+    console.error("IPA audio settings lookup failed", error.code ?? "unknown");
+    return { configured: false, settings: [] };
+  }
+  const configured = (data ?? []).some(row => row.accent === "uk") && (data ?? []).some(row => row.accent === "us");
+  return {
+    configured,
+    settings: (data ?? []).map(row => ({
+      accent: row.accent as IpaAccent,
+      voiceName: IPA_GEMINI_VOICES.includes(row.voice_name as IpaGeminiVoice) ? row.voice_name as IpaGeminiVoice : "Aoede",
+      style: VOICEOVER_STYLES.includes(row.style as typeof VOICEOVER_STYLES[number]) ? row.style as typeof VOICEOVER_STYLES[number] : "Natural",
+      pace: VOICEOVER_PACES.includes(row.pace as typeof VOICEOVER_PACES[number]) ? row.pace as typeof VOICEOVER_PACES[number] : "Natural",
+      settingsRevision: row.settings_revision ?? 1,
+    })),
+  };
+}

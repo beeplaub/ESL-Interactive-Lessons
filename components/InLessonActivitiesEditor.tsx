@@ -73,6 +73,11 @@ type PronunciationTargetItem = {
   text: string;
   color: string;
   audio_url?: string;
+  source_prompt_id?: string;
+  accent?: "en-GB" | "en-US";
+  cefr_level?: string | null;
+  target_sounds?: string[];
+  word_metadata?: SpeechPromptSnapshot["word_metadata"];
 };
 
 type GapItem = {
@@ -416,7 +421,12 @@ function normalizePronunciation(data: Json | null): { prompt: string; level: "wo
       id: String(row.id ?? index + 1),
       text: String(row.text ?? ""),
       color: String(row.color ?? "var(--br-achievement)"),
-      audio_url: String(row.audio_url ?? row.audioUrl ?? "")
+      audio_url: String(row.audio_url ?? row.audioUrl ?? ""),
+      source_prompt_id: typeof row.source_prompt_id === "string" ? row.source_prompt_id : undefined,
+      accent: (row.accent === "en-US" ? "en-US" : row.accent === "en-GB" ? "en-GB" : undefined) as PronunciationTargetItem["accent"],
+      cefr_level: typeof row.cefr_level === "string" ? row.cefr_level : null,
+      target_sounds: Array.isArray(row.target_sounds) ? row.target_sounds.filter((sound): sound is string => typeof sound === "string") : [],
+      word_metadata: row.word_metadata && typeof row.word_metadata === "object" ? row.word_metadata as SpeechPromptSnapshot["word_metadata"] : undefined
     };
   });
   return {
@@ -2368,7 +2378,14 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
           </div>
       ) : null}
       <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words that learners should focus on.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span>{level === "word" ? <FlashcardAudioGenerator lessonId={activity.lesson_id} word="" items={targets.map((target) => ({ id: target.id, text: target.text, audioUrl: target.audio_url }))} entityLabel="Target words" buttonLabel="Generate audio for all words" settings={voiceSettings} onBatchSaved={(saved) => setTargets((current) => current.map((target) => saved[target.id] ? { ...target, audio_url: saved[target.id] } : target))} /> : null}</div></div>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words that learners should focus on.</p></div><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span></div>
+        {level === "word" ? <div className="mb-4"><SpeechPracticePromptPicker type="WORD" selected={targets.flatMap((target) => target.source_prompt_id && target.accent ? [{ source_prompt_id: target.source_prompt_id, title: target.text, text: target.text, audio_url: target.audio_url ?? "", accent: target.accent, cefr_level: target.cefr_level ?? null, target_sounds: target.target_sounds ?? [], tags: [], word_metadata: target.word_metadata }] : [])} onChange={(selected) => setTargets((current) => {
+          const manual = current.filter((target) => !target.source_prompt_id && target.text.trim());
+          const library = selected.map((item, index) => ({ id: `library-${item.source_prompt_id}-${item.accent}`, text: item.text, color: current.find((target) => target.source_prompt_id === item.source_prompt_id)?.color ?? PRONUNCIATION_COLORS[index % PRONUNCIATION_COLORS.length], audio_url: item.audio_url, source_prompt_id: item.source_prompt_id, accent: item.accent, cefr_level: item.cefr_level, target_sounds: item.target_sounds, word_metadata: item.word_metadata }));
+          return [...library, ...manual];
+        })} />
+          <p className="mt-2 text-xs text-[var(--br-text-muted)]">Choose approved words to copy their reference audio and pronunciation details into this activity.</p>
+        </div> : null}
         <p className="mb-3 text-xs font-black uppercase tracking-wider text-[var(--br-text-muted)]">
           {level === "word" ? "Words to pronounce" : "Words to check (highlighted in the text above)"}
         </p>
@@ -2377,6 +2394,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
             <div key={target.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--br-border)] bg-slate-50/70 p-2">
               <input
                 value={target.text}
+                disabled={!!target.source_prompt_id}
                 onChange={(event) => updateTarget(index, { text: event.target.value })}
                 placeholder={level === "word" ? "pronunciation" : "word or phrase from the text above"}
                 className="w-full min-w-0 flex-1 rounded-xl border border-[var(--br-border)] bg-white px-3 py-2 text-sm font-semibold sm:min-w-48"
@@ -2393,7 +2411,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
                   />
                 ))}
               </div>
-              {targets.length > 1 ? (
+              {target.source_prompt_id ? <span className="rounded-full bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700">Library · {target.accent === "en-GB" ? "UK" : "US"}</span> : null}{targets.length > 1 ? (
                 <button type="button" onClick={() => setTargets((current) => current.filter((_, i) => i !== index))} className="text-sm text-coral">Remove</button>
               ) : null}
             </div>
@@ -2423,7 +2441,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
           max_recording_seconds: maxRecordingSeconds,
           passage,
           audio_url: audioUrl.trim() || null,
-          targets: targets.map((target) => ({ id: target.id, text: target.text, color: target.color, audio_url: target.audio_url ?? "" }))
+          targets: targets.map((target) => ({ id: target.id, text: target.text, color: target.color, audio_url: target.audio_url ?? "", source_prompt_id: target.source_prompt_id, accent: target.accent, cefr_level: target.cefr_level, target_sounds: target.target_sounds, word_metadata: target.word_metadata }))
         } as Json, needsReview)} />
       </div>
     </div>
