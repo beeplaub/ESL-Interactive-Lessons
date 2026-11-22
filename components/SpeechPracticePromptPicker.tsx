@@ -16,13 +16,14 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
   const [categories, setCategories] = useState<Category[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [accent, setAccent] = useState<"en-GB" | "en-US">("en-GB");
+  const [accent, setAccent] = useState<"en-GB" | "en-US">(() => type === "WORD" ? "en-US" : "en-GB");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [categoryId, setCategoryId] = useState("");
   const [targetSound, setTargetSound] = useState("");
   const [difficulty, setDifficulty] = useState("");
-  const pageSize = 3;
+  const [audioAvailability, setAudioAvailability] = useState<"all" | "audio" | "no-audio">("all");
+  const pageSize = 10;
 
   useEffect(() => {
     if (!open || items.length) return;
@@ -32,7 +33,7 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
       .catch(() => setError("Could not load approved prompts."))
       .finally(() => setBusy(false));
   }, [items.length, open, type]);
-  useEffect(() => { setItems([]); setPage(0); setTargetSound(""); setDifficulty(""); }, [type]);
+  useEffect(() => { setItems([]); setPage(0); setTargetSound(""); setDifficulty(""); setAudioAvailability("all"); setAccent(type === "WORD" ? "en-US" : "en-GB"); }, [type]);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
@@ -41,9 +42,12 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
       const matchesCategory = type !== "SHADOWING" || !categoryId || item.category_id === categoryId;
       const matchesSound = (type !== "TONGUE_TWISTER" && type !== "WORD") || !targetSound || item.target_sounds.includes(targetSound);
       const matchesDifficulty = type !== "TONGUE_TWISTER" || !difficulty || item.difficulty === difficulty;
-      return matchesSearch && matchesCategory && matchesSound && matchesDifficulty;
+      const audio = item.audio_variants[accent];
+      const hasAudio = Boolean(audio?.url?.trim() && audio.status === "APPROVED");
+      const matchesAudio = type !== "WORD" || audioAvailability === "all" || (audioAvailability === "audio" ? hasAudio : !hasAudio);
+      return matchesSearch && matchesCategory && matchesSound && matchesDifficulty && matchesAudio;
     });
-  }, [items, search, type, categoryId, targetSound, difficulty]);
+  }, [items, search, type, categoryId, targetSound, difficulty, accent, audioAvailability]);
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);
   const visibleItems = filteredItems.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -95,7 +99,7 @@ export function SpeechPracticePromptPicker({ type, selected, onChange, selection
       {type === "SHADOWING" ? <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 text-xs font-bold text-[var(--br-text-muted)]"><label className="grid min-w-0 gap-1"><span>Topic category</span><SpeechPracticeGlassSelect label="Topic category" value={categoryId} options={[{ value: "", label: "All categories" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} onChange={(value) => { setCategoryId(value); setPage(0); }} /></label><button type="button" aria-pressed={!categoryId} onClick={() => { setCategoryId(""); setPage(0); }} className={`mb-px min-h-10 rounded-lg border px-3 text-xs font-bold ${!categoryId ? "border-violet-300 bg-violet-50 text-violet-800" : "border-[var(--br-border)] bg-white text-[var(--br-text-muted)] hover:bg-slate-50"}`}>All</button></div> : type === "TONGUE_TWISTER" ? <div className="grid min-w-0 grid-cols-2 gap-2">
         <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Target sound</span><SpeechPracticeGlassSelect label="Target sound" value={targetSound} options={[{ value: "", label: "All sounds" }, ...[...new Set(items.flatMap((item) => item.target_sounds))].sort().map((sound) => ({ value: sound, label: sound }))]} onChange={(value) => { setTargetSound(value); setPage(0); }} /></div>
         <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Difficulty</span><SpeechPracticeGlassSelect label="Difficulty" value={difficulty} options={[{ value: "", label: "All levels" }, ...[["EASY","Easy"],["MODERATE","Moderate"],["DIFFICULT","Difficult"],["VERY_DIFFICULT","Very difficult"]].map(([value,label]) => ({ value, label }))]} onChange={(value) => { setDifficulty(value); setPage(0); }} /></div>
-      </div> : <div className="grid min-w-0 gap-1 text-xs font-bold text-[var(--br-text-muted)]"><span>Target sound</span><SpeechPracticeGlassSelect label="Target sound" value={targetSound} options={[{ value: "", label: "All sounds" }, ...[...new Set(items.flatMap((item) => item.target_sounds))].sort().map((sound) => ({ value: sound, label: sound }))]} onChange={(value) => { setTargetSound(value); setPage(0); }} /></div>}
+      </div> : <div className="grid min-w-0 grid-cols-2 gap-2 text-xs font-bold text-[var(--br-text-muted)]"><label className="grid min-w-0 gap-1"><span>Target sound</span><SpeechPracticeGlassSelect label="Target sound" value={targetSound} options={[{ value: "", label: "All sounds" }, ...[...new Set(items.flatMap((item) => item.target_sounds))].sort().map((sound) => ({ value: sound, label: sound }))]} onChange={(value) => { setTargetSound(value); setPage(0); }} /></label><label className="grid min-w-0 gap-1"><span>Audio availability</span><SpeechPracticeGlassSelect label="Audio availability" value={audioAvailability} options={[{ value: "all", label: "Any audio status" }, { value: "audio", label: "Audio only" }, { value: "no-audio", label: "No audio" }]} onChange={(value) => { setAudioAvailability(value as typeof audioAvailability); setPage(0); }} /></label></div>}
 
       {busy ? <p className="flex min-h-24 items-center justify-center gap-2 text-xs text-[var(--br-text-muted)]"><Loader2 size={14} className="animate-spin" /> Loading prompts…</p> : error ? <p className="text-xs text-coral">{error}</p> : visibleItems.length ? <div className="grid min-w-0 gap-1.5">
         {visibleItems.map((item) => {
