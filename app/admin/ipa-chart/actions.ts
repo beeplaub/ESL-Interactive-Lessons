@@ -340,14 +340,14 @@ export async function approveIpaChartAudioAsset(assetId: string) {
     .eq("id", assetId).maybeSingle();
   if (readError || !asset?.pending_public_url) throw new Error("Generate an audio preview before approving it.");
   const now = new Date().toISOString();
-  const { error } = await admin.from("ipa_chart_audio_assets").update({
+  const { data: published, error } = await admin.from("ipa_chart_audio_assets").update({
     status: "APPROVED", live_public_url: asset.pending_public_url,
     live_storage_provider: asset.pending_storage_provider, live_storage_bucket: asset.pending_storage_bucket,
     live_storage_path: asset.pending_storage_path,
     pending_public_url: null, pending_storage_provider: null, pending_storage_bucket: null, pending_storage_path: null,
     reviewed_by: user.id, reviewed_at: now, error_message: null, updated_at: now,
-  }).eq("id", asset.id);
-  if (error) throw new Error("The IPA audio could not be published.");
+  }).eq("id", asset.id).eq("status", "READY_FOR_REVIEW").eq("pending_public_url", asset.pending_public_url).select("id").maybeSingle();
+  if (error || !published?.id) throw new Error("The IPA audio could not be published. It may have changed; refresh and review its current status.");
   revalidatePath("/ipa-chart");
   revalidatePath("/admin/ipa-chart");
 }

@@ -14,6 +14,11 @@ type Playback = ReturnType<typeof useIpaPlayback>;
 const groupLabels: Record<IpaGroup, string> = { monophthong: "Monophthongs", diphthong: "Diphthongs", rhotic: "R-colored vowels", consonant: "Consonants" };
 const syllableFilters: SyllableFilter[] = ["all", "1", "2", "3", "4+"];
 
+function findWordRecording(words: Record<string, { src: string; reviewedBy: string; reviewedAt: string; source: string }> | undefined, word: string) {
+  if (!words) return undefined;
+  return words[word] ?? Object.entries(words).find(([spelling]) => spelling.toLocaleLowerCase("en-US") === word.toLocaleLowerCase("en-US"))?.[1];
+}
+
 function Spelling({ example }: { example: IpaExample }) {
   return <>{spellingParts(example.spelling).map((part, index) => part.highlighted ? <span className={styles.highlight} key={index}>{part.text}</span> : <span key={index}>{part.text}</span>)}</>;
 }
@@ -41,7 +46,7 @@ function SoundDetails({ sound, accent, assets, playback, charts, syllableFilter,
     </button>
     <div className={styles.detailSection}><h3>How to make it</h3><p>{sound.cue}</p><p className={styles.articulation}>{sound.articulation}</p></div>
     <div className={styles.detailSection}><h3>Hear it in a word</h3><p className={styles.caption}>Underlined letters represent /{sound.symbol}/.</p><div className={styles.syllableFilter} role="group" aria-label="Filter words by syllable count"><span className={styles.syllableFilterLabel}>Syllable count</span><div className={styles.syllableFilterOptions}>{syllableFilters.map(filter => <button key={filter} type="button" aria-pressed={syllableFilter === filter} className={syllableFilter === filter ? styles.activeSyllableFilter : ""} onClick={() => onSyllableFilterChange(filter)}>{filter === "all" ? "All" : filter}</button>)}</div></div><div className={styles.examples}>
-      {visibleExamples.map(example => { const word = plainWord(example); const recording = audio?.words?.[word]; const key = `word:${sound.id}:${word}`; return <button key={word} className={styles.example} onClick={() => void playback.play(key, recording?.src, word)} aria-label={`${playback.playing === key ? "Stop" : "Hear"} ${word} in ${IPA_ACCENTS[accent].label}`}>
+      {visibleExamples.map(example => { const word = plainWord(example); const recording = findWordRecording(audio?.words, word); const key = `word:${sound.id}:${word}`; return <button key={word} className={styles.example} onClick={() => void playback.play(key, recording?.src, word)} aria-label={`${playback.playing === key ? "Stop" : "Hear"} ${word} in ${IPA_ACCENTS[accent].label}`}>
         <span><span className={styles.exampleWord}><Spelling example={example} /></span><span className={styles.transcription}>/{example.ipa}/</span></span><span className={styles.examplePlay}>{playback.playing === key ? <Square size={15} /> : <Volume2 size={18} />}</span>
       </button>; })}
     </div>{visibleExamples.length === 0 ? <p className={styles.filterEmpty}>No words in this syllable group for this sound.</p> : null}<p className={styles.caption}>Words without a studio recording use your device’s {IPA_ACCENTS[accent].short} English voice, when available.</p></div>
@@ -120,7 +125,7 @@ export function IpaChart({ audio, charts = IPA_CHARTS }: { audio: IpaAudioManife
                 <button data-sound-select className={styles.symbolButton} aria-pressed={sound.id === selected.id} aria-label={`Explore /${sound.symbol}/, ${sound.name}, ${sound.voiced ? "voiced" : "voiceless"}`} onClick={() => choose(sound)}>
                   {sound.group === "consonant" ? <span className={styles.voiceBadge} title={sound.voiced ? "Voiced" : "Voiceless"}>{sound.voiced ? "V" : "VL"}</span> : null}<span className={styles.symbol}>{sound.symbol}</span>
                 </button>
-                <button className={styles.wordButton} aria-label={`${playback.playing === key ? "Stop" : "Hear"} ${word}`} onClick={() => void playback.play(key, audio[accent]?.[sound.id]?.words?.[word]?.src, word)}><span><Spelling example={example} /></span><span aria-hidden="true" className={styles.tileSpeaker}>{playback.playing === key ? <Square size={10} /> : <Volume2 size={11} />}</span></button>
+                <button className={styles.wordButton} aria-label={`${playback.playing === key ? "Stop" : "Hear"} ${word}`} onClick={() => void playback.play(key, findWordRecording(audio[accent]?.[sound.id]?.words, word)?.src, word)}><span><Spelling example={example} /></span><span aria-hidden="true" className={styles.tileSpeaker}>{playback.playing === key ? <Square size={10} /> : <Volume2 size={11} />}</span></button>
               </div>;
             })}</div>
           </section>)}

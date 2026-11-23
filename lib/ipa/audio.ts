@@ -38,6 +38,14 @@ export async function getIpaAudioManifest(): Promise<IpaAudioManifest> {
     return fallback;
   }
   const linksResult = await admin.from("ipa_chart_audio_assets").select("id,word_id").eq("asset_type", "word");
+  if (linksResult.error) {
+    console.error("IPA chart audio word links lookup failed", linksResult.error.code ?? "unknown");
+    return fallback;
+  }
+  const catalogAvailable = !wordsResult.error && !pronunciationsResult.error;
+  if (!catalogAvailable) {
+    console.error("IPA chart word catalog lookup failed", wordsResult.error?.code ?? pronunciationsResult.error?.code ?? "unknown");
+  }
   const wordIdByAssetId = new Map((linksResult.data ?? []).map(row => [row.id, row.word_id as string | null]));
   const activeWordIds = new Set((wordsResult.data ?? []).filter(row => row.is_active).map(row => row.id));
   const soundIdsByWordAccent = new Map<string, string[]>();
@@ -61,11 +69,11 @@ export async function getIpaAudioManifest(): Promise<IpaAudioManifest> {
     }
     if (row.asset_type === "word") {
       const wordId = wordIdByAssetId.get(row.id);
-      if (wordId && !activeWordIds.has(wordId)) continue;
+      if (wordId && catalogAvailable && !activeWordIds.has(wordId)) continue;
       const assignmentKey = `${accent}:${wordId ?? row.word.toLocaleLowerCase("en-US")}`;
       if (assignedWordAudio.has(assignmentKey)) continue;
       assignedWordAudio.add(assignmentKey);
-      const soundIds = wordId && activeWordIds.has(wordId)
+      const soundIds = catalogAvailable && wordId && activeWordIds.has(wordId)
         ? soundIdsByWordAccent.get(`${wordId}:${accent}`) ?? []
         : IPA_CHARTS[accent].filter(sound => sound.examples.some(example => plainWord(example) === row.word)).map(sound => sound.id);
       for (const soundId of new Set(soundIds)) {

@@ -78,20 +78,20 @@ export async function POST(request: Request) {
   if (!IPA_GEMINI_VOICES.includes(settings.voice_name as IpaGeminiVoice)) return errorResponse("Choose a supported Gemini voice in IPA audio settings first.", 400);
 
   const { data: existing, error: existingError } = await admin.from("ipa_chart_audio_assets")
-    .select("id,status,live_public_url,pending_public_url")
+    .select("id,accent,sound_id,asset_type,word,word_id,status,live_public_url,pending_public_url,mime_type,voice_name,style,pace,settings_revision,reviewed_at")
     .eq("accent", input.accent).eq("sound_id", sound.id).eq("asset_type", input.assetType).eq("word", word).maybeSingle();
   if (existingError) return errorResponse("IPA audio records are unavailable. Apply the IPA audio migration, then try again.", 503);
   let reusableAsset = existing;
   if (wordId && input.assetType === "word") {
     const { data: linkedAsset, error: linkedAssetError } = await admin.from("ipa_chart_audio_assets")
-      .select("id,status,live_public_url,pending_public_url")
+      .select("id,accent,sound_id,asset_type,word,word_id,status,live_public_url,pending_public_url,mime_type,voice_name,style,pace,settings_revision,reviewed_at")
       .eq("accent", input.accent).eq("asset_type", "word").eq("word_id", wordId)
       .order("reviewed_at", { ascending: false }).limit(1).maybeSingle();
     if (linkedAssetError) return errorResponse("Linked IPA word audio is unavailable. Apply the IPA word catalog migration, then try again.", 503);
     reusableAsset = linkedAsset ?? existing;
   }
   if (!input.forceRegenerate && (reusableAsset?.status === "APPROVED" || reusableAsset?.status === "READY_FOR_REVIEW" || Boolean(reusableAsset?.live_public_url || reusableAsset?.pending_public_url))) {
-    return NextResponse.json({ skipped: true, status: reusableAsset?.status, message: "This word already has generated or approved audio; it was left unchanged." });
+    return NextResponse.json({ skipped: true, asset: reusableAsset, message: "This item already has generated or approved audio; it was left unchanged." });
   }
 
   const instruction = input.assetType === "sound"

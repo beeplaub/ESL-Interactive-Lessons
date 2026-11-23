@@ -12,7 +12,7 @@ import { approveIpaChartAudioAsset, approveSelectedIpaChartAudioAssets, saveIpaC
 
 type Target = { key: string; soundId: string; symbol: string; type: "sound" | "word"; word: string; wordId: string | null; description: string };
 type LocalAsset = IpaChartAudioAsset;
-type GenerateResult = { status: "ok" | "failed" | "quota"; message?: string };
+type GenerateResult = { status: "generated" | "skipped" | "failed" | "quota"; message?: string };
 
 function statusLabel(asset?: LocalAsset) {
   if (!asset) return "Not generated";
@@ -73,14 +73,35 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
   }, [accent, sounds, catalogWordIds]);
   const assetMap = useMemo(() => {
     const result = new Map<string, LocalAsset>();
-    for (const item of assets.filter(asset => asset.accent === accent).sort((left, right) => Date.parse(right.reviewedAt ?? "") - Date.parse(left.reviewedAt ?? ""))) {
+    for (const item of assets.filter(asset => asset.accent === accent).sort((left, right) => {
+      const rank = (asset: LocalAsset) => asset.status === "READY_FOR_REVIEW" && asset.pendingPublicUrl ? 2 : asset.livePublicUrl ? 1 : 0;
+      const rankDifference = rank(right) - rank(left);
+      if (rankDifference) return rankDifference;
+      const leftDate = left.reviewedAt ? Date.parse(left.reviewedAt) : 0;
+      const rightDate = right.reviewedAt ? Date.parse(right.reviewedAt) : 0;
+      return rightDate - leftDate;
+    })) {
       const key = item.assetType === "word" && item.wordId ? `${accent}:word:${item.wordId}` : `${accent}:${item.soundId}:${item.assetType}:${item.word}`;
-      if (!result.has(key) || (!result.get(key)?.livePublicUrl && item.livePublicUrl)) result.set(key, item);
+      const current = result.get(key);
+      const itemIsReview = item.status === "READY_FOR_REVIEW" && Boolean(item.pendingPublicUrl);
+      const currentIsReview = current?.status === "READY_FOR_REVIEW" && Boolean(current.pendingPublicUrl);
+      if (!current || (itemIsReview && !currentIsReview) || (!itemIsReview && !currentIsReview && !current.livePublicUrl && item.livePublicUrl)) {
+        result.set(key, { ...item, livePublicUrl: item.livePublicUrl ?? current?.livePublicUrl ?? null });
+      } else if (current && !current.livePublicUrl && item.livePublicUrl) {
+        result.set(key, { ...current, livePublicUrl: item.livePublicUrl });
+      }
     }
     return result;
   }, [accent, assets]);
-  const readyCount = targets.filter(target => Boolean(assetMap.get(target.key)?.livePublicUrl)).length;
-  const approvedCount = targets.filter(target => assetMap.get(target.key)?.status === "APPROVED").length;
+  const matchingAssets = (target: Target) => assets.filter(item => {
+    if (item.accent !== accent) return false;
+    const key = item.assetType === "word" && item.wordId
+      ? `${accent}:word:${item.wordId}`
+      : `${accent}:${item.soundId}:${item.assetType}:${item.word}`;
+    return key === target.key;
+  });
+  const readyCount = targets.filter(target => matchingAssets(target).some(asset => Boolean(asset.livePublicUrl))).length;
+  const approvedCount = targets.filter(target => matchingAssets(target).some(asset => asset.status === "APPROVED" && Boolean(asset.livePublicUrl))).length;
   const selectedPublishable = selected.flatMap(key => {
     const asset = assetMap.get(key);
     return asset?.status === "READY_FOR_REVIEW" && asset.pendingPublicUrl ? [{ key, asset }] : [];
@@ -89,8 +110,8 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
     const asset = assetMap.get(target.key);
     return !asset?.livePublicUrl && !asset?.pendingPublicUrl && asset?.status !== "APPROVED" && asset?.status !== "READY_FOR_REVIEW";
   });
-  const reviewCount = targets.filter(target => assetMap.get(target.key)?.status === "READY_FOR_REVIEW").length;
-  const failedCount = targets.filter(target => assetMap.get(target.key)?.status === "FAILED").length;
+  const reviewCount = targets.filter(target => matchingAssets(target).some(asset => asset.status === "READY_FOR_REVIEW")).length;
+  const failedCount = targets.filter(target => matchingAssets(target).some(asset => asset.status === "FAILED")).length;
 
   useEffect(() => {
     try {
@@ -163,7 +184,34 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
         setMessage(message);
         return { status: response.status === 429 ? "quota" : "failed", message } satisfies GenerateResult;
       }
-      if (data.skipped) { setMessage(data.message || "This item already has audio, so it was left unchanged."); return { status: "ok" } satisfies GenerateResult; }
+      if (data.skipped) {
+        const skippedAsset = data.asset as (Partial<LocalAsset> & Record<string, unknown>) | undefined;
+        if (skippedAsset?.id && skippedAsset.status) {
+          const item: LocalAsset = {
+            id: skippedAsset.id,
+            accent: (skippedAsset.accent ?? accent) as IpaAccent,
+            soundId: String(skippedAsset.soundId ?? skippedAsset.sound_id ?? target.soundId),
+            assetType: (skippedAsset.assetType ?? skippedAsset.asset_type ?? target.type) as Target["type"],
+            word: String(skippedAsset.word ?? target.word),
+            wordId: (skippedAsset.wordId ?? skippedAsset.word_id ?? target.wordId) as string | null,
+            status: skippedAsset.status as LocalAsset["status"],
+            livePublicUrl: (skippedAsset.livePublicUrl ?? skippedAsset.live_public_url ?? null) as string | null,
+            pendingPublicUrl: (skippedAsset.pendingPublicUrl ?? skippedAsset.pending_public_url ?? null) as string | null,
+            mimeType: (skippedAsset.mimeType ?? skippedAsset.mime_type ?? null) as string | null,
+            voiceName: (skippedAsset.voiceName ?? skippedAsset.voice_name ?? null) as string | null,
+            style: (skippedAsset.style ?? null) as string | null,
+            pace: (skippedAsset.pace ?? null) as string | null,
+            settingsRevision: (skippedAsset.settingsRevision ?? skippedAsset.settings_revision ?? null) as number | null,
+            generatedBy: null,
+            reviewedBy: null,
+            reviewedAt: (skippedAsset.reviewedAt ?? skippedAsset.reviewed_at ?? null) as string | null,
+            errorMessage: null,
+          };
+          setAssets(current => [...current.filter(existing => existing.id !== item.id), item]);
+        }
+        setMessage(data.message || "This item already has audio, so it was left unchanged.");
+        return { status: "skipped", message: data.message } satisfies GenerateResult;
+      }
       const item: LocalAsset = {
         id: data.id, accent, soundId: target.soundId, assetType: target.type, word: target.word, wordId: target.wordId,
         status: "READY_FOR_REVIEW", livePublicUrl: assetMap.get(target.key)?.livePublicUrl ?? null,
@@ -174,7 +222,7 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
       setAssets(current => [...current.filter(existing => existing.id !== item.id && !(existing.accent === accent && existing.soundId === target.soundId && existing.assetType === target.type && existing.word === target.word)), item]);
       setSelected(current => current.includes(target.key) ? current : [...current, target.key]);
       router.refresh();
-      return { status: "ok" } satisfies GenerateResult;
+      return { status: "generated" } satisfies GenerateResult;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Audio generation failed.";
       setMessage(message);
@@ -187,19 +235,21 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
     const chosen = targets.filter(target => selected.includes(target.key));
     const failed: string[] = [];
     let completed = 0;
+    let skipped = 0;
     let quotaReached = false;
     let firstFailure = "";
     for (const [index, target] of chosen.entries()) {
       const result = await generate(target, false);
-      if (result.status === "ok") completed++;
+      if (result.status === "generated") completed++;
+      if (result.status === "skipped") skipped++;
       if (result.status === "failed") { failed.push(target.key); firstFailure ||= result.message || "Some clips could not be generated."; }
       if (result.status === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; firstFailure = result.message || "Gemini quota reached. Retry after it resets."; break; }
     }
     if (failed.length) setSelected(current => [...new Set([...current, ...failed])]);
     if (failed.length) setMessage(quotaReached
-      ? `${firstFailure}${completed ? ` ${completed} clip${completed === 1 ? " was" : "s were"} generated.` : ""} Remaining clips stay selected.`
-      : `${completed} clip${completed === 1 ? "" : "s"} generated; ${failed.length} need retrying. ${firstFailure}`);
-    else if (completed) setMessage(`${completed} selected clip${completed === 1 ? " was" : "s were"} generated successfully.`);
+      ? `${firstFailure}${completed ? ` ${completed} clip${completed === 1 ? " was" : "s were"} generated.` : ""}${skipped ? ` ${skipped} already had audio and were skipped.` : ""} Remaining clips stay selected.`
+      : `${completed} clip${completed === 1 ? "" : "s"} generated; ${failed.length} need retrying.${skipped ? ` ${skipped} already had audio and were skipped.` : ""} ${firstFailure}`);
+    else setMessage(`${completed} selected clip${completed === 1 ? " was" : "s were"} generated.${skipped ? ` ${skipped} already had audio and were skipped.` : ""}`);
   }
 
   async function generateAllRemaining() {
@@ -207,19 +257,21 @@ export function IpaChartAudioAdmin({ configured, initialSettings, initialAssets,
     const chosen = remainingTargets;
     const failed: string[] = [];
     let completed = 0;
+    let skipped = 0;
     let quotaReached = false;
     let firstFailure = "";
     for (const [index, target] of chosen.entries()) {
       const result = await generate(target, false);
-      if (result.status === "ok") completed++;
+      if (result.status === "generated") completed++;
+      if (result.status === "skipped") skipped++;
       if (result.status === "failed") { failed.push(target.key); firstFailure ||= result.message || "Some clips could not be generated."; }
       if (result.status === "quota") { failed.push(...chosen.slice(index).map(item => item.key)); quotaReached = true; firstFailure = result.message || "Gemini quota reached. Retry after it resets."; break; }
     }
     if (failed.length) setSelected(current => [...new Set([...current, ...failed])]);
     if (failed.length) setMessage(quotaReached
-      ? `${firstFailure}${completed ? ` ${completed} clip${completed === 1 ? " was" : "s were"} generated.` : ""} Remaining clips stay selected.`
-      : `${completed} clip${completed === 1 ? "" : "s"} generated; ${failed.length} need retrying. ${firstFailure}`);
-    else if (completed) setMessage(`${completed} remaining clip${completed === 1 ? " was" : "s were"} generated successfully.`);
+      ? `${firstFailure}${completed ? ` ${completed} clip${completed === 1 ? " was" : "s were"} generated.` : ""}${skipped ? ` ${skipped} already had audio and were skipped.` : ""} Remaining clips stay selected.`
+      : `${completed} clip${completed === 1 ? "" : "s"} generated; ${failed.length} need retrying.${skipped ? ` ${skipped} already had audio and were skipped.` : ""} ${firstFailure}`);
+    else setMessage(`${completed} remaining clip${completed === 1 ? " was" : "s were"} generated.${skipped ? ` ${skipped} already had audio and were skipped.` : ""}`);
   }
 
   async function approve(asset: LocalAsset) {
