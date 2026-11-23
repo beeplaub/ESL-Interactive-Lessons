@@ -1,55 +1,15 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, ChevronRight, ClipboardList } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { LearnerResumeHero } from "@/components/LearnerResumeHero";
+import { LearnerScheduleCalendar } from "@/components/LearnerScheduleCalendar";
+import { dateKeyInScheduleTimeZone, monthCalendarRange, monthKeyForDate, type ScheduleEvent } from "@/lib/schedule";
 
-type CalendarEntry = { id: string; title: string; dueAt: string; kind: "ASSIGNMENT" | "TASK"; href: string; className?: string | null };
-function joinedClassName(value: unknown) {
+function relationName(value: { name?: string | null } | { name?: string | null }[] | null | undefined) {
   const row = Array.isArray(value) ? value[0] : value;
-  return row && typeof row === "object" && "name" in row ? String((row as { name?: string | null }).name ?? "") || null : null;
-}
-
-export default async function CalendarPage() {
-  const { user } = await requireUser(); const admin = createAdminClient();
-  const { data: memberships } = await admin.from("class_members").select("class_id").eq("user_id", user.id).eq("role", "STUDENT");
-  const classIds = (memberships ?? []).map((row) => row.class_id);
-  const [{ data: assignments }, { data: tasks }] = await Promise.all([
-    classIds.length ? admin.from("class_assignments").select("id,title,due_at,item_type,course_id,lesson_id,quiz_id,classes(name)").in("class_id", classIds).not("due_at", "is", null).order("due_at") : Promise.resolve({ data: [] }),
-    admin.from("practice_tasks").select("id,title,due_at,classes(name)").eq("learner_id", user.id).not("due_at", "is", null).neq("status", "CANCELLED").order("due_at"),
-  ]);
-  const entries: CalendarEntry[] = [
-    ...(assignments ?? []).map((row) => ({ id: `a-${row.id}`, title: row.title?.trim() || `${row.item_type.replace("_", " ")} assignment`, dueAt: row.due_at!, kind: "ASSIGNMENT" as const, href: assignmentHref(row), className: joinedClassName(row.classes) })),
-    ...(tasks ?? []).map((row) => ({ id: `t-${row.id}`, title: row.title, dueAt: row.due_at!, kind: "TASK" as const, href: "/tasks", className: joinedClassName(row.classes) })),
-  ].sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
-  const groups = new Map<string, CalendarEntry[]>();
-  for (const entry of entries) { const key = new Date(entry.dueAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }); groups.set(key, [...(groups.get(key) ?? []), entry]); }
-  return (
-    <LearnerAppShell active="calendar">
-      <LearnerResumeHero eyebrow="YOUR SCHEDULE" headingLevel="h1" title="See what&apos;s coming up." description="Track course assignments and practice tasks with due dates, all in one place.">
-        <Link href="#calendar-schedule" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">View schedule <ArrowRight className="size-4" /></Link>
-        <Link href="/assignments" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Open assignments <ArrowRight className="size-4" /></Link>
-      </LearnerResumeHero>
-      <section id="calendar-schedule" className="scroll-mt-6 rounded-[20px] border border-[var(--br-border)] bg-[var(--br-surface)] p-4 shadow-[var(--br-shadow)] sm:p-5">
-        {[...groups.entries()].map(([date, rows]) => (
-          <div key={date} className="mb-6 last:mb-0">
-            <h2 className="mb-3 text-sm font-extrabold text-[var(--br-text)]">{date}</h2>
-            <div className="grid gap-3 md:grid-cols-2">
-              {rows.map((entry) => (
-                <Link key={entry.id} href={entry.href} className="flex items-center gap-3 rounded-[16px] border border-[var(--br-border)] p-3 hover:bg-[var(--br-surface-muted)]">
-                  <span className={`grid size-10 place-items-center rounded-xl ${entry.kind === "TASK" ? "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]" : "bg-[var(--br-brand-soft)] text-[var(--br-brand)]"}`}><ClipboardList size={18} /></span>
-                  <span className="min-w-0 flex-1"><span className="block font-extrabold">{entry.title}</span><span className="mt-1 block text-xs font-semibold text-[var(--br-text-muted)]">{entry.kind === "TASK" ? "Practice task" : "Course assignment"}{entry.className ? ` · ${entry.className}` : ""} · {new Date(entry.dueAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></span>
-                  <ChevronRight size={17} className="text-[var(--br-text-muted)]" />
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-        {!entries.length ? <div className="grid min-h-56 place-items-center text-center"><div><CalendarDays className="mx-auto text-[var(--br-text-muted)]" /><h2 className="mt-3 font-extrabold">Your calendar is clear.</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Due dates from assignments and planned tasks will appear here.</p></div></div> : null}
-      </section>
-    </LearnerAppShell>
-  );
+  return row?.name ?? null;
 }
 
 function assignmentHref(assignment: { item_type: string; course_id: string | null; lesson_id: string | null; quiz_id: string | null }) {
@@ -57,4 +17,78 @@ function assignmentHref(assignment: { item_type: string; course_id: string | nul
   if (assignment.item_type === "LESSON" && assignment.lesson_id) return `/lessons/${assignment.lesson_id}`;
   if (assignment.item_type === "QUIZ" && assignment.quiz_id) return `/quizzes/${assignment.quiz_id}`;
   return "/assignments";
+}
+
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const { user } = await requireUser();
+  const admin = createAdminClient();
+  const todayKey = dateKeyInScheduleTimeZone(new Date());
+  const requestedMonth = (await searchParams).month;
+  const monthKey = requestedMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth) ? requestedMonth : monthKeyForDate(todayKey);
+  const range = monthCalendarRange(monthKey);
+  const [{ data: memberships }, { data: enrollments }] = await Promise.all([
+    admin.from("class_members").select("class_id").eq("user_id", user.id).eq("role", "STUDENT"),
+    admin.from("course_enrollments").select("course_id").eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]),
+  ]);
+  const classIds = (memberships ?? []).map((row) => row.class_id);
+  const courseIds = (enrollments ?? []).map((row) => row.course_id);
+  const [{ data: assignments }, { data: tasks }, { data: classSessions }, { data: courseSessions }, { data: inviteRows }] = await Promise.all([
+    classIds.length ? admin.from("class_assignments").select("id,title,item_type,course_id,lesson_id,quiz_id,due_at,classes(name)").in("class_id", classIds).gte("due_at", range.startAt).lt("due_at", range.endAt).order("due_at").limit(200) : Promise.resolve({ data: [] }),
+    admin.from("practice_tasks").select("id,title,status,due_at,classes(name)").eq("learner_id", user.id).not("status", "in", "(COMPLETED,CANCELLED)").gte("due_at", range.startAt).lt("due_at", range.endAt).order("due_at").limit(200),
+    classIds.length ? admin.from("live_sessions").select("id,title,status,scheduled_at,classes(name)").in("class_id", classIds).in("status", ["SCHEDULED", "LIVE"]).gte("scheduled_at", range.startAt).lt("scheduled_at", range.endAt).order("scheduled_at").limit(200) : Promise.resolve({ data: [] }),
+    courseIds.length ? admin.from("live_sessions").select("id,title,status,scheduled_at,classes(name)").in("course_id", courseIds).in("status", ["SCHEDULED", "LIVE"]).gte("scheduled_at", range.startAt).lt("scheduled_at", range.endAt).order("scheduled_at").limit(200) : Promise.resolve({ data: [] }),
+    admin.from("instant_live_booking_invitees").select("booking_id").eq("user_id", user.id).eq("status", "INVITED").limit(200),
+  ]);
+  const bookingIds = [...new Set((inviteRows ?? []).map((row) => row.booking_id))];
+  const { data: invitedBookings } = bookingIds.length
+    ? await admin.from("instant_live_bookings").select("id,title,scheduled_start_at,status").in("id", bookingIds).in("status", ["SCHEDULED", "LIVE"]).gte("scheduled_start_at", range.startAt).lt("scheduled_start_at", range.endAt).order("scheduled_start_at").limit(200)
+    : { data: [] as Array<{ id: string; title: string; scheduled_start_at: string; status: string }> };
+
+  const sessionMap = new Map([...(classSessions ?? []), ...(courseSessions ?? [])].map((session) => [session.id, session]));
+  const events: ScheduleEvent[] = [
+    ...(assignments ?? []).map((assignment) => ({
+      id: `assignment-${assignment.id}`,
+      title: assignment.title?.trim() || `${assignment.item_type.replace("_", " ")} assignment`,
+      startsAt: assignment.due_at!,
+      type: "ASSIGNMENT" as const,
+      href: assignmentHref(assignment),
+      detail: relationName(assignment.classes) ?? "Class assignment",
+    })),
+    ...[...sessionMap.values()].map((session) => ({
+      id: `live-${session.id}`,
+      title: session.title,
+      startsAt: session.scheduled_at!,
+      type: "LIVE_CLASS" as const,
+      href: `/live/${session.id}`,
+      detail: session.status === "LIVE" ? "Live now" : relationName(session.classes) ?? "Live class",
+    })),
+    ...(invitedBookings ?? []).map((booking) => ({
+      id: `instant-${booking.id}`,
+      title: booking.title,
+      startsAt: booking.scheduled_start_at,
+      type: "LIVE_CLASS" as const,
+      href: `/live-classes#booking-${booking.id}`,
+      detail: "Invited instant class",
+    })),
+    ...(tasks ?? []).map((task) => ({
+      id: `task-${task.id}`,
+      title: task.title,
+      startsAt: task.due_at!,
+      type: "TASK" as const,
+      href: `/tasks#task-${task.id}`,
+      detail: relationName(task.classes) ?? "Practice task",
+    })),
+  ];
+
+  return (
+    <LearnerAppShell active="calendar">
+      <LearnerResumeHero eyebrow="MY SCHEDULE" headingLevel="h1" title="See what’s coming up." description="Keep assignments, live classes, and practice tasks together in one place.">
+        <Link href="#calendar-schedule" className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[var(--br-action-strong)]">View schedule <ArrowRight className="size-4" /></Link>
+        <Link href="/assignments" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">Open assignments <ArrowRight className="size-4" /></Link>
+      </LearnerResumeHero>
+      <section id="calendar-schedule" className="scroll-mt-6 rounded-[20px] border border-[var(--br-border)] bg-[var(--br-surface)] p-4 shadow-[var(--br-shadow)] sm:p-5">
+        <LearnerScheduleCalendar key={monthKey} events={events} todayKey={todayKey} monthKey={monthKey} mode="page" />
+      </section>
+    </LearnerAppShell>
+  );
 }

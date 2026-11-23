@@ -27,6 +27,8 @@ import { MarketingCourseCard } from "@/components/MarketingCourseCard";
 import { LearnerResumeHero } from "@/components/LearnerResumeHero";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
 import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
+import { LearnerScheduleCalendar } from "@/components/LearnerScheduleCalendar";
+import { dateKeyInScheduleTimeZone, monthCalendarRange, monthKeyForDate, type ScheduleEvent } from "@/lib/schedule";
 
 const levelNames: Record<string, string> = {
   A1: "Beginner",
@@ -71,10 +73,10 @@ export default async function AccountPage() {
   const { data: matchingCourseItems } = trackedLessonIds.length && enrolledCourseIds.length
     ? await adminSupabase
         .from("course_items")
-        .select("id, course_id, lesson_id, quiz_id, item_type")
+        .select("id, course_id, lesson_id, quiz_id, item_type, title")
         .in("lesson_id", trackedLessonIds)
         .in("course_id", enrolledCourseIds)
-    : { data: [] as { id: string; course_id: string; lesson_id: string | null; quiz_id: string | null; item_type: string }[] };
+    : { data: [] as { id: string; course_id: string; lesson_id: string | null; quiz_id: string | null; item_type: string; title: string | null }[] };
   const currentCourseItemIds = (courseProgress ?? []).map((item) => item.current_item_id).filter(Boolean);
   const { data: currentCourseItems } = currentCourseItemIds.length
     ? await adminSupabase
@@ -93,10 +95,15 @@ export default async function AccountPage() {
       });
       if (item.current_phase_item_id) params.set("phaseItem", item.current_phase_item_id);
       const href = `/lessons/${item.lesson_id}?${params.toString()}`;
+      const currentCourseItem = (courseProgress ?? [])
+        .map((progress) => currentCourseItemById.get(progress.current_item_id))
+        .find((courseItem) => courseItem?.lesson_id === item.lesson_id);
+      const courseCustomTitle = currentCourseItem?.title?.trim()
+        || (matchingCourseItems ?? []).find((courseItem) => courseItem.lesson_id === item.lesson_id)?.title?.trim();
       return {
         id: `lesson-${item.id}`,
         href,
-        title: item.lessons?.title ?? "Lesson",
+        title: courseCustomTitle || item.lessons?.title || "Lesson",
         meta: `Continue at slide ${item.current_slide_number}`,
         level: item.lessons?.level ?? "Lesson",
         progress: 25,
@@ -110,7 +117,7 @@ export default async function AccountPage() {
         ? (lessonProgress ?? []).find((progress) => progress.lesson_id === currentItem.lesson_id && !progress.completed)
         : null;
       const href = currentItem ? courseItemHref(currentItem, item.course_id, currentLessonProgress) : `/courses/${item.course_id}`;
-      const continueTitle = relationTitle(currentItem?.lessons) ?? relationTitle(currentItem?.quizzes) ?? currentItem?.title;
+      const continueTitle = currentItem?.title?.trim() || relationTitle(currentItem?.lessons) || relationTitle(currentItem?.quizzes);
       return {
       id: `course-${item.id}`,
       href,
@@ -132,11 +139,28 @@ export default async function AccountPage() {
     : undefined;
   const { data: learnerClasses } = await adminSupabase.from("class_members").select("class_id").eq("user_id", user.id).eq("role", "STUDENT");
   const classIds = (learnerClasses ?? []).map((row) => row.class_id);
-  const [{ data: assignments }, { data: liveClasses }, { data: practiceTasks }] = await Promise.all([
-    classIds.length ? adminSupabase.from("class_assignments").select("id,title,item_type,course_id,lesson_id,quiz_id,due_at,required_score").in("class_id", classIds).order("due_at", { ascending: true, nullsFirst: false }).limit(4) : Promise.resolve({ data: [] }),
-    classIds.length ? adminSupabase.from("live_sessions").select("id,title,status,scheduled_at,duration_minutes").in("class_id", classIds).in("status", ["SCHEDULED", "LIVE"]).order("scheduled_at", { ascending: true, nullsFirst: false }).limit(4) : Promise.resolve({ data: [] }),
-    adminSupabase.from("practice_tasks").select("id,title,status,due_at,priority").eq("learner_id", user.id).neq("status", "COMPLETED").neq("status", "CANCELLED").order("due_at", { ascending: true, nullsFirst: false }).limit(4),
+  const todayKey = dateKeyInScheduleTimeZone(new Date());
+  const monthKey = monthKeyForDate(todayKey);
+  const scheduleRange = monthCalendarRange(monthKey);
+  const courseIds = activeCourseEnrollments.map((enrollment) => enrollment.course_id);
+  const [{ data: assignments }, { data: classSessions }, { data: courseSessions }, { data: practiceTasks }, { data: bookingInvites }] = await Promise.all([
+    classIds.length ? adminSupabase.from("class_assignments").select("id,title,item_type,course_id,lesson_id,quiz_id,due_at,classes(name)").in("class_id", classIds).gte("due_at", scheduleRange.startAt).lt("due_at", scheduleRange.endAt).order("due_at", { ascending: true }).limit(100) : Promise.resolve({ data: [] }),
+    classIds.length ? adminSupabase.from("live_sessions").select("id,title,status,scheduled_at,classes(name)").in("class_id", classIds).in("status", ["SCHEDULED", "LIVE"]).gte("scheduled_at", scheduleRange.startAt).lt("scheduled_at", scheduleRange.endAt).order("scheduled_at", { ascending: true }).limit(100) : Promise.resolve({ data: [] }),
+    courseIds.length ? adminSupabase.from("live_sessions").select("id,title,status,scheduled_at,classes(name)").in("course_id", courseIds).in("status", ["SCHEDULED", "LIVE"]).gte("scheduled_at", scheduleRange.startAt).lt("scheduled_at", scheduleRange.endAt).order("scheduled_at", { ascending: true }).limit(100) : Promise.resolve({ data: [] }),
+    adminSupabase.from("practice_tasks").select("id,title,status,due_at,classes(name)").eq("learner_id", user.id).not("status", "in", "(COMPLETED,CANCELLED)").gte("due_at", scheduleRange.startAt).lt("due_at", scheduleRange.endAt).order("due_at", { ascending: true }).limit(100),
+    adminSupabase.from("instant_live_booking_invitees").select("booking_id").eq("user_id", user.id).eq("status", "INVITED").limit(100),
   ]);
+  const bookingIds = [...new Set((bookingInvites ?? []).map((invite) => invite.booking_id))];
+  const { data: invitedBookings } = bookingIds.length
+    ? await adminSupabase.from("instant_live_bookings").select("id,title,scheduled_start_at,status").in("id", bookingIds).in("status", ["SCHEDULED", "LIVE"]).gte("scheduled_start_at", scheduleRange.startAt).lt("scheduled_start_at", scheduleRange.endAt).order("scheduled_start_at").limit(100)
+    : { data: [] as Array<{ id: string; title: string; scheduled_start_at: string; status: string }> };
+  const sessionMap = new Map([...(classSessions ?? []), ...(courseSessions ?? [])].map((session) => [session.id, session]));
+  const scheduleEvents: ScheduleEvent[] = [
+    ...(assignments ?? []).map((assignment) => ({ id: `assignment-${assignment.id}`, title: assignment.title?.trim() || `${assignment.item_type.replace("_", " ")} assignment`, startsAt: assignment.due_at!, type: "ASSIGNMENT" as const, href: assignmentHref(assignment), detail: relationName(assignment.classes) ?? "Class assignment" })),
+    ...[...sessionMap.values()].map((session) => ({ id: `live-${session.id}`, title: session.title, startsAt: session.scheduled_at!, type: "LIVE_CLASS" as const, href: `/live/${session.id}`, detail: session.status === "LIVE" ? "Live now" : relationName(session.classes) ?? "Live class" })),
+    ...(invitedBookings ?? []).map((booking) => ({ id: `instant-${booking.id}`, title: booking.title, startsAt: booking.scheduled_start_at, type: "LIVE_CLASS" as const, href: `/live-classes#booking-${booking.id}`, detail: "Invited instant class" })),
+    ...(practiceTasks ?? []).map((task) => ({ id: `task-${task.id}`, title: task.title, startsAt: task.due_at!, type: "TASK" as const, href: `/tasks#task-${task.id}`, detail: relationName(task.classes) ?? "Practice task" })),
+  ];
 
   return (
     <LearnerAppShell
@@ -159,12 +183,9 @@ export default async function AccountPage() {
 
           <ResumeLearningCard item={learningItems[0]} currentLevel={currentLevel} reviewHref={reviewHref} />
 
-          <div className="grid gap-5 md:grid-cols-2">
-            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Assignments" href="/assignments" small />{assignments?.length ? <div className="space-y-2">{assignments.map((assignment) => <Link key={assignment.id} href={assignmentHref(assignment)} className="flex items-center gap-3 rounded-xl p-3 transition hover:bg-[var(--br-surface-muted)]"><span className="size-2 rounded-full bg-[var(--br-action)] ring-4 ring-[var(--br-action)]/10"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{assignment.title || assignment.item_type}</p><p className="text-xs text-[var(--br-text-muted)]">{assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : "No due date"}</p></div><ChevronRight className="size-4 text-[var(--br-text-muted)]" /></Link>)}</div> : <EmptyMini text="No assignments this week." href="/assignments" label="View assignments" />}</DashboardCard>
-            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Live Classes" href="/live-classes" small />{liveClasses?.length ? <div className="space-y-2">{liveClasses.map((session) => <Link key={session.id} href={`/live/${session.id}`} className="flex items-center gap-3 rounded-xl border border-[var(--br-border)] p-3 transition hover:border-[var(--br-action)]"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[var(--br-brand)] text-xs font-bold text-on-dark">{session.scheduled_at ? new Date(session.scheduled_at).getDate() : "LIVE"}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{session.title}</p><p className="text-xs text-[var(--br-text-muted)]">{session.status === "LIVE" ? "Live now" : session.scheduled_at ? new Date(session.scheduled_at).toLocaleString() : "Time to be confirmed"}</p></div><span className="rounded-lg bg-[var(--br-action)] px-3 py-1.5 text-xs font-bold text-on-dark">{session.status === "LIVE" ? "Join" : "View"}</span></Link>)}</div> : <EmptyMini text="No live classes scheduled." href="/live-classes" label="View classes" />}</DashboardCard>
-          </div>
-
-          <DashboardCard className="overflow-hidden"><div className="grid lg:grid-cols-[.9fr_1.1fr]"><div className="border-b border-[var(--br-surface-strong)] p-5 lg:border-b-0 lg:border-r md:p-6"><SectionHeader title="Your Schedule" href="/calendar" small /><ScheduleGrid assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div><div className="p-5 md:p-6"><SectionHeader title="Today’s Agenda" href="/calendar" small /><AgendaList assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div></div></DashboardCard>
+          <DashboardCard className="overflow-hidden">
+            <LearnerScheduleCalendar events={scheduleEvents} todayKey={todayKey} monthKey={monthKey} mode="home" />
+          </DashboardCard>
 
           <section>
             <SectionHeader title="My Courses" href="/courses" />
@@ -248,8 +269,6 @@ function ResumeLearningCard({ item, currentLevel, reviewHref }: { item?: { href:
   );
 }
 
-function ScheduleGrid({ assignments, liveClasses, tasks }: { assignments: Array<{ due_at: string | null }>; liveClasses: Array<{ scheduled_at: string | null }>; tasks: Array<{ due_at: string | null }> }) { const marked = new Set([...assignments.map(x=>x.due_at), ...liveClasses.map(x=>x.scheduled_at), ...tasks.map(x=>x.due_at)].filter(Boolean).map(x=>new Date(x!).getDate())); const now=new Date(); return <><div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[var(--br-text-muted)]">{"MTWTFSS".split("").map((d,i)=><span key={i}>{d}</span>)}</div><div className="mt-2 grid grid-cols-7 gap-1">{Array.from({length:35},(_,i)=>{const day=i-2; const active=day===now.getDate(); return <div key={i} className={`relative grid aspect-square place-items-center rounded-lg text-xs ${active?"bg-[var(--br-action)] font-bold text-on-dark":day>0&&day<=31?"text-[var(--br-dark-card)]":"text-[var(--br-text-muted)]"}`}>{day>0&&day<=31?day:""}{marked.has(day)&&!active?<span className="absolute bottom-1 size-1 rounded-full bg-[var(--br-brand)]"/>:null}</div>})}</div></> }
-function AgendaList({ assignments, liveClasses, tasks }: { assignments: Array<{id:string;title:string|null;due_at:string|null;item_type:string;course_id?:string|null;lesson_id?:string|null;quiz_id?:string|null}>; liveClasses: Array<{id:string;title:string;status:string;scheduled_at:string|null}>; tasks: Array<{id:string;title:string;status:string;due_at:string|null;priority:string}> }) { const items=[...liveClasses.map(x=>({id:x.id,title:x.title,time:x.scheduled_at,href:`/live/${x.id}`,tag:x.status==="LIVE"?"LIVE NOW":"CLASS"})),...assignments.map(x=>({id:x.id,title:x.title||x.item_type,time:x.due_at,href:assignmentHref(x),tag:"ASSIGNMENT"})),...tasks.map(x=>({id:x.id,title:x.title,time:x.due_at,href:"/tasks",tag:"TASK"}))].filter((item) => !item.time || new Date(item.time).toDateString() === new Date().toDateString()).slice(0,4); return <div className="space-y-2">{items.length?items.map(item=><Link key={item.id} href={item.href} className="flex items-center gap-3 rounded-xl border border-[var(--br-border)] p-3 transition hover:border-[var(--br-action)]"><span className="w-12 border-r border-[var(--br-border)] pr-3 text-center text-xs font-bold text-[var(--br-brand)]">{item.time?new Date(item.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"—"}</span><span className="min-w-0 flex-1 truncate text-sm font-bold">{item.title}</span><span className="rounded bg-[var(--br-surface-muted)] px-2 py-1 text-[9px] font-bold text-[var(--br-brand)]">{item.tag}</span></Link>):<EmptyMini text="Nothing scheduled for today." href="/calendar" label="View planner" />}</div> }
 function assignmentHref(assignment: { item_type: string; course_id?: string | null; lesson_id?: string | null; quiz_id?: string | null }) {
   if (assignment.item_type === "COURSE" && assignment.course_id) return `/courses/${assignment.course_id}`;
   if (assignment.item_type === "LESSON" && assignment.lesson_id) return `/lessons/${assignment.lesson_id}`;
@@ -274,6 +293,11 @@ function courseItemHref(item: { id: string; item_type: string; lesson_id: string
 function relationTitle(value: { title?: string | null } | { title?: string | null }[] | null | undefined) {
   const row = Array.isArray(value) ? value[0] : value;
   return row?.title ?? null;
+}
+
+function relationName(value: { name?: string | null } | { name?: string | null }[] | null | undefined) {
+  const row = Array.isArray(value) ? value[0] : value;
+  return row?.name ?? null;
 }
 
 function ProgressCard({
