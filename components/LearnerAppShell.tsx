@@ -250,20 +250,15 @@ async function buildRightSidebarData(
     };
   }
 
-  const [{ data: legacyQuizAttempts }, { data: assessmentQuizAttempts }, { data: points }, { data: enrollments }, { data: courseProgress }, achievements] = await Promise.all([
-    admin.from("quiz_attempts").select("id,completed_at").eq("user_id", userId).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(120),
-    admin.from("assessment_attempts").select("completed_at,submitted_at,created_at,legacy_quiz_attempt_id").eq("user_id", userId).eq("source_type", "QUIZ").order("created_at", { ascending: false }).limit(120),
+  const [{ data: activityDays }, { data: points }, { data: enrollments }, { data: courseProgress }, achievements] = await Promise.all([
+    (admin as any).from("learner_streak_days").select("activity_date").eq("user_id", userId).order("activity_date", { ascending: false }).limit(5000),
     admin.from("quiz_leaderboard_points").select("points").eq("user_id", userId),
     admin.from("course_enrollments").select("course_id,status").eq("user_id", userId),
     admin.from("course_progress").select("course_id,progress_percent").eq("user_id", userId),
     getLearnerAchievements(admin, userId),
   ]);
 
-  const linkedLegacyIds = new Set((assessmentQuizAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
-  const activityDates = [
-    ...(legacyQuizAttempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)).map((attempt) => attempt.completed_at),
-    ...(assessmentQuizAttempts ?? []).map((attempt) => attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at),
-  ].filter((completedAt): completedAt is string => Boolean(completedAt)).map((completedAt) => toDateKey(new Date(completedAt)));
+  const activityDates = (activityDays ?? []).map((day: { activity_date: string }) => day.activity_date);
   const streak = calcStreak(activityDates);
   const totalPoints = (points ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
   const currentBadge = getQuizBadge(totalPoints);
