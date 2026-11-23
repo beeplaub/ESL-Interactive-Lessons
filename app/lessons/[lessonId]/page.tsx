@@ -15,10 +15,10 @@ export default async function LessonPage({
   searchParams,
 }: {
   params: Promise<{ lessonId: string }>;
-  searchParams: Promise<{ courseItem?: string; review?: string; slide?: string; tab?: string; activity?: string }>;
+  searchParams: Promise<{ courseItem?: string; review?: string; slide?: string; phaseItem?: string; resume?: string; tab?: string; activity?: string }>;
 }) {
   const { lessonId } = await params;
-  const { courseItem = null, review = null, slide = null, tab = null, activity = null } = await searchParams;
+  const { courseItem = null, review = null, slide = null, phaseItem = null, resume = null, tab = null, activity = null } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -337,6 +337,8 @@ export default async function LessonPage({
         practiceModuleMode={Boolean(practiceModule)}
         startInReviewMode={review === "1"}
         initialSlideNumber={slide ? Number(slide) : undefined}
+        resumeSlideNumber={resume === "1" && slide ? Number(slide) : undefined}
+        resumePhaseItemId={resume === "1" ? phaseItem : undefined}
         initialTab={tab === "practice" ? "practice" : tab === "learn" ? "learn" : undefined}
         focusActivityId={activity}
       />

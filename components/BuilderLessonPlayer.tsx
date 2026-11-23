@@ -393,7 +393,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides: sourceSlides, phaseItems = [], practiceLinks = [], blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, courseFeatureImageUrl = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false, instantClass,
+  lesson, slides: sourceSlides, phaseItems = [], practiceLinks = [], blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, courseFeatureImageUrl = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, resumeSlideNumber, resumePhaseItemId, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false, instantClass,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   phaseItems?: LessonPhaseItem[]; practiceLinks?: PracticeLearnLink[];
@@ -407,6 +407,8 @@ export function BuilderLessonPlayer({
   liveSession?: LiveSessionMode | null;
   startInReviewMode?: boolean;
   initialSlideNumber?: number;
+  resumeSlideNumber?: number;
+  resumePhaseItemId?: string | null;
   initialTab?: "learn" | "practice";
   focusActivityId?: string | null;
   classroomId?: string;
@@ -448,16 +450,19 @@ export function BuilderLessonPlayer({
   const instantIndex = instantClass?.selection.index;
   const instantTab = instantClass?.selection.tab;
   const instantActivityId = instantClass?.selection.activityId;
+  const resumePhaseIndex = resumePhaseItemId ? slides.findIndex((item) => item.phase_item_id === resumePhaseItemId) : -1;
+  const resumeLegacyIndex = resumeSlideNumber ? slides.findIndex((item) => item.slide_number === resumeSlideNumber) : -1;
+  const resumeTargetIndex = resumePhaseIndex >= 0 ? resumePhaseIndex : resumeLegacyIndex;
   const resolvedInitialSlideNumber = startInReviewMode ? 1 : initialSlideNumber ?? liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
   const savedPhaseIndex = initialSlideNumber === undefined && !startInReviewMode && initialProgress?.current_phase_item_id ? slides.findIndex((item) => item.phase_item_id === initialProgress.current_phase_item_id) : -1;
   const legacySlideIndex = slides.findIndex((item) => item.slide_number === resolvedInitialSlideNumber);
-  const initialIndex = Math.max(0, Math.min(slides.length - 1, savedPhaseIndex >= 0 ? savedPhaseIndex : legacySlideIndex >= 0 ? legacySlideIndex : 0));
+  const initialIndex = Math.max(0, Math.min(slides.length - 1, resumeTargetIndex >= 0 ? resumeTargetIndex : savedPhaseIndex >= 0 ? savedPhaseIndex : legacySlideIndex >= 0 ? legacySlideIndex : 0));
   const progressedPhase = initialProgress
     ? slides.find((item) => item.phase_item_id && item.phase_item_id === initialProgress.current_phase_item_id)?.player_phase ?? slides[initialIndex]?.player_phase
     : undefined;
   const [index, setIndex] = useState(initialIndex);
   const [hasStarted, setHasStarted] = useState(!standaloneTemplate);
-  const [entryGatePhase, setEntryGatePhase] = useState<"LEARN" | "PRACTICE">(template === "PO" ? "PRACTICE" : "LEARN");
+  const [entryGatePhase, setEntryGatePhase] = useState<"LEARN" | "PRACTICE">(resumeTargetIndex >= 0 ? slides[resumeTargetIndex]?.player_phase ?? (template === "PO" ? "PRACTICE" : "LEARN") : template === "PO" ? "PRACTICE" : "LEARN");
   const [learnPhaseOpened, setLearnPhaseOpened] = useState(!standaloneTemplate || (template === "LAP" && Boolean(initialProgress)) || progressedPhase === "LEARN");
   const [practicePhaseOpened, setPracticePhaseOpened] = useState(!standaloneTemplate || (template === "LAP" && Boolean(initialProgress)) || progressedPhase === "PRACTICE");
   const [showLearnGate, setShowLearnGate] = useState(false);
@@ -806,6 +811,14 @@ export function BuilderLessonPlayer({
 
   function startEntryGate() {
     setHasStarted(true);
+    if (resumeTargetIndex >= 0 && (slides[resumeTargetIndex]?.player_phase ?? entryGatePhase) === entryGatePhase) {
+      const resumePhase = slides[resumeTargetIndex]?.player_phase ?? entryGatePhase;
+      if (resumePhase === "PRACTICE") setPracticePhaseOpened(true);
+      else setLearnPhaseOpened(true);
+      setIndex(resumeTargetIndex);
+      scheduleProgressSave(resumeTargetIndex);
+      return;
+    }
     if (entryGatePhase === "PRACTICE") {
       const next = slides.findIndex((item) => item.player_phase === "PRACTICE");
       setPracticePhaseOpened(true);

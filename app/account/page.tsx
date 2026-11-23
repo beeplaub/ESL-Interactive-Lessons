@@ -89,7 +89,9 @@ export default async function AccountPage() {
     ...activeLessons.map((item, index) => {
       const params = new URLSearchParams({
         slide: String(Math.max(1, Number(item.current_slide_number) || 1)),
+        resume: "1",
       });
+      if (item.current_phase_item_id) params.set("phaseItem", item.current_phase_item_id);
       const href = `/lessons/${item.lesson_id}?${params.toString()}`;
       return {
         id: `lesson-${item.id}`,
@@ -104,7 +106,10 @@ export default async function AccountPage() {
     ...activeCourseEnrollments.map((item, index) => {
       const progressRow = courseProgressByCourse.get(item.course_id);
       const currentItem = progressRow?.current_item_id ? currentCourseItemById.get(progressRow.current_item_id) : null;
-      const href = currentItem ? courseItemHref(currentItem, item.course_id) : `/courses/${item.course_id}`;
+      const currentLessonProgress = currentItem?.lesson_id
+        ? (lessonProgress ?? []).find((progress) => progress.lesson_id === currentItem.lesson_id && !progress.completed)
+        : null;
+      const href = currentItem ? courseItemHref(currentItem, item.course_id, currentLessonProgress) : `/courses/${item.course_id}`;
       const continueTitle = relationTitle(currentItem?.lessons) ?? relationTitle(currentItem?.quizzes) ?? currentItem?.title;
       return {
       id: `course-${item.id}`,
@@ -162,7 +167,7 @@ export default async function AccountPage() {
           <DashboardCard className="overflow-hidden"><div className="grid lg:grid-cols-[.9fr_1.1fr]"><div className="border-b border-[var(--br-surface-strong)] p-5 lg:border-b-0 lg:border-r md:p-6"><SectionHeader title="Your Schedule" href="/calendar" small /><ScheduleGrid assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div><div className="p-5 md:p-6"><SectionHeader title="Today’s Agenda" href="/calendar" small /><AgendaList assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div></div></DashboardCard>
 
           <section>
-            <SectionHeader title="Enrolled Courses" href="/courses" />
+            <SectionHeader title="My Courses" href="/courses" />
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {activeCourseEnrollments.map((enrollment) => {
                 const course = Array.isArray(enrollment.courses) ? enrollment.courses[0] : enrollment.courses;
@@ -251,8 +256,16 @@ function assignmentHref(assignment: { item_type: string; course_id?: string | nu
   if (assignment.item_type === "QUIZ" && assignment.quiz_id) return `/quizzes/${assignment.quiz_id}`;
   return "/assignments";
 }
-function courseItemHref(item: { id: string; item_type: string; lesson_id: string | null; quiz_id: string | null }, courseId: string) {
-  if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}?courseItem=${item.id}`;
+function courseItemHref(item: { id: string; item_type: string; lesson_id: string | null; quiz_id: string | null }, courseId: string, progress?: { current_slide_number?: number | null; current_phase_item_id?: string | null } | null) {
+  if (item.item_type === "LESSON" && item.lesson_id) {
+    const params = new URLSearchParams({ courseItem: item.id });
+    if (progress) {
+      params.set("resume", "1");
+      params.set("slide", String(Math.max(1, Number(progress.current_slide_number) || 1)));
+      if (progress.current_phase_item_id) params.set("phaseItem", progress.current_phase_item_id);
+    }
+    return `/lessons/${item.lesson_id}?${params.toString()}`;
+  }
   if (item.item_type === "QUIZ" && item.quiz_id) return `/courses/${courseId}/quiz/${item.quiz_id}`;
   if (item.item_type === "LEVEL_TEST") return "/level-test";
   return `/courses/${courseId}`;
