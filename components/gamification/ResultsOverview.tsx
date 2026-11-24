@@ -5,10 +5,11 @@ import { motion } from "framer-motion";
 import { CheckCircle2, PenLine, RotateCcw, XCircle } from "lucide-react";
 import { overviewStatus, type OverviewStatus } from "@/lib/gamification/resultsOverview";
 import { asRecord, type ScoredQuestion } from "@/lib/quizScoring";
+import { normalizeListenBuildIpaAnswer } from "@/lib/ipa/practice";
 import type { Json } from "@/types/database.types";
 
 type OverviewQuestion = ScoredQuestion & { id: string; question_number: number };
-type ReviewItem = { questionIndex: number; roundIndex?: number; status: OverviewStatus; key: string };
+type ReviewItem = { questionIndex: number; roundIndex?: number; itemIndex?: number; status: OverviewStatus; key: string };
 
 const TILE_STYLES: Record<OverviewStatus, string> = {
   correct: "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)] hover:bg-[var(--br-success)]/20",
@@ -58,13 +59,31 @@ export function ResultsOverview({
   encouragement?: string;
   timeTakenSeconds?: number;
   bestStreak: number;
-  onSelectQuestion: (index: number, roundIndex?: number) => void;
+  onSelectQuestion: (index: number, roundIndex?: number, itemIndex?: number) => void;
   onRetake: () => void;
   retakeLabel?: string;
   headerExtra?: ReactNode;
 }) {
   const reviewItems: ReviewItem[] = questions.flatMap((question, questionIndex) => {
     const options = asRecord(question.options);
+    if (question.question_type === "IPA_PRACTICE" && options.mode === "listen-build" && Array.isArray(options.items)) {
+      const items = options.items.map(item => asRecord(item as Json));
+      const given = asRecord(answers[question.id] as Json);
+      const correctAnswers = asRecord(question.correct_answer as Json);
+      return items.map((item, itemIndex) => {
+        const itemId = String(item.id ?? `word-${itemIndex + 1}`);
+        const selectedAccent = String(given[`__accent:${itemId}`] ?? item.accent ?? options.accent ?? "uk") === "us" ? "us" : "uk";
+        const expectedByAccent = asRecord(item.expected_by_accent as Json);
+        const expected = String(expectedByAccent[selectedAccent] ?? item.expected ?? correctAnswers[itemId] ?? "");
+        const selected = String(given[itemId] ?? "");
+        return {
+          questionIndex,
+          itemIndex,
+          status: selected ? normalizeListenBuildIpaAnswer(selected) === normalizeListenBuildIpaAnswer(expected) ? "correct" : "incorrect" : "pending",
+          key: `${question.id}:${itemId}`,
+        };
+      });
+    }
     const rounds = question.question_type === "SOUND_DISCRIMINATION" && Array.isArray(options.rounds)
       ? (options.rounds as Json[]).map(item => asRecord(item))
       : [];
@@ -121,7 +140,7 @@ export function ResultsOverview({
         {headerExtra}
       </motion.div>
 
-      <p className="mb-3 mt-5 text-sm font-semibold text-[var(--br-text-muted)]">Tap a question to review it</p>
+      <p className="mb-3 mt-5 text-sm font-semibold text-[var(--br-text-muted)]">Tap an item to review it</p>
       <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10">
         {reviewItems.map((item, index) => {
           const status = item.status;
@@ -129,13 +148,13 @@ export function ResultsOverview({
             <motion.button
               key={item.key}
               type="button"
-              onClick={() => onSelectQuestion(item.questionIndex, item.roundIndex)}
+              onClick={() => onSelectQuestion(item.questionIndex, item.roundIndex, item.itemIndex)}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.03 * index, type: "spring", stiffness: 400, damping: 24 }}
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.94 }}
-              aria-label={`Review question ${index + 1}${status === "pending" ? "" : status === "correct" ? " — correct" : " — incorrect"}`}
+              aria-label={`Review ${questions[item.questionIndex].question_type === "IPA_PRACTICE" ? "word" : "question"} ${index + 1}${status === "pending" ? "" : status === "correct" ? " — correct" : " — incorrect"}`}
               className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[12px] border-2 text-sm font-extrabold shadow-sm transition-colors ${TILE_STYLES[status]}`}
             >
               <TileIcon status={status} />

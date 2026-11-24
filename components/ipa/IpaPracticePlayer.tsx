@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, Check, RotateCcw, Square, Volume2 } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, RotateCcw, Square, Volume2 } from "lucide-react";
 import type { Json } from "@/types/database.types";
 import type { QuizQuestion } from "@/components/QuizPlayer";
 import { IPA_ACCENTS, IPA_CHARTS, type IpaAudioManifest } from "@/lib/ipa/chart";
-import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
+import { normalizeIpaAnswer, normalizeListenBuildIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 
 type PracticeItem = { id: string; prompt: string; expected?: string; direction?: string; options?: string[]; pair?: { left?: { word?: string; soundId?: string }; right?: { word?: string; soundId?: string } }; cue?: string };
 type AnswerMap = Record<string, string>;
@@ -14,11 +14,13 @@ function record(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-export function IpaPracticePlayer({ question, value, disabled, onChange }: {
+export function IpaPracticePlayer({ question, value, disabled, onChange, reviewItemIndex, onReviewItemSelect }: {
   question: QuizQuestion;
   value: AnswerMap;
   disabled: boolean;
   onChange: (value: AnswerMap) => void;
+  reviewItemIndex?: number;
+  onReviewItemSelect?: (index: number) => void;
 }) {
   const options = record(question.options);
   const items = Array.isArray(options.items) ? options.items.map(item => record(item as Json) as PracticeItem) : [];
@@ -91,7 +93,7 @@ export function IpaPracticePlayer({ question, value, disabled, onChange }: {
     onChange({ ...(value ?? {}), [itemId]: next });
   }
 
-  if (mode === "listen-build") return <ListenBuildPlayer question={question} value={value} disabled={disabled} onChange={onChange} items={items} manifest={audioManifest} />;
+  if (mode === "listen-build") return <ListenBuildPlayer question={question} value={value} disabled={disabled} onChange={onChange} items={items} manifest={audioManifest} reviewItemIndex={reviewItemIndex} onReviewItemSelect={onReviewItemSelect} />;
 
   function isCorrect(item: PracticeItem) {
     const submitted = value?.[item.id]?.trim() ?? "";
@@ -138,20 +140,25 @@ export function IpaPracticePlayer({ question, value, disabled, onChange }: {
   </div>;
 }
 
-function ListenBuildPlayer({ question, value, disabled, onChange, items, manifest }: {
+function ListenBuildPlayer({ question, value, disabled, onChange, items, manifest, reviewItemIndex, onReviewItemSelect }: {
   question: QuizQuestion;
   value: AnswerMap;
   disabled: boolean;
   onChange: (value: AnswerMap) => void;
   items: PracticeItem[];
   manifest: IpaAudioManifest;
+  reviewItemIndex?: number;
+  onReviewItemSelect?: (index: number) => void;
 }) {
   const options = record(question.options);
   const [index, setIndex] = useState(0);
   const [group, setGroup] = useState<"all" | "consonant" | "vowel">("all");
   const [playing, setPlaying] = useState(false);
+  const [selectedSymbolIndex, setSelectedSymbolIndex] = useState<number | null>(null);
+  const [checkedItemId, setCheckedItemId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const current = items[index];
+  const activeIndex = disabled && reviewItemIndex != null ? Math.max(0, Math.min(items.length - 1, reviewItemIndex)) : index;
+  const current = items[activeIndex];
   const currentData = current ? record(current as unknown as Json) : {};
   const savedAccent = current ? value?.[`__accent:${current.id}`] : undefined;
   const accent: "uk" | "us" = savedAccent === "uk" || savedAccent === "us"
@@ -161,17 +168,20 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
   const expected = String(expectedMap[accent] ?? current?.expected ?? "");
   const targetAudioUrl = String(currentData[`audio_url_${accent}`] ?? currentData.audio_url ?? "");
   const answer = value?.[current?.id ?? ""] ?? "";
-  const isCorrectAnswer = Boolean(answer && normalizeIpaAnswer(answer) === normalizeIpaAnswer(expected));
+  const isCorrectAnswer = Boolean(answer && normalizeListenBuildIpaAnswer(answer) === normalizeListenBuildIpaAnswer(expected));
+  const answerTokens = tokenizeAnswer(answer, accent);
+  const answerWasChecked = checkedItemId === current?.id;
   const allSounds = IPA_CHARTS[accent].filter(sound => group === "all" || (group === "consonant" ? sound.group === "consonant" : sound.group !== "consonant"));
   const title = String(options.title ?? "").trim();
 
   useEffect(() => () => { audioRef.current?.pause(); audioRef.current = null; }, []);
+  useEffect(() => { setSelectedSymbolIndex(null); }, [activeIndex, current?.id]);
 
   function play(src?: string) {
     audioRef.current?.pause();
     audioRef.current = null;
     setPlaying(false);
-    if (!src || disabled) return;
+    if (!src) return;
     const audio = new Audio(src);
     audioRef.current = audio;
     audio.onended = () => { if (audioRef.current === audio) { audioRef.current = null; setPlaying(false); } };
@@ -181,12 +191,27 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
   }
   function append(sound: (typeof IPA_CHARTS.uk)[number]) {
     if (disabled || !current) return;
-    onChange({ ...value, [current.id]: `${answer}${sound.symbol}`, [`__accent:${current.id}`]: accent });
+    const nextTokens = [...answerTokens];
+    if (selectedSymbolIndex !== null && selectedSymbolIndex < nextTokens.length) nextTokens[selectedSymbolIndex] = sound.symbol;
+    else nextTokens.push(sound.symbol);
+    onChange({ ...value, [current.id]: nextTokens.join(""), [`__accent:${current.id}`]: accent });
+    setSelectedSymbolIndex(null);
+    setCheckedItemId(null);
     play(manifest[accent]?.[sound.id]?.sound?.src);
   }
-  function clear() {
+  function deleteSymbol() {
+    if (!current || !answerTokens.length || disabled) return;
+    const deleteIndex = selectedSymbolIndex ?? answerTokens.length - 1;
+    const nextTokens = answerTokens.filter((_, tokenIndex) => tokenIndex !== deleteIndex);
+    onChange({ ...value, [current.id]: nextTokens.join("") });
+    setSelectedSymbolIndex(null);
+    setCheckedItemId(null);
+  }
+  function clearAll() {
     if (!current) return;
     const next = { ...value }; delete next[current.id]; delete next[`__accent:${current.id}`]; onChange(next);
+    setSelectedSymbolIndex(null);
+    setCheckedItemId(null);
   }
   function toggleAccent() {
     if (!current || disabled) return;
@@ -194,7 +219,9 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
     setGroup("all");
   }
   function check() {
-    if (!current || !isCorrectAnswer) return;
+    if (!current || !answer) return;
+    setCheckedItemId(current.id);
+    if (!isCorrectAnswer) return;
     if (index < items.length - 1) window.setTimeout(() => setIndex(valueIndex => Math.min(items.length - 1, valueIndex + 1)), 450);
   }
   if (!current) return null;
@@ -204,19 +231,30 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
       {String(question.question_text ?? "").trim() ? <p className="mt-0.5 text-xs leading-4 text-[var(--br-text-muted)] sm:text-sm">{question.question_text}</p> : null}
     </header> : null}
     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-2 sm:p-2">
-      <button type="button" disabled={disabled || !targetAudioUrl} onClick={() => play(targetAudioUrl)} className="inline-flex min-w-0 max-w-full min-h-9 items-center justify-self-start gap-1 rounded-lg bg-[var(--br-action)] px-1.5 text-[10px] font-extrabold text-white hover:brightness-95 disabled:opacity-50 sm:gap-1.5 sm:px-3 sm:text-xs" aria-label="Play target word">{playing ? <Square size={14} /> : <Volume2 size={15} />}<span className="sm:hidden">Play</span><span className="hidden sm:inline">Play target word</span></button>
-      <div className="flex shrink-0 items-center justify-center gap-0.5 sm:gap-1" role="group" aria-label="Word progress">{items.map((item, dotIndex) => <button key={item.id} type="button" onClick={() => setIndex(dotIndex)} aria-label={`Word ${dotIndex + 1}`} aria-current={index === dotIndex ? "step" : undefined} className="grid size-5 shrink-0 place-items-center rounded-full sm:size-6"><span aria-hidden="true" className={`block rounded-full transition ${index === dotIndex ? "size-2 bg-[var(--br-action)] ring-1 ring-[var(--br-action)]/25 ring-offset-1 sm:size-2.5" : value[item.id] ? "size-1.5 bg-[var(--br-brand)] sm:size-2" : "size-1.5 bg-[var(--br-border-strong)] sm:size-2"}`} /></button>)}</div>
+      <button type="button" disabled={!targetAudioUrl} onClick={() => play(targetAudioUrl)} className="inline-flex min-w-0 max-w-full min-h-9 items-center justify-self-start gap-1 rounded-lg bg-[var(--br-action)] px-1.5 text-[10px] font-extrabold text-white hover:brightness-95 disabled:opacity-50 sm:gap-1.5 sm:px-3 sm:text-xs" aria-label="Play target word">{playing ? <Square size={14} /> : <Volume2 size={15} />}<span className="sm:hidden">Play</span><span className="hidden sm:inline">Play target word</span></button>
+      <div className="flex shrink-0 items-center justify-center gap-0.5 sm:gap-1" role="group" aria-label="Word progress">{items.map((item, dotIndex) => <button key={item.id} type="button" onClick={() => { if (disabled) onReviewItemSelect?.(dotIndex); else setIndex(dotIndex); }} aria-label={`Word ${dotIndex + 1}`} aria-current={activeIndex === dotIndex ? "step" : undefined} className="grid size-5 shrink-0 place-items-center rounded-full sm:size-6"><span aria-hidden="true" className={`block rounded-full transition ${activeIndex === dotIndex ? "size-2 bg-[var(--br-action)] ring-1 ring-[var(--br-action)]/25 ring-offset-1 sm:size-2.5" : value[item.id] ? "size-1.5 bg-[var(--br-brand)] sm:size-2" : "size-1.5 bg-[var(--br-border-strong)] sm:size-2"}`} /></button>)}</div>
       <button type="button" disabled={disabled} onClick={toggleAccent} aria-label={`Switch to ${accent === "uk" ? "American" : "British"} English`} title={`Switch to ${accent === "uk" ? "American" : "British"} English`} className={`inline-flex min-h-9 shrink-0 items-center justify-self-end gap-1 rounded-lg px-2 text-[10px] font-extrabold transition hover:brightness-95 disabled:opacity-50 sm:gap-1.5 sm:px-3 sm:text-xs ${accent === "uk" ? "bg-[var(--br-action)] text-white" : "bg-[var(--br-brand)] text-white"}`}><ArrowLeftRight size={13} aria-hidden="true" /><span>{accent === "uk" ? "British" : "American"}</span></button>
     </div>
     <div className="mt-2 rounded-xl border border-[var(--br-border)] bg-white p-2.5 sm:p-3">
-      <div className="flex items-center justify-between gap-2"><p className="text-xs font-extrabold text-[var(--br-text)] sm:text-sm">Build the IPA</p><span className="text-[10px] font-semibold text-[var(--br-text-muted)]">{index + 1} of {items.length}</span></div>
-      <div className="mt-2 flex min-h-11 items-center gap-1.5 overflow-x-auto rounded-lg bg-[var(--br-canvas-elevated)] px-2 py-1.5" aria-live="polite">{answer ? tokenizeAnswer(answer, accent).map((symbol, symbolIndex) => <span key={`${symbol}-${symbolIndex}`} className="grid h-8 min-w-8 shrink-0 place-items-center rounded-md border border-[var(--br-border)] bg-white px-1.5 font-data text-base font-bold text-[var(--br-brand)]">{symbol}</span>) : <span className="text-xs text-[var(--br-text-muted)]">Tap IPA sounds to build your answer</span>}</div>
-      <div className="mt-2 flex items-center justify-between gap-2"><div className="flex gap-1" role="tablist" aria-label="IPA sound groups">{([["all", "All sounds"], ["consonant", "Consonants"], ["vowel", "Vowels"]] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={group === key} onClick={() => setGroup(key)} className={`rounded-md px-2 py-1 text-[10px] font-bold ${group === key ? "bg-[var(--br-brand)]/10 text-[var(--br-brand)]" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>{label}</button>)}</div><button type="button" disabled={!answer || disabled} onClick={clear} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-40"><RotateCcw size={12} />Clear</button></div>
+      <div className="flex items-center justify-between gap-2"><p className="text-xs font-extrabold text-[var(--br-text)] sm:text-sm">Build the IPA</p><span className="text-[10px] font-semibold text-[var(--br-text-muted)]">{activeIndex + 1} of {items.length}</span></div>
+      <div className="mt-2 flex min-h-11 items-center gap-1.5 overflow-x-auto rounded-lg bg-[var(--br-canvas-elevated)] px-2 py-1.5" aria-live="polite">{answer ? answerTokens.map((symbol, symbolIndex) => <button key={`${symbol}-${symbolIndex}`} type="button" disabled={disabled} onClick={() => setSelectedSymbolIndex(symbolIndex)} aria-pressed={selectedSymbolIndex === symbolIndex} aria-label={`Select symbol ${symbol}, position ${symbolIndex + 1}`} className={`grid h-8 min-w-8 shrink-0 place-items-center rounded-md border px-1.5 font-data text-base font-bold transition ${selectedSymbolIndex === symbolIndex ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/10 text-[var(--br-brand)] ring-1 ring-[var(--br-chart-primary)]/25" : "border-[var(--br-border)] bg-white text-[var(--br-brand)]"}`}>{symbol}</button>) : <span className="text-xs text-[var(--br-text-muted)]">Tap IPA sounds to build your answer</span>}</div>
+      <div className="mt-2 flex items-center justify-between gap-2"><div className="flex gap-1" role="tablist" aria-label="IPA sound groups">{([["all", "All sounds"], ["consonant", "Consonants"], ["vowel", "Vowels"]] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={group === key} onClick={() => setGroup(key)} className={`rounded-md px-2 py-1 text-[10px] font-bold ${group === key ? "bg-[var(--br-brand)]/10 text-[var(--br-brand)]" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>{label}</button>)}</div><div className="flex items-center gap-1"><button type="button" disabled={!answer || disabled} onClick={deleteSymbol} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-40" aria-label={selectedSymbolIndex === null ? "Delete last symbol" : "Delete selected symbol"} title={selectedSymbolIndex === null ? "Delete last symbol" : "Delete selected symbol"}>⌫</button><button type="button" disabled={!answer || disabled} onClick={clearAll} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-40"><RotateCcw size={12} />Clear all</button></div></div>
       <div className="mt-1.5 grid grid-cols-8 gap-1 sm:grid-cols-10 sm:gap-1.5">{allSounds.map(sound => <button key={sound.id} type="button" disabled={disabled} onClick={() => append(sound)} aria-label={`Add ${sound.symbol}`} className="grid min-h-8 min-w-0 place-items-center rounded-lg border border-[var(--br-border)] bg-white font-data text-[15px] font-bold text-[var(--br-brand)] transition hover:border-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] active:scale-95 disabled:opacity-50 sm:min-h-9 sm:text-lg">{sound.symbol}</button>)}</div>
     </div>
-    <div className="mt-2 flex min-h-9 items-center justify-between gap-2" aria-live="polite">
-      <span className={`text-xs font-bold ${isCorrectAnswer ? "text-[var(--br-success)]" : "text-[var(--br-text-muted)]"}`}>{isCorrectAnswer ? <><Check className="mr-1 inline" size={14} />Correct</> : answer ? "Try again" : ""}</span>
-      {!disabled && <button type="button" disabled={!answer} onClick={check} className="rounded-lg bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-white hover:brightness-95 disabled:opacity-45">Check answer</button>}
+    {disabled ? <div className={`mt-2 rounded-xl border px-3 py-2 text-xs ${isCorrectAnswer ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
+      <p className={`font-extrabold ${isCorrectAnswer ? "text-emerald-800" : "text-rose-800"}`}>{isCorrectAnswer ? "Correct" : "Needs review"}</p>
+      <p className="mt-1 font-semibold text-[var(--br-text-muted)]">Your answer: <span className="font-data text-[var(--br-text)]">{answer || "No answer"}</span></p>
+      <p className="mt-1 font-semibold text-emerald-800">Correct answer: <span className="font-data">{expected}</span></p>
+    </div> : null}
+    <div className="mt-2 flex min-h-9 flex-wrap items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        {index > 0 && !disabled ? <button type="button" onClick={() => setIndex(valueIndex => Math.max(0, valueIndex - 1))} className="inline-flex items-center rounded-lg border border-[var(--br-border)] px-2 py-1.5 text-[10px] font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={13} />Previous word</button> : null}
+        <span className={`text-xs font-bold ${answerWasChecked && isCorrectAnswer ? "text-[var(--br-success)]" : answerWasChecked ? "text-[var(--br-danger)]" : "text-[var(--br-text-muted)]"}`} aria-live="polite">{answerWasChecked && isCorrectAnswer ? <><Check className="mr-1 inline" size={14} />Correct</> : answerWasChecked ? "Not quite — try again" : ""}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {!disabled && <button type="button" disabled={!answer} onClick={check} className="rounded-lg bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-white hover:brightness-95 disabled:opacity-45">Check word</button>}
+        {index < items.length - 1 && !disabled ? <button type="button" onClick={() => setIndex(valueIndex => Math.min(items.length - 1, valueIndex + 1))} className="inline-flex items-center rounded-lg border border-[var(--br-border)] px-2 py-1.5 text-[10px] font-bold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)]">Next word<ChevronRight size={13} /></button> : null}
+      </div>
     </div>
   </section>;
 }

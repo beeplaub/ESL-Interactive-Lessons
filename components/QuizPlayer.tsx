@@ -24,7 +24,7 @@ import { shadowingSentenceText, shadowingPhases } from "@/lib/shadowing";
 import { shadowingWordCoverage } from "@/lib/shadowingScoring";
 import { IpaPracticePlayer } from "@/components/ipa/IpaPracticePlayer";
 import { SoundDiscriminationLearnerCard } from "@/components/ipa/SoundDiscriminationLearnerCard";
-import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
+import { normalizeIpaAnswer, normalizeListenBuildIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 import { makeIpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 import { TongueTwisterPracticeCard } from "@/components/LessonBlockPreview";
 import { ReadingPracticePlayer } from "@/components/ReadingPractice";
@@ -455,8 +455,12 @@ function ipaPracticeResultItems(question: QuizQuestion, value: unknown) {
   return items.map((item, index) => {
     const id = String(item.id ?? `item-${index + 1}`);
     const given = String(answers[id] ?? "").trim();
-    const target = String(item.expected ?? expected[id] ?? "").trim();
-    const correct = mode === "conversion" && item.direction === "word-to-ipa"
+    const chosenAccent = String(answers[`__accent:${id}`] ?? item.accent ?? options.accent ?? "uk") === "us" ? "us" : "uk";
+    const expectedByAccent = asRecord(item.expected_by_accent as Json);
+    const target = String((mode === "listen-build" ? expectedByAccent[chosenAccent] : undefined) ?? item.expected ?? expected[id] ?? "").trim();
+    const correct = mode === "listen-build"
+      ? normalizeListenBuildIpaAnswer(given) === normalizeListenBuildIpaAnswer(target)
+      : mode === "conversion" && item.direction === "word-to-ipa"
       ? normalizeIpaAnswer(given) === normalizeIpaAnswer(target)
       : mode === "conversion" || mode === "compare"
         ? normalizeWordAnswer(given) === normalizeWordAnswer(target)
@@ -582,6 +586,7 @@ export function QuizPlayer({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
   const [soundReviewRoundIndex, setSoundReviewRoundIndex] = useState<number | undefined>();
+  const [ipaReviewItemIndex, setIpaReviewItemIndex] = useState<number | undefined>();
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
   const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
   const [autoGradingActive, setAutoGradingActive] = useState(false);
@@ -962,7 +967,7 @@ export function QuizPlayer({
           encouragement={encouragement}
           timeTakenSeconds={timerMinutes ? timeTakenSeconds : undefined}
           bestStreak={bestStreak}
-          onSelectQuestion={(index, roundIndex) => { setSoundReviewRoundIndex(roundIndex); goToQuestion(index); }}
+          onSelectQuestion={(index, roundIndex, itemIndex) => { setSoundReviewRoundIndex(roundIndex); setIpaReviewItemIndex(itemIndex); goToQuestion(index); }}
           onRetake={reset}
           headerExtra={
             isGuest ? (
@@ -1028,6 +1033,8 @@ export function QuizPlayer({
               questionCount={questions.length}
               onNavigateQuestion={goToQuestion}
               soundDiscriminationReviewRoundIndex={currentQuestion.question_type === "SOUND_DISCRIMINATION" ? soundReviewRoundIndex : undefined}
+              ipaReviewItemIndex={currentQuestion.question_type === "IPA_PRACTICE" ? ipaReviewItemIndex : undefined}
+              onIpaReviewItemSelect={setIpaReviewItemIndex}
               onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
               onResult={handleQuestionResult}
               quizId={quizId}
@@ -1134,6 +1141,8 @@ export function QuestionCard({
   questionCount,
   onNavigateQuestion,
   soundDiscriminationReviewRoundIndex,
+  ipaReviewItemIndex,
+  onIpaReviewItemSelect,
   onChange,
   onResult,
   onFinishShadowing,
@@ -1148,6 +1157,8 @@ export function QuestionCard({
   questionCount?: number;
   onNavigateQuestion?: (index: number) => void;
   soundDiscriminationReviewRoundIndex?: number;
+  ipaReviewItemIndex?: number;
+  onIpaReviewItemSelect?: (index: number) => void;
   onChange: (value: unknown) => void;
   /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
   onResult?: (result: "correct" | "wrong" | "partial", questionId: string) => void;
@@ -1264,7 +1275,7 @@ export function QuestionCard({
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} reviewRoundIndex={soundDiscriminationReviewRoundIndex} onChange={onChange} /> : null}
         {question.question_type === "STRESS_PICKER" ? <StressPickerPlayer question={question} value={value as number | undefined} disabled={submitted} questionPosition={questionPosition} questionCount={questionCount} onNavigateQuestion={onNavigateQuestion} onChange={onChange} /> : null}
         {question.question_type === "ACCENT_IDENTIFY" ? <AccentIdentifierPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} reviewItemIndex={ipaReviewItemIndex} onReviewItemSelect={onIpaReviewItemSelect} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "ESSAY_WRITING" ? <EssayWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}

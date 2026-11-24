@@ -122,6 +122,11 @@ export function normalizeIpaAnswer(value: string): string {
   return value.toLowerCase().replace(/[\/\s.]/g, "").replace(/g/g, "ɡ");
 }
 
+/** Listen & Build IPA treats stress as optional; other IPA exercises keep their existing rules. */
+export function normalizeListenBuildIpaAnswer(value: string): string {
+  return normalizeIpaAnswer(value).replace(/[ˈˌ]/g, "");
+}
+
 export function normalizeWordAnswer(value: string): string {
   return value.toLowerCase().replace(/[^a-z]/g, "");
 }

@@ -1,7 +1,7 @@
 import type { Json } from "@/types/database.types";
 import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGrading";
 import { shadowingPhases } from "@/lib/shadowing";
-import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
+import { normalizeIpaAnswer, normalizeListenBuildIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 
 export type ScoredQuestion = {
   id?: string;
@@ -143,7 +143,7 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
       if (mode === "listen-build") {
         const byAccent = asRecord(asRecord(options.correct_by_accent as Json)[itemId] as Json);
         const chosenAccent = String(given[`__accent:${itemId}`] ?? "uk") === "us" ? "us" : "uk";
-        return normalizeIpaAnswer(raw) === normalizeIpaAnswer(String(byAccent[chosenAccent] ?? expected));
+        return normalizeListenBuildIpaAnswer(raw) === normalizeListenBuildIpaAnswer(String(byAccent[chosenAccent] ?? expected));
       }
       if (mode === "conversion") {
         const item = Array.isArray(options.items) ? asRecord(options.items.find(item => String(asRecord(item as Json).id) === itemId) as Json) : {};
