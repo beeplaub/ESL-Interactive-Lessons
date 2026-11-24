@@ -58,20 +58,28 @@ export async function POST(request: Request) {
   if (!sound) return errorResponse("That sound is not part of this chart accent.", 404);
   const word = input.assetType === "word" ? input.word : "";
   if (input.assetType === "word" && !sound.examples.some(example => plainWord(example) === word)) return errorResponse("Choose one of this sound’s example words.", 400);
+  const chartExample = input.assetType === "word"
+    ? sound.examples.find(example => plainWord(example) === word)
+    : null;
+  let wordIpa = chartExample?.ipa.trim() ?? "";
+  let wordPartOfSpeech = "";
 
   const admin = createAdminClient();
   let wordId = input.assetType === "word" ? input.wordId ?? null : null;
   if (wordId) {
     const [{ data: catalogWord, error: wordError }, { data: pronunciation, error: pronunciationError }] = await Promise.all([
       admin.from("ipa_chart_words").select("id,spelling,is_active").eq("id", wordId).maybeSingle(),
-      admin.from("ipa_chart_word_pronunciations").select("word_id").eq("word_id", wordId).eq("accent", input.accent).eq("sound_id", sound.id).maybeSingle(),
+      admin.from("ipa_chart_word_pronunciations").select("word_id,ipa,part_of_speech").eq("word_id", wordId).eq("accent", input.accent).eq("sound_id", sound.id).maybeSingle(),
     ]);
     if (wordError || pronunciationError) return errorResponse("The word catalog is unavailable. Apply its migration before generating audio.", 503);
     if (!catalogWord?.is_active || catalogWord.spelling.toLocaleLowerCase("en-US") !== word.toLocaleLowerCase("en-US") || !pronunciation) return errorResponse("Choose an active chart word and one of its saved accent pronunciations.", 400);
+    wordIpa = pronunciation.ipa.trim();
+    wordPartOfSpeech = pronunciation.part_of_speech?.trim() ?? "";
   } else if (input.assetType === "word") {
     const { data: existingWord } = await admin.from("ipa_chart_words").select("id").eq("normalized_spelling", word.toLocaleLowerCase("en-US")).maybeSingle();
     wordId = existingWord?.id ?? null;
   }
+  if (input.assetType === "word" && !wordIpa) return errorResponse("This chart word has no saved IPA pronunciation for the selected accent. Add its IPA before generating audio.", 400);
   const { data: settings, error: settingsError } = await admin.from("ipa_chart_audio_settings")
     .select("voice_name,style,pace,settings_revision").eq("accent", input.accent).maybeSingle();
   if (settingsError || !settings) return errorResponse("IPA audio settings are unavailable. Apply the IPA audio migration, then try again.", 503);
@@ -96,7 +104,7 @@ export async function POST(request: Request) {
 
   const instruction = input.assetType === "sound"
     ? `Produce the English phoneme /${sound.symbol}/ used in ${IPA_ACCENTS[input.accent].label} exactly once as a short, isolated sound. Do not repeat, prolong, name, or explain it. Do not add a vowel before or after a consonant. For a vowel or diphthong, use one natural-length pronunciation.`
-    : `Say the English word ${word} exactly once in ${IPA_ACCENTS[input.accent].label}. Use speech only; do not add an introduction, translation, sentence, or explanation.`;
+    : `Say the English word ${word} exactly once in ${IPA_ACCENTS[input.accent].label}. Its intended pronunciation is /${wordIpa}/${wordPartOfSpeech ? `; use it as a ${wordPartOfSpeech}` : ""}. Follow this IPA exactly and do not choose a different pronunciation based on the spelling alone. Use speech only; do not add an introduction, translation, sentence, or explanation.`;
   const voiceRequest = {
     script: input.assetType === "word" ? word : `/${sound.symbol}/`,
     instruction,
@@ -144,7 +152,7 @@ export async function POST(request: Request) {
       response_preview: `${input.accent.toUpperCase()} · /${sound.symbol}/ · ${input.assetType === "word" ? word : "isolated sound"}`,
       token_estimate: generated.tokenEstimate, provider: "google", status: "COMPLETED",
       input_tokens: generated.inputTokens, output_tokens: generated.outputTokens, latency_ms: Date.now() - startedAt,
-      cache_hit: false, cache_key: requestHash, prompt_version: "ipa-chart-audio-v1", completed_at: now,
+      cache_hit: false, cache_key: requestHash, prompt_version: "ipa-chart-audio-v2", completed_at: now,
     });
     return NextResponse.json({ ok: true, id: savedAsset.id, status: "READY_FOR_REVIEW", url: stored.url, mimeType: generated.mimeType, soundId: sound.id, assetType: input.assetType, word, wordId });
   } catch (error) {
@@ -173,7 +181,7 @@ export async function POST(request: Request) {
     if (!current?.live_public_url && !current?.pending_public_url) {
       await admin.from("ipa_chart_audio_assets").upsert({ accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, ...(wordId ? { word_id: wordId } : {}), status: "FAILED", voice_name: settings.voice_name, style: settings.style, pace: settings.pace, settings_revision: settings.settings_revision ?? 1, generation_model: IPA_VOICEOVER_MODEL, generated_by: session.user.id, error_message: failureMessage, updated_at: new Date().toISOString() }, { onConflict: "accent,sound_id,asset_type,word" });
     }
-    await admin.from("ai_generations").insert({ user_id: session.user.id, user_role: session.profile?.role ?? "ADMIN", feature_key: "ipa_chart_audio", model_used: "Gemini TTS", prompt_raw: `${instruction}\n\n${voiceRequest.script}`.slice(0, 2_000), error_message: failureMessage, provider: "google", status: "FAILED", latency_ms: Date.now() - startedAt, cache_key: requestHash, prompt_version: "ipa-chart-audio-v1", completed_at: new Date().toISOString() });
+    await admin.from("ai_generations").insert({ user_id: session.user.id, user_role: session.profile?.role ?? "ADMIN", feature_key: "ipa_chart_audio", model_used: "Gemini TTS", prompt_raw: `${instruction}\n\n${voiceRequest.script}`.slice(0, 2_000), error_message: failureMessage, provider: "google", status: "FAILED", latency_ms: Date.now() - startedAt, cache_key: requestHash, prompt_version: "ipa-chart-audio-v2", completed_at: new Date().toISOString() });
     return errorResponse(failureMessage, quota ? 429 : status === 400 ? 502 : tooLong ? 422 : 503);
   } finally {
     await releaseAiGeneration(lockKey, lock.ownerToken);
