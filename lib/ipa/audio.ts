@@ -3,6 +3,7 @@ import { z } from "zod";
 import manifest from "@/content/ipa/audio.json";
 import { IPA_CHARTS, plainWord, type IpaAccent, type IpaAudioManifest } from "./chart";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import { VOICEOVER_PACES, VOICEOVER_STYLES } from "@/lib/ai/voiceoverCatalog";
 import { IPA_GEMINI_VOICES, type IpaGeminiVoice } from "./audio-options";
 export { IPA_GEMINI_VOICES, type IpaGeminiVoice } from "./audio-options";
@@ -29,15 +30,15 @@ export async function getIpaAudioManifest(): Promise<IpaAudioManifest> {
   const fallback = schema.parse(manifest);
   const admin = createAdminClient();
   const [assetsResult, wordsResult, pronunciationsResult] = await Promise.all([
-    admin.from("ipa_chart_audio_assets").select("id,accent,sound_id,asset_type,word,live_public_url,reviewed_at").not("live_public_url", "is", null).order("reviewed_at", { ascending: false }),
-    admin.from("ipa_chart_words").select("id,is_active"),
-    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id"),
+    fetchAllRows((from, to) => admin.from("ipa_chart_audio_assets").select("id,accent,sound_id,asset_type,word,live_public_url,reviewed_at").not("live_public_url", "is", null).order("reviewed_at", { ascending: false }).order("id").range(from, to)),
+    fetchAllRows((from, to) => admin.from("ipa_chart_words").select("id,spelling,is_active").order("id").range(from, to)),
+    fetchAllRows((from, to) => admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id").order("id").range(from, to)),
   ]);
   if (assetsResult.error) {
     console.error("IPA chart audio lookup failed", assetsResult.error.code ?? "unknown");
     return fallback;
   }
-  const linksResult = await admin.from("ipa_chart_audio_assets").select("id,word_id").eq("asset_type", "word");
+  const linksResult = await fetchAllRows((from, to) => admin.from("ipa_chart_audio_assets").select("id,word_id").eq("asset_type", "word").order("id").range(from, to));
   if (linksResult.error) {
     console.error("IPA chart audio word links lookup failed", linksResult.error.code ?? "unknown");
     return fallback;
@@ -48,6 +49,7 @@ export async function getIpaAudioManifest(): Promise<IpaAudioManifest> {
   }
   const wordIdByAssetId = new Map((linksResult.data ?? []).map(row => [row.id, row.word_id as string | null]));
   const activeWordIds = new Set((wordsResult.data ?? []).filter(row => row.is_active).map(row => row.id));
+  const spellingByWordId = new Map((wordsResult.data ?? []).map(row => [row.id, row.spelling as string]));
   const soundIdsByWordAccent = new Map<string, string[]>();
   for (const row of pronunciationsResult.data ?? []) {
     if (row.accent !== "uk" && row.accent !== "us") continue;
@@ -70,6 +72,7 @@ export async function getIpaAudioManifest(): Promise<IpaAudioManifest> {
     if (row.asset_type === "word") {
       const wordId = wordIdByAssetId.get(row.id);
       if (wordId && catalogAvailable && !activeWordIds.has(wordId)) continue;
+      const spelling = wordId && catalogAvailable ? spellingByWordId.get(wordId) ?? row.word : row.word;
       const assignmentKey = `${accent}:${wordId ?? row.word.toLocaleLowerCase("en-US")}`;
       if (assignedWordAudio.has(assignmentKey)) continue;
       assignedWordAudio.add(assignmentKey);
@@ -79,7 +82,7 @@ export async function getIpaAudioManifest(): Promise<IpaAudioManifest> {
       for (const soundId of new Set(soundIds)) {
         data[accent]![soundId] ??= {};
         data[accent]![soundId]!.words ??= {};
-        data[accent]![soundId]!.words![row.word] = recording;
+        data[accent]![soundId]!.words![spelling] = recording;
       }
     }
   }
@@ -90,13 +93,13 @@ export async function getIpaChartAudioAdminState(): Promise<{ configured: boolea
   const admin = createAdminClient();
   const [settingsResult, assetsResult] = await Promise.all([
     admin.from("ipa_chart_audio_settings").select("accent,voice_name,style,pace,settings_revision").order("accent"),
-    admin.from("ipa_chart_audio_assets").select("id,accent,sound_id,asset_type,word,status,live_public_url,pending_public_url,mime_type,voice_name,style,pace,settings_revision,generated_by,reviewed_by,reviewed_at,error_message").order("accent").order("sound_id").order("asset_type").order("word"),
+    fetchAllRows((from, to) => admin.from("ipa_chart_audio_assets").select("id,accent,sound_id,asset_type,word,status,live_public_url,pending_public_url,mime_type,voice_name,style,pace,settings_revision,generated_by,reviewed_by,reviewed_at,error_message").order("accent").order("sound_id").order("asset_type").order("word").order("id").range(from, to)),
   ]);
   if (settingsResult.error || assetsResult.error) {
     console.error("IPA chart audio admin state lookup failed", settingsResult.error?.code ?? assetsResult.error?.code ?? "unknown");
     return { configured: false, settings: [], assets: [] };
   }
-  const linksResult = await admin.from("ipa_chart_audio_assets").select("id,word_id").eq("asset_type", "word");
+  const linksResult = await fetchAllRows((from, to) => admin.from("ipa_chart_audio_assets").select("id,word_id").eq("asset_type", "word").order("id").range(from, to));
   const wordIdByAssetId = new Map((linksResult.data ?? []).map(row => [row.id, row.word_id as string | null]));
   return {
     configured: true,

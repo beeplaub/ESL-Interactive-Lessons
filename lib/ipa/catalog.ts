@@ -1,6 +1,7 @@
 import "server-only";
 import { IPA_CHARTS, plainWord, type IpaAccent, type IpaExample, type IpaSound } from "@/lib/ipa/chart";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 
 export type IpaChartCatalogWord = {
   id: string;
@@ -13,8 +14,8 @@ export type IpaChartCatalogWord = {
 export async function getIpaChartCatalog(): Promise<Record<IpaAccent, IpaSound[]>> {
   const admin = createAdminClient();
   const [wordsResult, pronunciationsResult] = await Promise.all([
-    admin.from("ipa_chart_words").select("id,spelling,normalized_spelling,is_active").eq("is_active", true),
-    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default,syllable_data").order("sort_order"),
+    fetchAllRows((from, to) => admin.from("ipa_chart_words").select("id,spelling,normalized_spelling,is_active").eq("is_active", true).order("id").range(from, to)),
+    fetchAllRows((from, to) => admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default,syllable_data").order("sort_order").range(from, to)),
   ]);
   if (wordsResult.error || pronunciationsResult.error) {
     console.error("IPA chart catalog lookup failed", wordsResult.error?.code ?? pronunciationsResult.error?.code ?? "unknown");
@@ -50,8 +51,8 @@ function mergeExamples(accent: IpaAccent, catalogExamples: Map<string, IpaExampl
 export async function getIpaChartWordAdminState(): Promise<{ configured: boolean; words: IpaChartCatalogWord[] }> {
   const admin = createAdminClient();
   const [wordsResult, pronunciationsResult] = await Promise.all([
-    admin.from("ipa_chart_words").select("id,spelling,normalized_spelling,is_active").order("normalized_spelling"),
-    admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default,syllable_data").order("sort_order"),
+    fetchAllRows((from, to) => admin.from("ipa_chart_words").select("id,spelling,normalized_spelling,is_active").order("normalized_spelling").range(from, to)),
+    fetchAllRows((from, to) => admin.from("ipa_chart_word_pronunciations").select("word_id,accent,sound_id,ipa,spelling_markup,sort_order,is_default,syllable_data").order("sort_order").range(from, to)),
   ]);
   if (wordsResult.error || pronunciationsResult.error) {
     console.error("IPA chart word admin lookup failed", wordsResult.error?.code ?? pronunciationsResult.error?.code ?? "unknown");

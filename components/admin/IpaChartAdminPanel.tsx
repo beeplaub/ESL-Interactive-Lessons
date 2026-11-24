@@ -28,7 +28,7 @@ export function IpaChartAdminPanel({ audio, audioConfigured, audioSettings, audi
       <p className="max-w-2xl text-sm leading-6 text-[var(--br-text-muted)]">Manage the interactive chart and its reviewed pronunciation audio.</p>
     </header>
 
-    <IpaChartWordAdmin configured={catalogConfigured} initialWords={catalogWords} />
+    <IpaChartWordAdmin configured={catalogConfigured} initialWords={catalogWords} audioAssets={audioAssets} charts={charts} />
     <IpaChartAudioAdmin configured={audioConfigured} initialSettings={audioSettings} initialAssets={audioAssets} charts={charts} catalogWords={catalogWords} />
 
     <section className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] p-5">

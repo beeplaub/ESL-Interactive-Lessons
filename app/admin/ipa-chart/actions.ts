@@ -64,6 +64,51 @@ export async function addIpaChartWord(input: {
   return { id: word.id, spelling };
 }
 
+export async function updateIpaChartWord(input: {
+  id: string;
+  spelling: string;
+  spellingMarkup: string;
+  ukIpa: string;
+  ukSoundId: string;
+  usIpa: string;
+  usSoundId: string;
+}) {
+  const { user } = await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(input.id)) throw new Error("Choose a valid chart word.");
+  const spelling = input.spelling.trim().replace(/\s+/g, " ");
+  const spellingMarkup = input.spellingMarkup.trim().replace(/\s+/g, " ");
+  const normalized = spelling.toLocaleLowerCase("en-US");
+  const plainMarkup = spellingMarkup.replace(/\[([^\]]+)\]/g, "$1");
+  if (!spelling || spelling.length > 80 || /[\[\]]/.test(spelling) || !/\[[^\]]+\]/.test(spellingMarkup) || plainMarkup.toLocaleLowerCase("en-US") !== normalized) throw new Error("Check the word and highlighted spelling.");
+  if (!input.ukIpa.trim() || input.ukIpa.trim().length > 120 || !input.usIpa.trim() || input.usIpa.trim().length > 120) throw new Error("Add both British and American IPA transcriptions.");
+  requireParseableIpa(input.ukIpa.trim(), spelling);
+  requireParseableIpa(input.usIpa.trim(), spelling);
+  if (!IPA_CHARTS.uk.some(sound => sound.id === input.ukSoundId) || !IPA_CHARTS.us.some(sound => sound.id === input.usSoundId)) throw new Error("Choose a valid target sound for each accent.");
+
+  const admin = createAdminClient();
+  const { data: duplicate, error: duplicateError } = await admin.from("ipa_chart_words").select("id").eq("normalized_spelling", normalized).neq("id", input.id).maybeSingle();
+  if (duplicateError) throw new Error("The chart catalog could not validate this spelling.");
+  if (duplicate) throw new Error("Another chart word already uses this spelling.");
+  const { data: updated, error: wordError } = await admin.from("ipa_chart_words").update({ spelling, normalized_spelling: normalized, updated_at: new Date().toISOString() }).eq("id", input.id).select("id").maybeSingle();
+  if (wordError || !updated) throw new Error("The chart word could not be updated.");
+
+  for (const pronunciation of [
+    { accent: "uk" as const, sound_id: input.ukSoundId, ipa: input.ukIpa.trim() },
+    { accent: "us" as const, sound_id: input.usSoundId, ipa: input.usIpa.trim() },
+  ]) {
+    const { data: existing, error: readError } = await admin.from("ipa_chart_word_pronunciations").select("id").eq("word_id", input.id).eq("accent", pronunciation.accent).eq("is_default", true).maybeSingle();
+    if (readError) throw new Error("The word was saved, but its pronunciation could not be loaded. Refresh and review it.");
+    const values = { ...pronunciation, spelling_markup: spellingMarkup, updated_at: new Date().toISOString() };
+    const result = existing
+      ? await admin.from("ipa_chart_word_pronunciations").update(values).eq("id", existing.id).select("id").maybeSingle()
+      : await admin.from("ipa_chart_word_pronunciations").insert({ ...values, word_id: input.id, is_default: true }).select("id").maybeSingle();
+    if (result.error || !result.data?.id) throw new Error("The word was saved, but a pronunciation could not be updated. Refresh and review it.");
+  }
+  revalidatePath("/ipa-chart");
+  revalidatePath("/admin/ipa-chart");
+  return { id: input.id, spelling, normalizedSpelling: normalized, spellingMarkup };
+}
+
 export async function importIpaChartExpansionSection(batchIndex: number) {
   const { user } = await requireAdmin();
   if (!Number.isInteger(batchIndex) || batchIndex < 0 || batchIndex >= 45) throw new Error("Choose a valid sound-card batch.");
