@@ -23,6 +23,7 @@ import { CourseQuizOutcomeMapper } from "@/components/CourseQuizOutcomeMapper";
 import { DeleteButton } from "@/components/DeleteButton";
 import { CourseItemsList } from "@/app/admin/courses/[id]/builder/CourseItemsList";
 import { CourseTeamManager, type CourseTeamRow } from "@/components/CourseTeamManager";
+import { CourseNarrationTimingSync } from "@/components/CourseNarrationTimingSync";
 import {
   addCourseFaq,
   addCourseItem,
@@ -363,6 +364,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <p className="mt-1 text-sm text-[var(--br-text-muted)]">Shape the landing page when needed. Keep the curriculum in focus.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canManageCurriculum ? <CourseNarrationTimingSync courseId={course.id} /> : null}
             <Link href="/admin/content-library?type=COURSE_TEMPLATE" className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">
               <Library size={15} /> Library
             </Link>

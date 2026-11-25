@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { narrationSourceFingerprint } from "@/lib/narrationWordTimings";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { resolveMediaUrl } from "@/lib/storage/mediaStorage";
@@ -277,13 +277,7 @@ export default async function LessonPage({
       });
       const narrationLanguage: "en" | "bn" = af.narration_language === "bn" ? "bn" : "en";
       const sourceType = af.source_type === "LINK" ? "LINK" as const : af.source_type === "UPLOADED" ? "UPLOADED" as const : "RECORDED" as const;
-      const sourceFingerprint = createHash("md5").update([
-        af.storage_provider ?? "",
-        af.storage_bucket ?? "",
-        af.storage_path ?? "",
-        af.external_url ?? "",
-        af.transcript ?? "",
-      ].join("\n")).digest("hex");
+      const sourceFingerprint = narrationSourceFingerprint(af);
       const wordTimings = af.timing_source_fingerprint === sourceFingerprint ? af.word_timings : null;
       return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage, sourceType, transcript: af.transcript || "", glossary: Array.isArray(af.glossary) ? af.glossary : [], wordTimings };
     })

@@ -2,7 +2,7 @@
 const nextConfig = {
   // Keep the dev output isolated so a concurrent `next build` cannot replace
   // development chunks while an admin is previewing an unfinished workflow.
-  distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
+  distDir: process.env.BRENUP_NEXT_DIST_DIR || (process.env.NODE_ENV === "development" ? ".next-dev" : ".next"),
   experimental: {
     serverActions: {
       bodySizeLimit: "30mb"
