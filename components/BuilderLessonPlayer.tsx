@@ -12,7 +12,7 @@ import { liveJson, notifyLiveRoom, useLiveRefresh } from "@/lib/liveSync";
 import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
 import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
-import { NarrationFullScript, NarrationGlossaryPanel, NarrationGlossaryWord, NarrationReadPreview, PinnedNarrationReadPreview, narrationGlossary, type NarrationGlossaryEntry } from "@/components/NarrationStudyAssist";
+import { NarrationFullScript, NarrationGlossaryPanel, NarrationGlossaryWord, NarrationReadPreview, PinnedNarrationReadPreview, narrationGlossary, parseNarrationWordTimings, type NarrationGlossaryEntry, type NarrationWordTiming } from "@/components/NarrationStudyAssist";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { resolveLessonPlayerSteps, supportsAutoplay, type LessonPhaseItem, type LessonTemplate, type PracticeLearnLink } from "@/lib/lessonTemplates";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
@@ -171,7 +171,7 @@ function youtubeVideoId(url: string) {
   } catch { return null; }
 }
 
-function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", onProgressChange, onEnded, autoplayControlled = false }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; onProgressChange?: (state: { currentTime: number; duration: number }) => void; onEnded?: () => void; autoplayControlled?: boolean }) {
+function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", wordTimings = [], onProgressChange, onPreciseTimeChange, onEnded, autoplayControlled = false }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; wordTimings?: NarrationWordTiming[]; onProgressChange?: (state: { currentTime: number; duration: number }) => void; onPreciseTimeChange?: (currentTime: number) => void; onEnded?: () => void; autoplayControlled?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const youtubeRef = useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -184,8 +184,46 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
   const [originalFinished, setOriginalFinished] = useState(false);
   const [translationState, setTranslationState] = useState<"idle" | "loading" | "playing" | "done" | "error">("idle");
   const [translationError, setTranslationError] = useState<string | null>(null);
+  const preciseTimeCallbackRef = useRef(onPreciseTimeChange);
+  const wordTimingsRef = useRef(wordTimings);
   const videoId = useMemo(() => sourceType === "LINK" ? youtubeVideoId(src) : null, [sourceType, src]);
   const isYouTubeAudio = Boolean(videoId);
+
+  useEffect(() => { preciseTimeCallbackRef.current = onPreciseTimeChange; }, [onPreciseTimeChange]);
+  useEffect(() => { wordTimingsRef.current = wordTimings; }, [wordTimings]);
+
+  // Audio `timeupdate` is intentionally kept for the visible player controls.
+  // Sample the media clock per animation frame and notify the lesson only when
+  // the active word changes, so short words do not get skipped without making
+  // the whole player rerender at display refresh rate.
+  useEffect(() => {
+    if (!playing || isYouTubeAudio || wordTimings.length === 0) return;
+    let frame = 0;
+    let lastActiveWord = -2;
+    const tick = () => {
+      const current = audioRef.current?.currentTime;
+      if (typeof current === "number") {
+        const words = wordTimingsRef.current;
+        let low = 0;
+        let high = words.length - 1;
+        let activeWord = -1;
+        while (low <= high) {
+          const middle = (low + high) >> 1;
+          const timing = words[middle];
+          if (current < timing.start) high = middle - 1;
+          else if (current > timing.end) low = middle + 1;
+          else { activeWord = middle; break; }
+        }
+        if (activeWord !== lastActiveWord) {
+          lastActiveWord = activeWord;
+          preciseTimeCallbackRef.current?.(current);
+        }
+      }
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [playing, isYouTubeAudio, wordTimings.length]);
 
   // Autoplay on mount
   useEffect(() => {
@@ -402,7 +440,7 @@ export function BuilderLessonPlayer({
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
   narrationMap?: Record<string, string>;
-  narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[] }>;
+  narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[]; wordTimings?: Json | null }>;
   courseItemId?: string | null;
   courseFeatureImageUrl?: string | null;
   backHref?: string;
@@ -719,6 +757,10 @@ export function BuilderLessonPlayer({
   const narrationConfig = slide ? narrationConfigMap[slide.id] : undefined;
   const hasTranscript = Boolean(narrationConfig?.transcript?.trim());
   const hasGlossary = narrationGlossary(narrationConfig?.glossary).length > 0;
+  const narrationWordTimings = useMemo(() => parseNarrationWordTimings(narrationConfig?.wordTimings)?.words ?? [], [narrationConfig?.wordTimings]);
+  const handlePreciseNarrationTimeChange = useCallback((currentTime: number) => {
+    setNarrationProgress((previous) => previous.currentTime === currentTime ? previous : { ...previous, currentTime });
+  }, []);
 
   useEffect(() => {
     setNarrationProgress({ currentTime: 0, duration: 0 });
@@ -1196,7 +1238,7 @@ export function BuilderLessonPlayer({
               <div className="flex items-center justify-between gap-2">
                 {!instantClass ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"><ArrowLeft size={15} /></Link> : <span />}
                 {narrationVisible && narrationUrl && (
-                  <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} onEnded={() => setNarrationEnded(true)} autoplayControlled={autoplayConfigured} />
+                  <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} wordTimings={narrationWordTimings} onProgressChange={setNarrationProgress} onPreciseTimeChange={handlePreciseNarrationTimeChange} onEnded={() => setNarrationEnded(true)} autoplayControlled={autoplayConfigured} />
                 )}
               </div>
 
@@ -1303,7 +1345,7 @@ export function BuilderLessonPlayer({
 
       {/* ── In-flow study dock and bottom navigation ── */}
       <div className="mt-5">
-          {narrationVisible && pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview anchor={lessonViewport} transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setStudyPanel("read"); }} onOpenScript={() => { setPinnedReadingGuide(false); setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
+          {narrationVisible && pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview anchor={lessonViewport} transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setStudyPanel("read"); }} onOpenScript={() => { setPinnedReadingGuide(false); setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
           <div className="mx-auto flex w-fit items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1.5 shadow-[var(--br-shadow)]">
             {narrationVisible ? <>
               <button type="button" disabled={!hasTranscript} onClick={() => { const guideOpen = studyPanel === "read" || pinnedReadingGuide; setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel(guideOpen ? null : "read"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasTranscript ? studyPanel === "read" || pinnedReadingGuide ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasTranscript ? "Open subtitles" : "No reading script on this slide"}><BookOpenText size={14} />Script</button>
@@ -1312,8 +1354,8 @@ export function BuilderLessonPlayer({
             <button type="button" onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "notes" ? null : "notes"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${studyPanel === "notes" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`}><NotebookPen size={14} />Notes</button>
           </div>
           {(narrationVisible && (studyPanel === "read" || studyPanel === "glossary" || fullScriptOpen || selectedGlossaryEntry)) || studyPanel === "notes" ? <div className="mx-auto mt-2 w-full max-w-xl">
-            {fullScriptOpen ? <NarrationFullScript transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onClose={() => { setFullScriptOpen(false); setStudyPanel("read"); }} onSelectTerm={(entry) => { setFullScriptOpen(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
-            {studyPanel === "read" && !pinnedReadingGuide ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={false} onTogglePin={() => { setPinnedReadingGuide(true); setStudyPanel(null); }} onOpenScript={() => { setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
+            {fullScriptOpen ? <NarrationFullScript transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onClose={() => { setFullScriptOpen(false); setStudyPanel("read"); }} onSelectTerm={(entry) => { setFullScriptOpen(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
+            {studyPanel === "read" && !pinnedReadingGuide ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={false} onTogglePin={() => { setPinnedReadingGuide(true); setStudyPanel(null); }} onOpenScript={() => { setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
             {studyPanel === "glossary" ? <NarrationGlossaryPanel glossary={narrationConfig?.glossary} /> : null}
             {studyPanel === "notes" ? <section className="w-full rounded-2xl border-2 border-[var(--br-action)] bg-white p-3 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><NotebookPen size={15} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Notes</p></div><span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[var(--br-chart-secondary)] opacity-100" : "opacity-0"}`}>Saved</span></div><textarea key={slide.id} value={notesMap[slide.id] ?? ""} onChange={handleNotesChange} placeholder="Type your notes here… they save automatically." rows={5} className="mt-3 w-full resize-none rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-action)] focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/15" /><p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">{instantClass ? "Saved per slide on this device." : "Saved per slide."}</p></section> : null}
             {selectedGlossaryEntry ? <NarrationGlossaryWord entry={selectedGlossaryEntry} onClose={() => { setSelectedGlossaryEntry(null); setStudyPanel("read"); }} /> : null}

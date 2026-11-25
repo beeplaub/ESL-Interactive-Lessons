@@ -128,6 +128,8 @@ export async function POST(req: Request, { params }: Params) {
       linked_slide_number: slide?.slide_number ?? null,
       translation_enabled: formData.get("translationEnabled") === "true",
       narration_language: formData.get("narrationLanguage") === "bn" ? "bn" as const : "en" as const,
+      word_timings: null,
+      timing_source_fingerprint: null,
     };
     const { error } = existing
       ? await admin.from("lesson_audio_files").update(row).eq("id", existing.id)
@@ -199,6 +201,8 @@ export async function POST(req: Request, { params }: Params) {
     linked_slide_number: slide?.slide_number ?? null,
     translation_enabled: formData.get("translationEnabled") === "true",
     narration_language: formData.get("narrationLanguage") === "bn" ? "bn" as const : "en" as const,
+    word_timings: null,
+    timing_source_fingerprint: null,
   };
   const { error } = existing
     ? await admin.from("lesson_audio_files").update(row).eq("id", existing.id)
@@ -239,13 +243,20 @@ export async function PATCH(req: Request, { params }: Params) {
   const body = await req.json().catch(() => null) as { translationEnabled?: boolean; narrationLanguage?: string; transcript?: string; glossary?: unknown } | null;
   const admin = createAdminClient();
   const { data: narration } = await admin.from("lesson_audio_files")
-    .select("id,source_type").eq("lesson_id", lessonId).eq("slide_id", slideId).eq("label", "narration").maybeSingle();
+    .select("id,source_type,transcript").eq("lesson_id", lessonId).eq("slide_id", slideId).eq("label", "narration").maybeSingle();
   if (!narration) return NextResponse.json({ error: "Slide audio was not found." }, { status: 404 });
   const update: Record<string, unknown> = {
     translation_enabled: Boolean(body?.translationEnabled),
     narration_language: body?.narrationLanguage === "bn" ? "bn" : "en",
   };
-  if (typeof body?.transcript === "string") update.transcript = body.transcript.trim().slice(0, 20_000) || null;
+  if (typeof body?.transcript === "string") {
+    const nextTranscript = body.transcript.trim().slice(0, 20_000) || null;
+    update.transcript = nextTranscript;
+    if (nextTranscript !== (narration.transcript ?? null)) {
+      update.word_timings = null;
+      update.timing_source_fingerprint = null;
+    }
+  }
   if (Array.isArray(body?.glossary)) {
     update.glossary = body.glossary.slice(0, 40).flatMap((entry, index) => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];

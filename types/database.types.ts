@@ -233,6 +233,8 @@ export type Database = {
           narration_language?: "en" | "bn";
           transcript?: string | null;
           glossary?: Json;
+          word_timings?: Json | null;
+          timing_source_fingerprint?: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -253,6 +255,8 @@ export type Database = {
           narration_language?: "en" | "bn";
           transcript?: string | null;
           glossary?: Json;
+          word_timings?: Json | null;
+          timing_source_fingerprint?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -273,6 +277,8 @@ export type Database = {
           narration_language?: "en" | "bn";
           transcript?: string | null;
           glossary?: Json;
+          word_timings?: Json | null;
+          timing_source_fingerprint?: string | null;
           created_at?: string;
           updated_at?: string;
         };

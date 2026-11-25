@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
@@ -204,7 +205,7 @@ export default async function LessonPage({
     admin.from("lesson_progress").select("current_slide_number,current_phase_item_id,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
     admin.from("quiz_attempts").select("id,lesson_slide_activity_id,score,total,answers,completed_at,status,grading_source").eq("user_id", user.id).not("lesson_slide_activity_id", "is", null).order("completed_at", { ascending: false }),
     admin.from("assessment_attempts").select("id,lesson_activity_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at,status,grading_source").eq("user_id", user.id).eq("source_type", "LESSON_ACTIVITY").not("lesson_activity_id", "is", null).order("completed_at", { ascending: false }),
-    admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,label,linked_slide_number,translation_enabled,narration_language,transcript,glossary").eq("lesson_id", lessonId).eq("label", "narration"),
+    admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,label,linked_slide_number,translation_enabled,narration_language,transcript,glossary,word_timings,timing_source_fingerprint").eq("lesson_id", lessonId).eq("label", "narration"),
   ]);
 
   if (!lesson) notFound();
@@ -276,19 +277,27 @@ export default async function LessonPage({
       });
       const narrationLanguage: "en" | "bn" = af.narration_language === "bn" ? "bn" : "en";
       const sourceType = af.source_type === "LINK" ? "LINK" as const : af.source_type === "UPLOADED" ? "UPLOADED" as const : "RECORDED" as const;
-      return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage, sourceType, transcript: af.transcript || "", glossary: Array.isArray(af.glossary) ? af.glossary : [] };
+      const sourceFingerprint = createHash("md5").update([
+        af.storage_provider ?? "",
+        af.storage_bucket ?? "",
+        af.storage_path ?? "",
+        af.external_url ?? "",
+        af.transcript ?? "",
+      ].join("\n")).digest("hex");
+      const wordTimings = af.timing_source_fingerprint === sourceFingerprint ? af.word_timings : null;
+      return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage, sourceType, transcript: af.transcript || "", glossary: Array.isArray(af.glossary) ? af.glossary : [], wordTimings };
     })
   );
 
   // Map slideId → signedUrl
   const narrationMap: Record<string, string> = {};
-  const narrationConfigMap: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[] }> = {};
+  const narrationConfigMap: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[]; wordTimings?: Json | null }> = {};
   for (const n of narrations) {
     if (!n.slideId) continue;
     if (n.signedUrl) narrationMap[n.slideId] = n.signedUrl;
     // Keep study-support metadata even when an external audio URL cannot be
     // resolved at render time. The learner can still read the saved script.
-    narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage, sourceType: n.sourceType, transcript: n.transcript, glossary: n.glossary };
+    narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage, sourceType: n.sourceType, transcript: n.transcript, glossary: n.glossary, wordTimings: n.wordTimings };
   }
 
   return (
