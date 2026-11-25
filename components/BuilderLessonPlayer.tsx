@@ -42,6 +42,8 @@ type LiveSessionMode = { sessionId: string; role: "TEACHER" | "STUDENT"; initial
 
 function practiceActivityTitle(activity: Activity | null) {
   if (!activity) return null;
+  if (activity.activity_type === "READ_ALOUD") return "Read Aloud";
+  if (activity.activity_type === "IPA_LISTEN_BUILD") return "Practice IPA Symbols";
   const data = activity.activity_data && typeof activity.activity_data === "object" && !Array.isArray(activity.activity_data)
     ? activity.activity_data as Record<string, unknown>
     : {};

@@ -717,7 +717,6 @@ type ListenBuildPickerWord = { id: string; word: string; ipa_uk: string; ipa_us:
 type ListenBuildItem = { id: string; word_id: string; word: string; ipa_uk: string; ipa_us: string; audio_url_uk: string; audio_url_us: string; audio_url?: string; accent: "uk" | "us" };
 function IpaListenBuildEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const data = asRecord(activity.activity_data);
-  const [title, setTitle] = useState(String(data.title ?? "Listen & Build IPA"));
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the word and build its IPA."));
   const initialItems = Array.isArray(data.items) ? data.items.map((item, index) => {
     const row = asRecord(item as Json);
@@ -744,10 +743,7 @@ function IpaListenBuildEditor({ activity, onSave }: { activity: Activity; onSave
   const readyItems = items.filter(item => item.word.trim() && item.ipa_uk.trim() && item.ipa_us.trim() && (item.word_id ? item.audio_url_uk.trim() && item.audio_url_us.trim() : item.audio_url?.trim()));
   const complete = readyItems.length === items.length && items.length > 0;
   return <div className="grid gap-3 rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] p-3 sm:p-4">
-    <div className="grid gap-2 sm:grid-cols-2">
-      <label className="text-sm font-bold">Activity title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={title} onChange={event => setTitle(event.target.value)} placeholder="Listen & Build IPA" className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2 text-sm" /></label>
-      <label className="text-sm font-bold">Instruction <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="Listen to the word and build its IPA." className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2 text-sm" /></label>
-    </div>
+    <label className="text-sm font-bold">Instruction<input value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="Listen to the word and build its IPA." className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2 text-sm font-normal" /></label>
     <p className="text-xs leading-5 text-[var(--br-text-muted)]">Choose words from the IPA chart. Only words with approved British and American recordings appear; their IPA and audio are reused from the chart.</p>
     {items.map((item, index) => <div key={item.id} className="grid gap-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <div className="grid gap-2">
@@ -760,7 +756,7 @@ function IpaListenBuildEditor({ activity, onSave }: { activity: Activity; onSave
       <button type="button" onClick={() => removeWord(index)} disabled={items.length <= 1} className="min-h-10 rounded-lg border border-[var(--br-border)] px-3 text-xs font-bold text-[var(--br-text-muted)] hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-40">Remove</button>
     </div>)}
     <div className="flex flex-wrap items-center justify-between gap-2"><button type="button" disabled={loadingWords || availableWords.length === 0} onClick={addWord} className="inline-flex min-h-10 items-center rounded-lg border border-[var(--br-border)] bg-white px-3 text-sm font-bold text-[var(--br-brand)] disabled:cursor-not-allowed disabled:opacity-50">Add another word</button><span className="text-xs text-[var(--br-text-muted)]">{items.length} {items.length === 1 ? "word" : "words"}</span></div>
-    <SaveButton disabled={!complete} onClick={() => onSave({ title: title.trim(), prompt: prompt.trim(), accent: readyItems[0]?.accent ?? "uk", items: readyItems } as unknown as Json, false)} />
+    <SaveButton disabled={!complete} onClick={() => onSave({ prompt: prompt.trim(), accent: readyItems[0]?.accent ?? "uk", items: readyItems } as unknown as Json, false)} />
   </div>;
 }
 

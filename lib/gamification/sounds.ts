@@ -12,6 +12,18 @@
 const MUTE_STORAGE_KEY = "brenup:soundMuted";
 
 let cachedContext: AudioContext | null = null;
+let soundOnOverrides = 0;
+
+/** Keep feedback tones enabled while an activity with no sound control is active. */
+export function keepActivitySoundsOn(): () => void {
+  soundOnOverrides += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    soundOnOverrides = Math.max(0, soundOnOverrides - 1);
+  };
+}
 
 function getContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -24,6 +36,7 @@ function getContext(): AudioContext | null {
 
 export function isSoundMuted(): boolean {
   if (typeof window === "undefined") return false;
+  if (soundOnOverrides > 0) return false;
   return window.localStorage.getItem(MUTE_STORAGE_KEY) === "1";
 }
 

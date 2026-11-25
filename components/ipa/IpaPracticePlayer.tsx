@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, RotateCcw, Square, Volume2 } from "lucide-react";
 import type { Json } from "@/types/database.types";
 import type { QuizQuestion } from "@/components/QuizPlayer";
+import { PracticeActivityHeading } from "@/components/PracticeActivityHeading";
 import { IPA_ACCENTS, IPA_CHARTS, type IpaAudioManifest } from "@/lib/ipa/chart";
 import { normalizeIpaAnswer, normalizeListenBuildIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 
@@ -14,13 +15,14 @@ function record(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-export function IpaPracticePlayer({ question, value, disabled, onChange, reviewItemIndex, onReviewItemSelect }: {
+export function IpaPracticePlayer({ question, value, disabled, onChange, reviewItemIndex, onReviewItemSelect, useExternalHeading = false }: {
   question: QuizQuestion;
   value: AnswerMap;
   disabled: boolean;
   onChange: (value: AnswerMap) => void;
   reviewItemIndex?: number;
   onReviewItemSelect?: (index: number) => void;
+  useExternalHeading?: boolean;
 }) {
   const options = record(question.options);
   const items = Array.isArray(options.items) ? options.items.map(item => record(item as Json) as PracticeItem) : [];
@@ -93,7 +95,10 @@ export function IpaPracticePlayer({ question, value, disabled, onChange, reviewI
     onChange({ ...(value ?? {}), [itemId]: next });
   }
 
-  if (mode === "listen-build") return <ListenBuildPlayer question={question} value={value} disabled={disabled} onChange={onChange} items={items} manifest={audioManifest} reviewItemIndex={reviewItemIndex} onReviewItemSelect={onReviewItemSelect} />;
+  if (mode === "listen-build") return <>
+    {!useExternalHeading ? <PracticeActivityHeading label="Practice IPA Symbols" prompt={question.question_text} /> : null}
+    <ListenBuildPlayer question={question} value={value} disabled={disabled} onChange={onChange} items={items} manifest={audioManifest} reviewItemIndex={reviewItemIndex} onReviewItemSelect={onReviewItemSelect} />
+  </>;
 
   function isCorrect(item: PracticeItem) {
     const submitted = value?.[item.id]?.trim() ?? "";
@@ -172,7 +177,6 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
   const answerTokens = tokenizeAnswer(answer, accent);
   const answerWasChecked = checkedItemId === current?.id;
   const allSounds = IPA_CHARTS[accent].filter(sound => group === "all" || (group === "consonant" ? sound.group === "consonant" : sound.group !== "consonant"));
-  const title = String(options.title ?? "").trim();
 
   useEffect(() => () => { audioRef.current?.pause(); audioRef.current = null; }, []);
   useEffect(() => { setSelectedSymbolIndex(null); }, [activeIndex, current?.id]);
@@ -224,10 +228,6 @@ function ListenBuildPlayer({ question, value, disabled, onChange, items, manifes
   }
   if (!current) return null;
   return <section className="space-y-3" aria-label="Listen and build IPA">
-    {(title || String(question.question_text ?? "").trim()) ? <header>
-      {title ? <h3 className="text-base font-extrabold leading-tight text-[var(--br-text)] sm:text-lg">{title}</h3> : null}
-      {String(question.question_text ?? "").trim() ? <p className="mt-1 text-sm leading-5 text-[var(--br-text-muted)]">{question.question_text}</p> : null}
-    </header> : null}
     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-3">
       <button type="button" disabled={!targetAudioUrl} onClick={() => play(targetAudioUrl)} className="inline-flex min-h-10 min-w-10 items-center justify-self-start gap-1.5 rounded-lg bg-[var(--br-action)] px-2.5 text-xs font-extrabold text-white hover:brightness-95 disabled:opacity-50 sm:px-3" aria-label="Play target word">{playing ? <Square size={15} /> : <Volume2 size={16} />}<span className="sm:hidden">Play</span><span className="hidden sm:inline">Play target word</span></button>
       <div className="flex shrink-0 items-center justify-center gap-0.5 sm:gap-1" role="group" aria-label="Word progress">{items.map((item, dotIndex) => <button key={item.id} type="button" onClick={() => { if (disabled) onReviewItemSelect?.(dotIndex); else setIndex(dotIndex); }} aria-label={`Word ${dotIndex + 1}`} aria-current={activeIndex === dotIndex ? "step" : undefined} className="grid size-5 shrink-0 place-items-center rounded-full sm:size-6"><span aria-hidden="true" className={`block rounded-full transition ${activeIndex === dotIndex ? "size-2 bg-[var(--br-action)] ring-1 ring-[var(--br-action)]/25 ring-offset-1 sm:size-2.5" : value[item.id] ? "size-1.5 bg-[var(--br-brand)] sm:size-2" : "size-1.5 bg-[var(--br-border-strong)] sm:size-2"}`} /></button>)}</div>

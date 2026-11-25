@@ -10,6 +10,7 @@ import type { Json } from "@/types/database.types";
 import { getSpeechRecognitionConstructor, transcriptContainsTarget } from "@/lib/speechRecognition";
 import { asRecord, isCorrect, partialCreditStats, pronunciationTargetPoints, questionScore, questionTotal } from "@/lib/quizScoring";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
+import { PracticeActivityHeading } from "@/components/PracticeActivityHeading";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
 import { playCelebration, playCorrect, playPartial, playRecordingEnd, playRecordingStart, playWrong } from "@/lib/gamification/sounds";
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
@@ -1138,6 +1139,7 @@ export function QuizPlayer({
 
 export function QuestionCard({
   question,
+  useExternalActivityHeading = false,
   value,
   submitted,
   questionPosition,
@@ -1154,6 +1156,7 @@ export function QuestionCard({
   lessonId
 }: {
   question: QuizQuestion;
+  useExternalActivityHeading?: boolean;
   value: unknown;
   submitted: boolean;
   questionPosition?: number;
@@ -1249,10 +1252,10 @@ export function QuestionCard({
           )}
         </motion.div>
       ) : null}
-      {!isListenBuildActivity ? <legend className="min-w-0 max-w-full px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] [overflow-wrap:anywhere] sm:text-xl">
+      {!isListenBuildActivity && !useExternalActivityHeading ? <legend className="min-w-0 max-w-full px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] [overflow-wrap:anywhere] sm:text-xl">
         <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-sm font-black text-[var(--br-chart-primary)]">{question.question_number}</span>{question.question_text}
       </legend> : null}
-      {!isListenBuildActivity && question.description?.trim() ? <p className="mt-3 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">{question.description.trim()}</p> : null}
+      {!isListenBuildActivity && !useExternalActivityHeading && question.description?.trim() ? <p className="mt-3 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">{question.description.trim()}</p> : null}
       <div className={isListenBuildActivity ? "mt-0" : question.question_type === "SHADOWING" ? question.description?.trim() ? "mt-4" : "mt-2" : "mt-5"}>
         {question.question_type === "MCQ" ? <Mcq question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
@@ -1279,7 +1282,7 @@ export function QuestionCard({
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} reviewRoundIndex={soundDiscriminationReviewRoundIndex} onChange={onChange} /> : null}
         {question.question_type === "STRESS_PICKER" ? <StressPickerPlayer question={question} value={value as number | undefined} disabled={submitted} questionPosition={questionPosition} questionCount={questionCount} onNavigateQuestion={onNavigateQuestion} onChange={onChange} /> : null}
         {question.question_type === "ACCENT_IDENTIFY" ? <AccentIdentifierPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} reviewItemIndex={ipaReviewItemIndex} onReviewItemSelect={onIpaReviewItemSelect} /> : null}
+        {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} reviewItemIndex={ipaReviewItemIndex} onReviewItemSelect={onIpaReviewItemSelect} useExternalHeading={useExternalActivityHeading} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "ESSAY_WRITING" ? <EssayWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
@@ -3060,14 +3063,12 @@ function Pronunciation({
     const currentScore = Number.isFinite(currentScoreValue) ? Math.max(0, Math.min(100, currentScoreValue)) : null;
     const currentPoints = pronunciationTargetPoints(value, currentTarget.id);
     const currentAttempts = attemptsUsed[currentTarget.id] ?? 0;
-    const attemptedWords = targets.filter((target) => (attemptsUsed[target.id] ?? 0) > 0).length;
     const earnedPoints = targets.reduce((sum, target) => sum + pronunciationTargetPoints(value, target.id), 0);
     const currentTranscript = transcripts[currentTarget.id]?.trim();
     const isCurrentListening = activeKey === currentTarget.id && micState === "listening";
     const isCurrentSuccessful = results[currentTarget.id] === true;
     const hasAttemptsLeft = currentAttempts < maxAttempts;
     const canNavigate = micState !== "listening" && micState !== "transcribing";
-    const progressPercent = Math.round((attemptedWords / targets.length) * 100);
     const pointLabel = (points: number) => `${points} ${points === 1 ? "point" : "points"}`;
     const phonemeTone = (score: number) => score >= 85
       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -3077,15 +3078,19 @@ function Pronunciation({
 
     return (
       <div className="grid w-full min-w-0 max-w-full gap-4 rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm sm:gap-6 sm:p-5">
-        <div className="grid gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <p className="font-bold text-slate-900">Word {currentIndex + 1} of {targets.length}</p>
-            <p className="text-xs font-semibold text-slate-500">{attemptedWords} of {targets.length} practiced</p>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Words practiced" aria-valuemin={0} aria-valuemax={targets.length} aria-valuenow={attemptedWords}>
-            <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${progressPercent}%` }} />
-          </div>
-          <p className="text-right text-xs font-semibold text-slate-500">{Number(earnedPoints.toFixed(1))} of {targets.length} points earned</p>
+        <div className="flex flex-wrap items-center justify-center gap-2.5">
+          {targets.length > 1 ? <nav className="flex max-w-full flex-wrap items-center justify-center" aria-label="Pronunciation word progress">
+            {targets.map((target, index) => {
+              const isCurrent = currentIndex === index;
+              const wasAttempted = (attemptsUsed[target.id] ?? 0) > 0;
+              return <button key={target.id} type="button" disabled={!canNavigate} onClick={() => { setActiveTargetIndex(index); setError(null); }} aria-label={`Go to word ${index + 1} of ${targets.length}`} aria-current={isCurrent ? "step" : undefined} title={`Word ${index + 1}`} className="grid size-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-50">
+                <span className={`h-2.5 rounded-full transition-all ${isCurrent ? "w-6 bg-[var(--br-action)]" : wasAttempted ? "w-2.5 bg-[var(--br-brand)]" : "w-2.5 bg-[var(--br-border-strong)]"}`} />
+              </button>;
+            })}
+          </nav> : null}
+          <span className="inline-flex min-h-7 items-center rounded-full border border-[var(--br-brand)]/15 bg-[var(--br-brand)]/[0.06] px-2.5 text-[11px] font-extrabold tabular-nums text-[var(--br-brand)]" aria-label={`${Number(earnedPoints.toFixed(1))} of ${targets.length} points earned`}>
+            {Number(earnedPoints.toFixed(1))}/{targets.length} pts
+          </span>
         </div>
 
         <section className="grid min-w-0 justify-items-center gap-4 px-1 py-2 text-center sm:gap-5" aria-label={`${currentTarget.text} pronunciation practice`}>
@@ -3786,11 +3791,7 @@ function LayeredShadowingPlayer({ question, value, disabled, onChange, onFinish,
 
       <header className="border-b border-slate-100 px-5 py-5 sm:px-9 sm:py-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Shadowing practice</p>
-            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{question.question_text || "Listen. Say it. Compare."}</h1>
-            {question.description?.trim() ? <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">{question.description.trim()}</p> : null}
-          </div>
+          <PracticeActivityHeading label="Shadowing practice" prompt={question.question_text || "Listen. Say it. Compare."} description={question.description} />
           <div className="flex shrink-0 flex-wrap gap-2" aria-label="Prompt details">
             {accentLabel ? <span className="inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800">{accentLabel}</span> : null}
             {cefrLevel ? <span className="inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-violet-800">{cefrLevel}</span> : null}

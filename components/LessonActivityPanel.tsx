@@ -9,6 +9,8 @@ import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction, saveRoleplayVoiceTranscriptAction, getRoleplayHistoryAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
+import { PracticeActivityHeading } from "@/components/PracticeActivityHeading";
+import { keepActivitySoundsOn } from "@/lib/gamification/sounds";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
 import { asWritingValue, evaluationQuota, isAwaitingResolution, isWritingQuestionType, modeUsesFromAttempts, resolveWritingOutcome, type EvaluationMode } from "@/lib/writingGrading";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
@@ -1932,8 +1934,16 @@ function GenericLessonActivityPanel({
     && questions[0]?.question_type === "IPA_PRACTICE"
     && asRecord(questions[0].options).mode === "listen-build";
   const isPronunciationActivity = questions.length > 0 && questions.every((question) => question.question_type === "PRONUNCIATION");
+  const isSoundDiscriminationActivity = questions.length > 0 && questions.every((question) => question.question_type === "SOUND_DISCRIMINATION");
+  const isSpeechPracticeActivity = isPronunciationActivity || isSoundDiscriminationActivity;
+  const hasUnifiedSpeechHeader = isSpeechPracticeActivity || isListenBuildActivity;
   const isShadowingActivity = questions.length > 0 && questions.every((question) => question.question_type === "SHADOWING");
   const isLayeredShadowing = isShadowingActivity;
+  const hideActivityProgressAndNavigation = isLayeredShadowing || isListenBuildActivity || isSpeechPracticeActivity;
+  useEffect(() => {
+    if (!hasUnifiedSpeechHeader && !isLayeredShadowing) return;
+    return keepActivitySoundsOn();
+  }, [hasUnifiedSpeechHeader, isLayeredShadowing]);
   const allAnswered = questions.length > 0 && questions.every((question) => hasAnswer(question, answers[question.id]));
   const shadowingComparisonHeard = isShadowingActivity && questions.every((question) => asRecord(answers[question.id] as Json).comparison_heard === true);
   const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
@@ -2184,11 +2194,15 @@ function GenericLessonActivityPanel({
   }
 
   return (
-    <section className={isLayeredShadowing ? "w-full min-w-0" : "w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm"}>
+    <section className={isLayeredShadowing || isSpeechPracticeActivity ? "w-full min-w-0" : "w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm"}>
       {/* Header */}
       {!isLayeredShadowing ? <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">{activityLabel(activity.activity_type)}</h2>
+          {hasUnifiedSpeechHeader ? <PracticeActivityHeading
+            label={activityLabel(activity.activity_type)}
+            prompt={currentQuestion?.question_text}
+            description={isListenBuildActivity ? null : currentQuestion?.description}
+          /> : <h2 className="text-lg font-semibold">{activityLabel(activity.activity_type)}</h2>}
         </div>
         <div className="flex items-center gap-2">
           {submitted && (
@@ -2200,11 +2214,11 @@ function GenericLessonActivityPanel({
               />
             </span>
           )}
-          <SoundToggle />
+          {!hasUnifiedSpeechHeader ? <SoundToggle /> : null}
         </div>
       </div> : null}
 
-      {!submitted && !isLayeredShadowing && !isListenBuildActivity ? (
+      {!submitted && !hideActivityProgressAndNavigation ? (
         <div className="mb-4">
           <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-[var(--br-text-muted)]"><span>Progress</span><span>{answeredCount}/{questions.length}</span></div>
           <div className="h-2.5 overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70" role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
@@ -2248,7 +2262,7 @@ function GenericLessonActivityPanel({
       {currentQuestion && (!submitted || reviewMode === "detail") && (
         <div className={autoGradingActive ? "hidden" : undefined}>
           {/* Question counter + arrows */}
-          {currentQuestion.question_type !== "STRESS_PICKER" && !isLayeredShadowing && !isListenBuildActivity ? <div className="mb-3 flex items-center justify-between gap-2">
+          {currentQuestion.question_type !== "STRESS_PICKER" && !hideActivityProgressAndNavigation ? <div className="mb-3 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setQIndex((i) => Math.max(0, i - 1))}
@@ -2299,6 +2313,7 @@ function GenericLessonActivityPanel({
               <QuestionCard
                 key={`${currentQuestion.id}:${selectedAttemptId ?? "new"}`}
                 question={currentQuestion}
+                useExternalActivityHeading={hasUnifiedSpeechHeader}
                 value={answers[currentQuestion.id]}
                 submitted={submitted}
                 questionPosition={qIndex}

@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, Loader2, Volume2, X } from "lucide-react";
 import Link from "next/link";
 import styles from "./ReadingPractice.module.css";
+import { PracticeActivityHeading } from "@/components/PracticeActivityHeading";
 import type { Json } from "@/types/database.types";
 import { READING_TEMPLATES } from "@/lib/readingTemplates";
 import { compareReadingText, defaultReadingPace, readingCadence, readingChunkRanges, readingPaceForLevel, readingTokens, splitReadingParagraphs, type ReadingMatch } from "@/lib/readingPractice";
@@ -23,7 +24,7 @@ export type ReadingPracticeResult = {
   transcript: string;
 };
 
-type ReadingConfig = { title: string; passage: string; level: string; time_limit_seconds: number | null; pace_wpm?: number; recording_attempt_limit?: number | null; chunking_enabled?: boolean; usage_key?: string };
+type ReadingConfig = { title: string; prompt?: string; passage: string; level: string; time_limit_seconds: number | null; pace_wpm?: number; recording_attempt_limit?: number | null; chunking_enabled?: boolean; usage_key?: string };
 type CadenceCue = { kind: "syllable"; tokenIndex: number; syllableIndex: number; groupIndex: number; unit: "weak" | "anchor"; durationMs: number; slowAtEnd?: boolean } | { kind: "pause"; durationMs: number };
 type CadenceStep = { stressTokenIndex: number; stressSyllableIndex: number; intro: CadenceCue[]; interval: CadenceCue[] };
 
@@ -586,7 +587,7 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
   const readPace = result ? Math.round((result.total_words / Math.max(1, result.elapsed_seconds)) * 60) : 0;
   return <section className={`${styles.activity} ${timed ? styles.speedOn : ""}`} aria-label={timed ? "Speed Reading" : "Read Aloud"}>
     <div className={styles.mainCard}>
-      <div className={styles.courseRow}><span className={styles.eyebrow}>{timed ? "Speed Reading" : "Read Aloud"}</span><span className={styles.levelPill}>{config.level} · {({ A1: "Beginner", A2: "Elementary", B1: "Intermediate", B2: "Upper Intermediate", C1: "Advanced", C2: "Proficient" } as Record<string, string>)[config.level] ?? "Reading"}</span></div>
+      <div className={styles.courseRow}><PracticeActivityHeading label="Read Aloud" prompt={config.prompt} /><span className={styles.levelPill}>{config.level} · {({ A1: "Beginner", A2: "Elementary", B1: "Intermediate", B2: "Upper Intermediate", C1: "Advanced", C2: "Proficient" } as Record<string, string>)[config.level] ?? "Reading"}</span></div>
       {timed ? <div className={styles.targetStrip}><div className={styles.targetLabel}><span aria-hidden="true">🎯</span><span>Your challenge</span><span className={styles.targetBadge}>{tokens.length} words · {formatTime(config.time_limit_seconds ?? 0)}</span></div><span className={`${styles.targetNote} ${secondsLeft <= 10 && isRunning ? styles.timerWarning : ""}`}><span className={styles.clockSmall}><ClockIcon /></span><span>{formatTime(secondsLeft)} remaining</span></span></div> : null}
       <div className={styles.textBox}>
         <div className={styles.passageHeading}><h1>{config.title}</h1><span>{readingTokens(paragraphs[currentParagraph] ?? "").length} WORDS · {currentParagraph + 1} / {paragraphs.length}</span></div>
@@ -636,6 +637,7 @@ export function ReadingActivityPanel({ activity, lessonId, courseItemId, preview
   const level = String(data.level ?? "A1");
   const config: ReadingConfig = {
     title: String(data.title ?? "Reading passage"),
+    prompt: String(data.prompt ?? "Read the passage aloud at a comfortable pace."),
     passage: String(data.passage ?? ""),
     level,
     time_limit_seconds: data.time_limit_seconds ? Number(data.time_limit_seconds) : null,

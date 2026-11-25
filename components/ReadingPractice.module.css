@@ -18,9 +18,8 @@
   box-shadow: 0 18px 55px rgba(39, 39, 71, .09);
 }
 
-.courseRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-.eyebrow { color: #8d879f; font-size: 11px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
-.levelPill { padding: 7px 11px; border-radius: 999px; background: #f0ebff; color: #6943e8; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.courseRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.levelPill { align-self: flex-start; padding: 7px 11px; border-radius: 999px; background: #f0ebff; color: #6943e8; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .targetStrip { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 12px 14px; border: 1px solid #d8f0e5; border-radius: 13px; background: #e8f7f0; color: #24785d; font-size: 12px; font-weight: 750; }
 .targetLabel { display: flex; align-items: center; gap: 9px; }
 .targetBadge { padding: 6px 9px; border: 1px solid #d6ede3; border-radius: 9px; background: #fff; color: #197f5d; font-weight: 850; }
