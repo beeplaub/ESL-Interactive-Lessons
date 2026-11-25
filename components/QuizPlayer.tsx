@@ -650,6 +650,9 @@ export function QuizPlayer({
   });
   const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
   const currentQuestion = questions[currentIndex];
+  const isListenBuildActivity = questions.length === 1
+    && questions[0]?.question_type === "IPA_PRACTICE"
+    && asRecord(questions[0].options).mode === "listen-build";
   const currentAnswered = currentQuestion ? hasAnswer(currentQuestion, answers[currentQuestion.id]) : false;
   const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
   const progressPercent = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
@@ -916,7 +919,7 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={totalPoints} onSelectAttempt={reviewPastAttempt} selectedAttemptId={selectedAttemptId} />
       )}
 
-      <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
+      {!isListenBuildActivity ? <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--br-chart-primary)]">Question {currentIndex + 1} of {questions.length}</p>
@@ -949,7 +952,7 @@ export function QuizPlayer({
         <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70" role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
           <div className="h-full rounded-full bg-[#6c3bff] shadow-[0_0_8px_rgba(108,59,255,0.45)] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
-      </div>
+      </div> : null}
 
       {submitted && hasPendingWritingGrading && reviewMode === "overview" ? (
         <div className="rounded-[16px] border border-[var(--br-achievement)]/30 bg-[var(--br-achievement)]/5 p-4 text-sm font-semibold text-[var(--br-text-muted)]">
@@ -1048,7 +1051,7 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      {!autoGradingActive && currentQuestion?.question_type !== "STRESS_PICKER" && (submitted || currentQuestion?.question_type !== "SHADOWING") ? <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
+      {!isListenBuildActivity && !autoGradingActive && currentQuestion?.question_type !== "STRESS_PICKER" && (submitted || currentQuestion?.question_type !== "SHADOWING") ? <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
@@ -1168,6 +1171,7 @@ export function QuestionCard({
   lessonId?: string | null;
 }) {
   const isPronunciationQuestion = question.question_type === "PRONUNCIATION";
+  const isListenBuildActivity = question.question_type === "IPA_PRACTICE" && asRecord(question.options).mode === "listen-build";
   const isSelfChecked =
     question.question_type === "SHORT_ANSWER" ||
     question.question_type === "SENTENCE_COMPLETION" ||
@@ -1225,7 +1229,7 @@ export function QuestionCard({
           : { scale: 1, x: 0 }
       }
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className={`relative w-full min-w-0 max-w-full ${isPronunciationQuestion ? "overflow-visible border-0 bg-transparent p-0 shadow-none" : `overflow-hidden rounded-[20px] border bg-surface p-5 shadow-[var(--br-shadow)] sm:p-6 ${borderClass}`}`}
+      className={`relative w-full min-w-0 max-w-full ${isPronunciationQuestion ? "overflow-visible border-0 bg-transparent p-0 shadow-none" : `overflow-hidden rounded-[20px] border bg-surface ${isListenBuildActivity ? "p-4 sm:p-5" : "p-5 sm:p-6"} shadow-[var(--br-shadow)] ${borderClass}`}`}
     >
       {isResolved ? (
         <motion.div
@@ -1245,11 +1249,11 @@ export function QuestionCard({
           )}
         </motion.div>
       ) : null}
-      <legend className="min-w-0 max-w-full px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] [overflow-wrap:anywhere] sm:text-xl">
+      {!isListenBuildActivity ? <legend className="min-w-0 max-w-full px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] [overflow-wrap:anywhere] sm:text-xl">
         <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-sm font-black text-[var(--br-chart-primary)]">{question.question_number}</span>{question.question_text}
-      </legend>
-      {question.description?.trim() ? <p className="mt-3 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">{question.description.trim()}</p> : null}
-      <div className={question.question_type === "SHADOWING" ? question.description?.trim() ? "mt-4" : "mt-2" : "mt-5"}>
+      </legend> : null}
+      {!isListenBuildActivity && question.description?.trim() ? <p className="mt-3 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">{question.description.trim()}</p> : null}
+      <div className={isListenBuildActivity ? "mt-0" : question.question_type === "SHADOWING" ? question.description?.trim() ? "mt-4" : "mt-2" : "mt-5"}>
         {question.question_type === "MCQ" ? <Mcq question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}

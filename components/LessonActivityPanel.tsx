@@ -1928,6 +1928,9 @@ function GenericLessonActivityPanel({
 
   const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
   const hasSubjectiveQuestions = subjectiveQuestions.length > 0;
+  const isListenBuildActivity = questions.length === 1
+    && questions[0]?.question_type === "IPA_PRACTICE"
+    && asRecord(questions[0].options).mode === "listen-build";
   const isPronunciationActivity = questions.length > 0 && questions.every((question) => question.question_type === "PRONUNCIATION");
   const isShadowingActivity = questions.length > 0 && questions.every((question) => question.question_type === "SHADOWING");
   const isLayeredShadowing = isShadowingActivity;
@@ -2201,7 +2204,7 @@ function GenericLessonActivityPanel({
         </div>
       </div> : null}
 
-      {!submitted && !isLayeredShadowing ? (
+      {!submitted && !isLayeredShadowing && !isListenBuildActivity ? (
         <div className="mb-4">
           <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-[var(--br-text-muted)]"><span>Progress</span><span>{answeredCount}/{questions.length}</span></div>
           <div className="h-2.5 overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70" role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
@@ -2245,7 +2248,7 @@ function GenericLessonActivityPanel({
       {currentQuestion && (!submitted || reviewMode === "detail") && (
         <div className={autoGradingActive ? "hidden" : undefined}>
           {/* Question counter + arrows */}
-          {currentQuestion.question_type !== "STRESS_PICKER" && !isLayeredShadowing ? <div className="mb-3 flex items-center justify-between gap-2">
+          {currentQuestion.question_type !== "STRESS_PICKER" && !isLayeredShadowing && !isListenBuildActivity ? <div className="mb-3 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setQIndex((i) => Math.max(0, i - 1))}
