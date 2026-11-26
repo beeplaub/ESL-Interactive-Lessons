@@ -27,6 +27,47 @@ type FullscreenImageSession = {
 
 const FullscreenImageSessionContext = createContext<FullscreenImageSession | null>(null);
 
+export function FullscreenImageSessionProvider({ children }: { children: ReactNode }) {
+  const [fullscreenActive, setFullscreenActive] = useState(false);
+  const [fullscreenOwner, setFullscreenOwner] = useState<string | null>(null);
+  const fullscreenActiveRef = useRef(false);
+  const fullscreenOwnerRef = useRef<string | null>(null);
+  fullscreenActiveRef.current = fullscreenActive;
+  fullscreenOwnerRef.current = fullscreenOwner;
+  const activateFullscreen = useCallback((owner: string) => {
+    fullscreenActiveRef.current = true;
+    fullscreenOwnerRef.current = owner;
+    setFullscreenActive(true);
+    setFullscreenOwner(owner);
+  }, []);
+  const closeFullscreen = useCallback(() => {
+    fullscreenActiveRef.current = false;
+    fullscreenOwnerRef.current = null;
+    setFullscreenActive(false);
+    setFullscreenOwner(null);
+  }, []);
+  const claimFullscreen = useCallback((owner: string) => {
+    if (!fullscreenActiveRef.current || fullscreenOwnerRef.current) return false;
+    fullscreenOwnerRef.current = owner;
+    setFullscreenOwner(owner);
+    return true;
+  }, []);
+  const releaseFullscreen = useCallback((owner: string) => {
+    if (fullscreenOwnerRef.current !== owner) return;
+    fullscreenOwnerRef.current = null;
+    setFullscreenOwner(null);
+  }, []);
+  const fullscreenSession = useMemo<FullscreenImageSession>(() => ({
+    active: fullscreenActive,
+    owner: fullscreenOwner,
+    activate: activateFullscreen,
+    close: closeFullscreen,
+    claim: claimFullscreen,
+    release: releaseFullscreen,
+  }), [fullscreenActive, fullscreenOwner, activateFullscreen, closeFullscreen, claimFullscreen, releaseFullscreen]);
+  return <FullscreenImageSessionContext.Provider value={fullscreenSession}>{children}</FullscreenImageSessionContext.Provider>;
+}
+
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -607,52 +648,13 @@ export function LessonBlockPreview({
   fullscreenOverlay?: ReactNode;
 }) {
   const visibleBlocks = blocks.filter((block) => asRecord(block.content).hidden_from_learners !== true);
-  const [fullscreenActive, setFullscreenActive] = useState(false);
-  const [fullscreenOwner, setFullscreenOwner] = useState<string | null>(null);
-  const fullscreenActiveRef = useRef(false);
-  const fullscreenOwnerRef = useRef<string | null>(null);
-  fullscreenActiveRef.current = fullscreenActive;
-  fullscreenOwnerRef.current = fullscreenOwner;
-  const activateFullscreen = useCallback((owner: string) => {
-    fullscreenActiveRef.current = true;
-    fullscreenOwnerRef.current = owner;
-    setFullscreenActive(true);
-    setFullscreenOwner(owner);
-  }, []);
-  const closeFullscreen = useCallback(() => {
-    fullscreenActiveRef.current = false;
-    fullscreenOwnerRef.current = null;
-    setFullscreenActive(false);
-    setFullscreenOwner(null);
-  }, []);
-  const claimFullscreen = useCallback((owner: string) => {
-    if (!fullscreenActiveRef.current || fullscreenOwnerRef.current) return false;
-    fullscreenOwnerRef.current = owner;
-    setFullscreenOwner(owner);
-    return true;
-  }, []);
-  const releaseFullscreen = useCallback((owner: string) => {
-    if (fullscreenOwnerRef.current !== owner) return;
-    fullscreenOwnerRef.current = null;
-    setFullscreenOwner(null);
-  }, []);
-  const fullscreenSession = useMemo<FullscreenImageSession>(() => ({
-    active: fullscreenActive,
-    owner: fullscreenOwner,
-    activate: activateFullscreen,
-    close: closeFullscreen,
-    claim: claimFullscreen,
-    release: releaseFullscreen,
-  }), [fullscreenActive, fullscreenOwner, activateFullscreen, closeFullscreen, claimFullscreen, releaseFullscreen]);
 
   return (
-    <FullscreenImageSessionContext.Provider value={fullscreenSession}>
-      <div className="lesson-block-preview space-y-3 sm:space-y-4">
-        {visibleBlocks.length ? visibleBlocks.map((block) => (
-          <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} fullscreenOverlay={fullscreenOverlay} />
-        )) : <div className="rounded-lg border border-dashed border-[var(--br-border)] bg-surface p-6 text-center text-sm text-[var(--br-text-muted)]">{emptyText}</div>}
-      </div>
-    </FullscreenImageSessionContext.Provider>
+    <div className="lesson-block-preview space-y-3 sm:space-y-4">
+      {visibleBlocks.length ? visibleBlocks.map((block) => (
+        <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} fullscreenOverlay={fullscreenOverlay} />
+      )) : <div className="rounded-lg border border-dashed border-[var(--br-border)] bg-surface p-6 text-center text-sm text-[var(--br-text-muted)]">{emptyText}</div>}
+    </div>
   );
 }
 

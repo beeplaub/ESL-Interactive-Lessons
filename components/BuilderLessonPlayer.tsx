@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronLeft, 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints, lessonActivityScore } from "@/components/LessonActivityPanel";
 import { LessonContentTabs } from "@/components/LessonContentTabs";
-import { LessonBlockPreview } from "@/components/LessonBlockPreview";
+import { FullscreenImageSessionProvider, LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { liveJson, notifyLiveRoom, useLiveRefresh } from "@/lib/liveSync";
 import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
@@ -764,7 +764,7 @@ export function BuilderLessonPlayer({
   const transcriptWordCount = (narrationConfig?.transcript?.match(/[^\s]+/g) ?? []).filter((token) => /[\p{L}\p{M}\p{N}]/u.test(token)).length;
   const hasSyncedNarration = Boolean(narrationUrl && hasTranscript && transcriptWordCount > 0 && narrationWordTimings.length === transcriptWordCount);
   const fullscreenSubtitleOverlay = hasSyncedNarration && narrationVisible && (isStudyPanelOpen("read") || pinnedReadingGuide)
-    ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={pinnedReadingGuide} onOpenScript={() => setFullScriptOpen(true)} onSelectTerm={setSelectedGlossaryEntry} showControls={false} />
+    ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={pinnedReadingGuide} onOpenScript={() => setFullScriptOpen(true)} onSelectTerm={setSelectedGlossaryEntry} showControls={false} fullscreenMode />
     : undefined;
   const handlePreciseNarrationTimeChange = useCallback((currentTime: number) => {
     setNarrationProgress((previous) => previous.currentTime === currentTime ? previous : { ...previous, currentTime });
@@ -1243,6 +1243,7 @@ export function BuilderLessonPlayer({
       <div className="flex min-w-0 flex-col gap-4">
 
         <div className="relative">
+          <FullscreenImageSessionProvider>
           <section key={slide.phase_item_id ?? slide.id} className={`rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3 ${autoplayActive ? "animate-lesson-sweep" : ""}`}>
             {/* Slide header */}
             <div className={`mb-2 rounded-[18px] px-4 py-3 text-white sm:mb-3 ${template === "LAP" ? "bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] text-on-dark" : template === "LTP" || slide.player_phase !== "PRACTICE" ? "bg-[var(--br-brand)]" : "bg-[var(--br-chart-secondary)]"}`}>
@@ -1350,6 +1351,7 @@ export function BuilderLessonPlayer({
               </div>
             )}
           </section>
+          </FullscreenImageSessionProvider>
         </div>
 
       </div>
