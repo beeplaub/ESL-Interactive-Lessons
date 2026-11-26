@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Loader2, Maximize, Minimize, MessageSquareQuote, Mic, MicOff, Minus, Pause, Play, PlayCircle, Plus, Quote, ScanLine, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { Json } from "@/types/database.types";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
@@ -15,6 +15,17 @@ export type PreviewLessonBlock = {
   block_type: string;
   content: Json;
 };
+
+type FullscreenImageSession = {
+  active: boolean;
+  owner: string | null;
+  activate: (owner: string) => void;
+  close: () => void;
+  claim: (owner: string) => boolean;
+  release: (owner: string) => void;
+};
+
+const FullscreenImageSessionContext = createContext<FullscreenImageSession | null>(null);
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -182,13 +193,14 @@ type ImageGesture =
   | { kind: "pinch"; distance: number; zoom: number; pan: ImagePan; centerX: number; centerY: number }
   | null;
 
-function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, controlsAtTopRight = false, rotatedFallback = false, onZoomChange, onPanChange, onFullscreen, onCloseFullscreen }: {
+function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, active = true, controlsAtTopRight = false, rotatedFallback = false, onZoomChange, onPanChange, onFullscreen, onCloseFullscreen }: {
   src: string;
   alt: string;
   imageClassName: string;
   zoom: number;
   pan: ImagePan;
   fullscreen?: boolean;
+  active?: boolean;
   controlsAtTopRight?: boolean;
   rotatedFallback?: boolean;
   onZoomChange: (zoom: number) => void;
@@ -203,6 +215,10 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, c
   const suppressClickRef = useRef(false);
   const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsDragRef = useRef<ControlsDrag>(null);
+  const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
+  panRef.current = pan;
+  zoomRef.current = zoom;
   const [controlsVisible, setControlsVisible] = useState(false);
   const [controlsOffsetX, setControlsOffsetX] = useState(0);
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -266,8 +282,11 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, c
     const controls = controlsRef.current;
     if (!frame || !image || !controls || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
-      const nextPan = boundedPan(pan, zoom);
-      if (nextPan.x !== pan.x || nextPan.y !== pan.y) onPanChange(nextPan);
+      if (active) {
+        const currentPan = panRef.current;
+        const nextPan = boundedPan(currentPan, zoomRef.current);
+        if (nextPan.x !== currentPan.x || nextPan.y !== currentPan.y) onPanChange(nextPan);
+      }
       const nextOffset = boundedControlsOffset(controlsOffsetX);
       if (nextOffset !== controlsOffsetX) setControlsOffsetX(nextOffset);
     });
@@ -275,7 +294,7 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, c
     observer.observe(image);
     observer.observe(controls);
     return () => observer.disconnect();
-  }, [boundedControlsOffset, boundedPan, controlsOffsetX, onPanChange, pan, zoom]);
+  }, [active, boundedControlsOffset, boundedPan, controlsOffsetX, onPanChange]);
 
   const setScaleAt = useCallback((targetZoom: number, focus?: { x: number; y: number }) => {
     const nextZoom = Math.min(4, Math.max(1, targetZoom));
@@ -312,6 +331,7 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, c
   };
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!active) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
     // Toolbar interactions must never start an image pan/pinch gesture.
     if ((event.target as Element | null)?.closest("[data-image-zoom-controls]")) return;
@@ -337,7 +357,7 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, c
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!pointersRef.current.has(event.pointerId)) return;
+    if (!active || !pointersRef.current.has(event.pointerId)) return;
     event.preventDefault();
     pointersRef.current.set(event.pointerId, pointInFrame(event));
     const values = [...pointersRef.current.values()];
@@ -441,7 +461,14 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, c
   </div>;
 }
 
-function ZoomableImage({ src, alt, className, fullscreenOverlay }: { src: string; alt: string; className: string; fullscreenOverlay?: ReactNode }) {
+function ZoomableImage({ src, alt, className, fullscreenOverlay, ownerId }: { src: string; alt: string; className: string; fullscreenOverlay?: ReactNode; ownerId: string }) {
+  const fullscreenSession = useContext(FullscreenImageSessionContext);
+  const fullscreenActive = fullscreenSession?.active ?? false;
+  const fullscreenOwner = fullscreenSession?.owner ?? null;
+  const activateFullscreen = fullscreenSession?.activate;
+  const closeFullscreenSession = fullscreenSession?.close;
+  const claimFullscreen = fullscreenSession?.claim;
+  const releaseFullscreen = fullscreenSession?.release;
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<ImagePan>({ x: 0, y: 0 });
@@ -449,7 +476,19 @@ function ZoomableImage({ src, alt, className, fullscreenOverlay }: { src: string
   const [landscapeFallback, setLandscapeFallback] = useState(false);
   const showFullscreenSubtitle = Boolean(fullscreenOverlay && (mobilePortrait || (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches)));
 
+  useEffect(() => () => releaseFullscreen?.(ownerId), [releaseFullscreen, ownerId]);
+
+  useEffect(() => {
+    if (!fullscreenActive || fullscreenOwner || !claimFullscreen?.(ownerId)) return;
+    setOpen(true);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    const isMobile = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+    if (isMobile && window.matchMedia("(orientation: portrait)").matches) setLandscapeFallback(true);
+  }, [fullscreenActive, fullscreenOwner, claimFullscreen, ownerId]);
+
   const closeFullscreen = useCallback(() => {
+    closeFullscreenSession?.();
     setOpen(false);
     setZoom(1);
     setPan({ x: 0, y: 0 });
@@ -461,10 +500,11 @@ function ZoomableImage({ src, alt, className, fullscreenOverlay }: { src: string
     } catch {
       // Orientation unlock is not available in every browser.
     }
-  }, []);
+  }, [closeFullscreenSession]);
 
   const openFullscreen = useCallback(async () => {
     const isMobile = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+    activateFullscreen?.(ownerId);
     setOpen(true);
     if (!isMobile) return;
 
@@ -485,7 +525,7 @@ function ZoomableImage({ src, alt, className, fullscreenOverlay }: { src: string
     } catch {
       setLandscapeFallback(true);
     }
-  }, []);
+  }, [activateFullscreen, ownerId]);
 
   useEffect(() => {
     const updateOrientation = () => {
@@ -517,14 +557,14 @@ function ZoomableImage({ src, alt, className, fullscreenOverlay }: { src: string
     };
   }, [closeFullscreen, open]);
 
-  const inlineStage = <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />;
+  const inlineStage = <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} active={!open} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />;
 
   return <>
     <div className="relative max-w-full overflow-hidden">{inlineStage}</div>
     {open && typeof document !== "undefined" ? createPortal(
       <div className="fixed inset-0 z-[150] bg-black p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" style={{ touchAction: "none", overscrollBehavior: "none" }} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => { event.preventDefault(); event.stopPropagation(); }} onTouchEnd={(event) => event.stopPropagation()} onTouchCancel={(event) => event.stopPropagation()} onClick={closeFullscreen}>
         <div data-rotated-image-fallback={landscapeFallback && mobilePortrait ? "true" : undefined} className={`${landscapeFallback && mobilePortrait ? "fixed left-1/2 top-1/2 h-[100vw] w-[100dvh] -translate-x-1/2 -translate-y-1/2 rotate-90 overflow-hidden p-3" : "absolute inset-3 sm:inset-6"}`} onClick={(event) => event.stopPropagation()}>
-          <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} fullscreen controlsAtTopRight={showFullscreenSubtitle} rotatedFallback={landscapeFallback && mobilePortrait} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />
+          <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} fullscreen active controlsAtTopRight={showFullscreenSubtitle} rotatedFallback={landscapeFallback && mobilePortrait} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />
           <button type="button" onClick={closeFullscreen} className={`absolute top-1 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 ${showFullscreenSubtitle ? "left-1" : "right-1"}`} aria-label="Close expanded image"><Minimize size={18} /></button>
           {showFullscreenSubtitle ? <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-30">{fullscreenOverlay}</div> : null}
         </div>
@@ -567,21 +607,52 @@ export function LessonBlockPreview({
   fullscreenOverlay?: ReactNode;
 }) {
   const visibleBlocks = blocks.filter((block) => asRecord(block.content).hidden_from_learners !== true);
-
-  if (!visibleBlocks.length) {
-    return (
-      <div className="rounded-lg border border-dashed border-[var(--br-border)] bg-surface p-6 text-center text-sm text-[var(--br-text-muted)]">
-        {emptyText}
-      </div>
-    );
-  }
+  const [fullscreenActive, setFullscreenActive] = useState(false);
+  const [fullscreenOwner, setFullscreenOwner] = useState<string | null>(null);
+  const fullscreenActiveRef = useRef(false);
+  const fullscreenOwnerRef = useRef<string | null>(null);
+  fullscreenActiveRef.current = fullscreenActive;
+  fullscreenOwnerRef.current = fullscreenOwner;
+  const activateFullscreen = useCallback((owner: string) => {
+    fullscreenActiveRef.current = true;
+    fullscreenOwnerRef.current = owner;
+    setFullscreenActive(true);
+    setFullscreenOwner(owner);
+  }, []);
+  const closeFullscreen = useCallback(() => {
+    fullscreenActiveRef.current = false;
+    fullscreenOwnerRef.current = null;
+    setFullscreenActive(false);
+    setFullscreenOwner(null);
+  }, []);
+  const claimFullscreen = useCallback((owner: string) => {
+    if (!fullscreenActiveRef.current || fullscreenOwnerRef.current) return false;
+    fullscreenOwnerRef.current = owner;
+    setFullscreenOwner(owner);
+    return true;
+  }, []);
+  const releaseFullscreen = useCallback((owner: string) => {
+    if (fullscreenOwnerRef.current !== owner) return;
+    fullscreenOwnerRef.current = null;
+    setFullscreenOwner(null);
+  }, []);
+  const fullscreenSession = useMemo<FullscreenImageSession>(() => ({
+    active: fullscreenActive,
+    owner: fullscreenOwner,
+    activate: activateFullscreen,
+    close: closeFullscreen,
+    claim: claimFullscreen,
+    release: releaseFullscreen,
+  }), [fullscreenActive, fullscreenOwner, activateFullscreen, closeFullscreen, claimFullscreen, releaseFullscreen]);
 
   return (
-    <div className="lesson-block-preview space-y-3 sm:space-y-4">
-      {visibleBlocks.map((block) => (
-        <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} fullscreenOverlay={fullscreenOverlay} />
-      ))}
-    </div>
+    <FullscreenImageSessionContext.Provider value={fullscreenSession}>
+      <div className="lesson-block-preview space-y-3 sm:space-y-4">
+        {visibleBlocks.length ? visibleBlocks.map((block) => (
+          <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} fullscreenOverlay={fullscreenOverlay} />
+        )) : <div className="rounded-lg border border-dashed border-[var(--br-border)] bg-surface p-6 text-center text-sm text-[var(--br-text-muted)]">{emptyText}</div>}
+      </div>
+    </FullscreenImageSessionContext.Provider>
   );
 }
 
@@ -784,7 +855,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     return (
       <figure className="relative mx-auto w-fit max-w-full overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
         {path && isImageUrl(path) ? (
-          <ZoomableImage src={src} alt={asString(content.alt) || ""} className="mx-auto block h-auto max-h-[520px] max-w-full object-contain" fullscreenOverlay={fullscreenOverlay} />
+          <ZoomableImage ownerId={block.id} src={src} alt={asString(content.alt) || ""} className="mx-auto block h-auto max-h-[520px] max-w-full object-contain" fullscreenOverlay={fullscreenOverlay} />
         ) : (
           <div className="grid aspect-video place-items-center text-sm text-[var(--br-text-muted)]">
             <div className="text-center">
@@ -804,7 +875,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     const images = (["left", "right"] as const).map((side) => ({
       path: asString(content[`${side}_path`]), alt: asString(content[`${side}_alt`]), caption: asString(content[`${side}_caption`])
     }));
-    return <div className="grid gap-4 sm:grid-cols-2">{images.map((image, index) => <figure key={index} className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted shadow-sm">{image.path && isImageUrl(image.path) ? <ZoomableImage src={mediaUrl(image.path, "image")} alt={image.alt} className="max-h-[520px] w-full object-contain" fullscreenOverlay={fullscreenOverlay} /> : <div className="grid aspect-video place-items-center p-4 text-center text-sm text-[var(--br-text-muted)]">{image.path || "Add an image URL or storage path."}</div>}{image.caption ? <figcaption className="border-t border-[var(--br-border)] bg-surface px-3 py-2 text-sm text-[var(--br-text-muted)]">{image.caption}</figcaption> : null}</figure>)}</div>;
+    return <div className="grid gap-4 sm:grid-cols-2">{images.map((image, index) => <figure key={index} className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted shadow-sm">{image.path && isImageUrl(image.path) ? <ZoomableImage ownerId={`${block.id}:image-${index}`} src={mediaUrl(image.path, "image")} alt={image.alt} className="max-h-[520px] w-full object-contain" fullscreenOverlay={fullscreenOverlay} /> : <div className="grid aspect-video place-items-center p-4 text-center text-sm text-[var(--br-text-muted)]">{image.path || "Add an image URL or storage path."}</div>}{image.caption ? <figcaption className="border-t border-[var(--br-border)] bg-surface px-3 py-2 text-sm text-[var(--br-text-muted)]">{image.caption}</figcaption> : null}</figure>)}</div>;
   }
 
   if (block.block_type === "TONGUE_TWISTER") {
@@ -823,7 +894,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     const imageCol = (
       <figure className="relative overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted">
         {src && isImageUrl(src) ? (
-          <ZoomableImage src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" fullscreenOverlay={fullscreenOverlay} />
+          <ZoomableImage ownerId={block.id} src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" fullscreenOverlay={fullscreenOverlay} />
         ) : (
           <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-[var(--br-text-muted)]">
             <ImageIcon size={28} />
