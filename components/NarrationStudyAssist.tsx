@@ -1,7 +1,7 @@
 "use client";
 
 import { Expand, List, Pin, PinOff, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export type NarrationGlossaryEntry = { term: string; definition: string; example?: string; position?: number };
@@ -204,7 +204,7 @@ function HighlightedText({ text, entries, onSelect }: { text: string; entries: N
 }
 
 /** Small pop-down used by the sticky learner study dock. */
-export function NarrationReadPreview({ transcript = "", glossary = [], wordTimings, currentTime, duration, onOpenScript, onSelectTerm, pinned = false, onTogglePin, showControls = true, fullscreenMode = false }: SharedProps & { wordTimings?: NarrationWordTiming[]; onOpenScript: () => void; onSelectTerm: (entry: NarrationGlossaryEntry) => void; pinned?: boolean; onTogglePin?: () => void; showControls?: boolean; fullscreenMode?: boolean }) {
+export function NarrationReadPreview({ transcript = "", glossary = [], wordTimings, currentTime, duration, onOpenScript, onSelectTerm, pinned = false, onTogglePin, showControls = true, fullscreenMode = false, trailingAction }: SharedProps & { wordTimings?: NarrationWordTiming[]; onOpenScript: () => void; onSelectTerm: (entry: NarrationGlossaryEntry) => void; pinned?: boolean; onTogglePin?: () => void; showControls?: boolean; fullscreenMode?: boolean; trailingAction?: ReactNode }) {
   const entries = useMemo(() => narrationGlossary(glossary), [glossary]);
   const tokens = useMemo(() => transcript.match(/\S+/gu) ?? [], [transcript]);
   const wordCount = transcriptWordCount(transcript);
@@ -254,7 +254,7 @@ export function NarrationReadPreview({ transcript = "", glossary = [], wordTimin
 
   const currentChunk = chunks.find((chunk) => activeWordIndex >= chunk.start && activeWordIndex < chunk.end) ?? chunks[0] ?? { start: 0, end: 0 };
   const visibleTranscript = currentChunk.end > currentChunk.start ? transcriptWindow(tokens, currentChunk.start, currentChunk.end) : { text: "", wordOffset: 0 };
-  return <section className={`mx-auto flex items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] shadow-[var(--br-shadow)] ${fullscreenMode ? "w-[min(88%,900px)] bg-white/85 px-2 py-1 backdrop-blur-sm sm:px-3" : "w-full max-w-4xl bg-white px-1 py-2 sm:px-2"}`}>{showControls ? <button type="button" onClick={onOpenScript} className="grid size-7 shrink-0 place-items-center rounded-lg text-[var(--br-action)] transition hover:bg-[var(--br-action)]/10" aria-label="Open full script" title="Open full script"><Expand size={15} /></button> : null}<div ref={viewportRef} className={`min-w-0 flex-1 text-center text-base font-semibold leading-7 text-ink ${fullscreenMode ? "py-0.5" : "py-1"}`}><TimedTranscriptText text={visibleTranscript.text || "Your teacher has not added a reading script for this narration yet."} wordTimings={wordTimings} wordOffset={visibleTranscript.wordOffset} windowEndWord={currentChunk.end} currentTime={currentTime} entries={entries} onSelect={onSelectTerm} singleLine /></div>{showControls && onTogglePin ? <button type="button" onClick={onTogglePin} className={`grid size-7 shrink-0 place-items-center rounded-lg transition ${pinned ? "bg-[var(--br-action)]/10 text-[var(--br-action)]" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`} aria-label={pinned ? "Unpin reading guide" : "Pin reading guide"} title={pinned ? "Unpin" : "Pin reading guide"}>{pinned ? <PinOff size={16} /> : <Pin size={16} />}</button> : null}</section>;
+  return <section className={`mx-auto flex items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] shadow-[var(--br-shadow)] ${fullscreenMode ? "w-[min(88%,900px)] bg-white px-2 py-1 sm:px-3" : "w-full max-w-4xl bg-white px-1 py-2 sm:px-2"}`}>{showControls ? <button type="button" onClick={onOpenScript} className="grid size-7 shrink-0 place-items-center rounded-lg text-[var(--br-action)] transition hover:bg-[var(--br-action)]/10" aria-label="Open full script" title="Open full script"><Expand size={15} /></button> : null}<div ref={viewportRef} className={`min-w-0 flex-1 text-center text-base font-semibold leading-7 text-ink ${fullscreenMode ? "py-0.5" : "py-1"}`}><TimedTranscriptText text={visibleTranscript.text || "Your teacher has not added a reading script for this narration yet."} wordTimings={wordTimings} wordOffset={visibleTranscript.wordOffset} windowEndWord={currentChunk.end} currentTime={currentTime} entries={entries} onSelect={onSelectTerm} singleLine /></div>{trailingAction}{showControls && onTogglePin ? <button type="button" onClick={onTogglePin} className={`grid size-7 shrink-0 place-items-center rounded-lg transition ${pinned ? "bg-[var(--br-action)]/10 text-[var(--br-action)]" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`} aria-label={pinned ? "Unpin reading guide" : "Pin reading guide"} title={pinned ? "Unpin" : "Pin reading guide"}>{pinned ? <PinOff size={16} /> : <Pin size={16} />}</button> : null}</section>;
 }
 
 /** Escapes transformed lesson containers so the guide stays fixed to the device viewport. */

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Fragment, type TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronLeft, ChevronRight, Languages, List, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, Timer, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Languages, List, MoreVertical, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, Timer, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints, lessonActivityScore } from "@/components/LessonActivityPanel";
 import { LessonContentTabs } from "@/components/LessonContentTabs";
@@ -16,6 +16,8 @@ import { NarrationFullScript, NarrationGlossaryPanel, NarrationGlossaryWord, Nar
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { resolveLessonPlayerSteps, supportsAutoplay, type LessonPhaseItem, type LessonTemplate, type PracticeLearnLink } from "@/lib/lessonTemplates";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
+
+type FullscreenNarrationControls = { toggle: () => void; skip: (seconds: number) => void; setSpeed: (speed: number) => void };
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null; lesson_template?: LessonTemplate; autoplay_enabled?: boolean; autoplay_mode?: "FIXED_DURATION" | "NARRATION_DURATION"; autoplay_duration_seconds?: number };
 type Slide = {
@@ -136,10 +138,15 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
   return <main className="mx-auto max-w-7xl overflow-x-hidden px-1 py-3 sm:px-4 sm:py-5 min-[1180px]:px-0">
     <div className="grid min-w-0 grid-cols-1">
       <section className="min-w-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
-        <header className="mb-2 rounded-[18px] bg-[var(--br-brand)] px-4 py-3 text-white sm:mb-3">
-          <div className="flex items-center justify-between gap-2">{backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"><ArrowLeft size={15} /></Link> : <span />}</div>
-          <h1 className="mt-1 text-[22px] font-extrabold">{title}</h1>
-          <p className="mt-1 text-sm text-white/60">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
+        <header className="mb-2 min-h-[112px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:mb-3 sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
+          <div className="flex min-h-[84px] items-center gap-3">
+            {backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90"><ArrowLeft size={15} />Course</Link> : null}
+            {backHref ? <span aria-hidden="true" className="hidden h-12 w-px shrink-0 bg-white/55 lg:block" /> : null}
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
+              <h1 className="mt-1 line-clamp-2 text-[20px] font-extrabold leading-tight sm:text-[22px]">{title}</h1>
+            </div>
+          </div>
         </header>
         <div className="mb-4 flex w-full items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)]">{autoButton}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>{pinnedGatePhase ? <div className="grid size-8 shrink-0 place-items-center rounded-full bg-white"><PhaseGateMarker phase={pinnedGatePhase} onClick={() => onSelectGate?.(pinnedGatePhase)} compact /></div> : null}{slideMap}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button></div>
         <div className="grid place-items-center px-1 pb-1 sm:px-2 sm:pb-2">
@@ -171,19 +178,20 @@ function youtubeVideoId(url: string) {
   } catch { return null; }
 }
 
-function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", wordTimings = [], onProgressChange, onPreciseTimeChange, onEnded, autoplayControlled = false }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; wordTimings?: NarrationWordTiming[]; onProgressChange?: (state: { currentTime: number; duration: number }) => void; onPreciseTimeChange?: (currentTime: number) => void; onEnded?: () => void; autoplayControlled?: boolean }) {
+function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", wordTimings = [], onProgressChange, onPreciseTimeChange, onEnded, onPlayingChange, onSpeedChange, onFullscreenControlsReady, autoplayControlled = false }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; wordTimings?: NarrationWordTiming[]; onProgressChange?: (state: { currentTime: number; duration: number }) => void; onPreciseTimeChange?: (currentTime: number) => void; onEnded?: () => void; onPlayingChange?: (playing: boolean) => void; onSpeedChange?: (speed: number) => void; onFullscreenControlsReady?: (controls: FullscreenNarrationControls | null) => void; autoplayControlled?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const youtubeRef = useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [expanded, setExpanded] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [originalFinished, setOriginalFinished] = useState(false);
   const [translationState, setTranslationState] = useState<"idle" | "loading" | "playing" | "done" | "error">("idle");
   const [translationError, setTranslationError] = useState<string | null>(null);
+  const fullscreenActionRef = useRef<FullscreenNarrationControls>({ toggle: () => {}, skip: () => {}, setSpeed: () => {} });
   const preciseTimeCallbackRef = useRef(onPreciseTimeChange);
   const wordTimingsRef = useRef(wordTimings);
   const videoId = useMemo(() => sourceType === "LINK" ? youtubeVideoId(src) : null, [sourceType, src]);
@@ -230,6 +238,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
     setAudioError(null);
     if (isYouTubeAudio) {
       setPlaying(false);
+      onPlayingChange?.(false);
       setCurrentTime(0);
       setDuration(0);
       setAutoplayBlocked(false);
@@ -239,14 +248,17 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
     }
     const audio = audioRef.current;
     if (!audio) return;
+    audio.volume = 1;
     audio.playbackRate = 1;
     setSpeed(1);
     setOriginalFinished(false);
     setTranslationState("idle");
+    setPlaying(false);
+    onPlayingChange?.(false);
     const attempt = audio.play();
     if (attempt !== undefined) {
       attempt
-        .then(() => { setPlaying(true); setAutoplayBlocked(false); })
+        .then(() => { setPlaying(true); onPlayingChange?.(true); setAutoplayBlocked(false); })
         .catch(() => setAutoplayBlocked(true));
     }
     return () => {
@@ -257,20 +269,23 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 
   useEffect(() => {
     if (!autoplayControlled || !isYouTubeAudio) return;
+    sendYouTube("setVolume");
     sendYouTube("playVideo");
   // YouTube narration is started when autoplay is enabled; slide autoplay
   // pause only stops slide advancement and never controls narration playback.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoplayControlled, isYouTubeAudio]);
 
-  function sendYouTube(command: "playVideo" | "pauseVideo" | "seekTo") {
-    youtubeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func: command, args: command === "seekTo" ? [Math.max(0, currentTime), true] : [] }), "https://www.youtube-nocookie.com");
+  function sendYouTube(command: "playVideo" | "pauseVideo" | "seekTo" | "setVolume" | "setPlaybackRate", value?: number) {
+    const args = command === "seekTo" ? [Math.max(0, value ?? currentTime), true] : command === "setVolume" ? [100] : command === "setPlaybackRate" ? [value ?? 1] : [];
+    youtubeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func: command, args }), "https://www.youtube-nocookie.com");
   }
 
   function toggle() {
     if (isYouTubeAudio) {
+      if (!playing) sendYouTube("setVolume");
       sendYouTube(playing ? "pauseVideo" : "playVideo");
-      setPlaying((value) => !value);
+      setPlaying((value) => { const next = !value; onPlayingChange?.(next); return next; });
       return;
     }
     const a = audioRef.current;
@@ -283,17 +298,52 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
   }
 
   function skip(secs: number) {
-    if (isYouTubeAudio) return;
+    if (isYouTubeAudio) {
+      const nextTime = Math.max(0, currentTime + secs);
+      sendYouTube("seekTo", nextTime);
+      setCurrentTime(nextTime);
+      return;
+    }
     const a = audioRef.current;
     if (!a) return;
     a.currentTime = Math.max(0, Math.min(a.duration, a.currentTime + secs));
   }
 
   function setPlaybackSpeed(s: number) {
-    if (isYouTubeAudio) return;
+    if (isYouTubeAudio) {
+      sendYouTube("setPlaybackRate", s);
+      setSpeed(s);
+      onSpeedChange?.(s);
+      setSpeedMenuOpen(false);
+      return;
+    }
     const a = audioRef.current;
     if (a) a.playbackRate = s;
     setSpeed(s);
+    onSpeedChange?.(s);
+    setSpeedMenuOpen(false);
+  }
+
+  fullscreenActionRef.current = { toggle, skip, setSpeed: setPlaybackSpeed };
+  useEffect(() => {
+    const controls: FullscreenNarrationControls = {
+      toggle: () => fullscreenActionRef.current.toggle(),
+      skip: (seconds) => fullscreenActionRef.current.skip(seconds),
+      setSpeed: (nextSpeed) => fullscreenActionRef.current.setSpeed(nextSpeed),
+    };
+    onFullscreenControlsReady?.(controls);
+    return () => onFullscreenControlsReady?.(null);
+  }, [onFullscreenControlsReady]);
+
+  function seekTo(nextTime: number) {
+    const boundedTime = Math.max(0, Math.min(duration || nextTime, nextTime));
+    if (isYouTubeAudio) {
+      sendYouTube("seekTo", boundedTime);
+      return;
+    }
+    const a = audioRef.current;
+    if (a) a.currentTime = boundedTime;
+    setCurrentTime(boundedTime);
   }
 
   function fmt(s: number) {
@@ -301,133 +351,55 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
     return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   }
 
-  const percent = duration ? (currentTime / duration) * 100 : 0;
   const speeds = [0.75, 1, 1.25, 1.5];
 
   useEffect(() => { onProgressChange?.({ currentTime, duration }); }, [currentTime, duration, onProgressChange]);
 
   return (
-    <div
-      className={`flex flex-col gap-1.5 rounded-2xl bg-black/35 px-3 py-2 backdrop-blur-sm transition-all duration-200 ${expanded ? "w-48" : "w-auto"}`}
-    >
+    <div className="relative flex w-full min-w-0 flex-col gap-1" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSpeedMenuOpen(false); }} onKeyDown={(event) => { if (event.key === "Escape") setSpeedMenuOpen(false); }}>
       {isYouTubeAudio ? <iframe
         ref={youtubeRef}
         title="Study audio"
         className="pointer-events-none absolute size-px opacity-0"
         src={`https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(typeof window === "undefined" ? "" : window.location.origin)}`}
         allow="autoplay; encrypted-media"
+        onLoad={() => sendYouTube("setVolume")}
       /> : <audio
         ref={audioRef}
         src={src}
         preload="auto"
-        onPlay={() => { setPlaying(true); setAudioError(null); setAutoplayBlocked(false); }}
-        onError={() => { setPlaying(false); setAudioError("Narration could not load. Tap play to retry."); }}
-        onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); onEnded?.(); }}
+        onPlay={() => { setPlaying(true); onPlayingChange?.(true); setAudioError(null); setAutoplayBlocked(false); }}
+        onError={() => { setPlaying(false); onPlayingChange?.(false); setAudioError("Narration could not load. Tap play to retry."); }}
+        onPause={() => { setPlaying(false); onPlayingChange?.(false); }}
+        onEnded={() => { setPlaying(false); onPlayingChange?.(false); setCurrentTime(duration); setOriginalFinished(true); onEnded?.(); }}
         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
       />}
 
-      {/* Autoplay blocked prompt */}
-      {autoplayBlocked && !playing && (
-        <button
-          type="button"
-          onClick={toggle}
-          className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-300 hover:text-on-dark"
-        >
-          <Play size={10} /> Tap to play narration
+      {autoplayBlocked ? <p className="text-[10px] font-semibold text-amber-700">Tap play to start narration.</p> : null}
+      <div className="flex w-full min-w-0 items-center gap-1.5 sm:gap-2 lg:gap-1 2xl:gap-2.5">
+        <button type="button" onClick={toggle} aria-label={playing ? "Pause narration" : "Play narration"} className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--br-action)] text-on-dark transition hover:brightness-95 lg:size-9 2xl:size-10">
+          {playing ? <Pause size={14} fill="currentColor" className="lg:size-4" /> : <Play size={14} fill="currentColor" className="ml-0.5 lg:size-4" />}
         </button>
-      )}
-
-      {/* Main controls row */}
-      {!autoplayBlocked && (
-        <div className="flex items-center gap-2">
-          {/* Play/Pause */}
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={playing ? "Pause" : "Play"}
-            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-on-dark transition hover:bg-white/35"
-          >
-            {playing ? <Pause size={10} /> : <Play size={10} />}
+        {translationEnabled && !isYouTubeAudio && originalFinished ? <button type="button" disabled={translationState === "loading" || translationState === "playing"} onClick={() => void playNarrationTranslation({ lessonId, slideId, src, sourceType, onState: (state, message) => { setTranslationState(state); setTranslationError(message ?? null); } })} aria-label={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"} title={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"} className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-chart-primary)] disabled:opacity-50">{translationState === "loading" ? <span className="size-3 animate-spin rounded-full border-2 border-[var(--br-chart-primary)]/30 border-t-[var(--br-chart-primary)]" /> : <Languages size={14} />}</button> : null}
+        {isYouTubeAudio ? <span className="flex min-w-0 flex-1 items-center gap-1 text-[11px] font-semibold text-[var(--br-text-muted)]"><Music2 size={13} className="shrink-0" />Study audio</span> : <>
+          <span className="shrink-0 whitespace-nowrap text-[12px] font-bold tabular-nums text-[var(--br-text)]">{fmt(currentTime)} / {fmt(duration)}</span>
+          <input type="range" min={0} max={Math.max(duration, 1)} step={0.1} value={Math.min(currentTime, duration || 0)} disabled={duration <= 0} onChange={(event) => seekTo(Number(event.currentTarget.value))} aria-label="Narration position" className="h-1.5 min-w-0 flex-1 cursor-pointer accent-violet-600 disabled:cursor-default lg:min-w-[56px] lg:h-2 2xl:min-w-[72px]" style={{ accentColor: "var(--br-chart-primary)" }} />
+        </>}
+        <button type="button" onClick={() => skip(-5)} disabled={isYouTubeAudio} aria-label="Back 5 seconds" className="relative grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-chart-primary)] transition hover:bg-[var(--br-chart-primary)]/10 disabled:opacity-50 lg:size-8 2xl:size-9"><RotateCcw size={20} className="lg:size-5" /><span className="absolute text-[10px] font-black leading-none">5</span></button>
+        <button type="button" onClick={() => skip(5)} disabled={isYouTubeAudio} aria-label="Forward 5 seconds" className="relative grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-chart-primary)] transition hover:bg-[var(--br-chart-primary)]/10 disabled:opacity-50 lg:size-8 2xl:size-9"><RotateCcw size={20} className="scale-x-[-1] lg:size-5" /><span className="absolute text-[10px] font-black leading-none">5</span></button>
+        <span aria-hidden="true" className="mx-0 h-6 w-px shrink-0 bg-[var(--br-border)] lg:mx-0 lg:h-7 2xl:mx-1" />
+        <div className="relative shrink-0">
+          <button type="button" onClick={() => setSpeedMenuOpen((open) => !open)} aria-label={`Playback speed ${speed.toFixed(1)} times`} aria-expanded={speedMenuOpen} aria-haspopup="menu" className="flex h-9 items-center gap-1 rounded-lg px-1.5 text-[13px] font-extrabold text-[var(--br-chart-primary)] transition hover:bg-[var(--br-chart-primary)]/10 lg:h-10 lg:gap-1 lg:pl-1 lg:pr-0.5 lg:text-[13px]">
+            {speed.toFixed(1)}× <ChevronDown size={16} className="lg:size-4" />
           </button>
-          {translationEnabled && !isYouTubeAudio && originalFinished ? (
-            <button
-              type="button"
-              disabled={translationState === "loading" || translationState === "playing"}
-              onClick={() => void playNarrationTranslation({ lessonId, slideId, src, sourceType, onState: (state, message) => { setTranslationState(state); setTranslationError(message ?? null); } })}
-              aria-label={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
-              title={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
-              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-on-dark transition hover:bg-violetglow disabled:opacity-60"
-            >
-              {translationState === "loading" ? <span className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Languages size={11} />}
-            </button>
-          ) : null}
-
-          {/* Progress bar + time */}
-          {isYouTubeAudio ? <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold text-white/70"><Music2 size={11} /> Study audio</span> : <button
-            type="button"
-            onClick={() => setExpanded((p) => !p)}
-            className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-            aria-label="Toggle audio controls"
-          >
-            <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/20">
-              <div
-                className="h-full rounded-full bg-moss transition-all duration-100"
-                style={{ width: `${percent}%` }}
-              />
-            </div>
-            <span className="shrink-0 text-[10px] tabular-nums text-white/60">
-              {fmt(currentTime)}/{fmt(duration)}
-            </span>
-          </button>}
+          {speedMenuOpen ? <div role="menu" aria-label="Playback speed" className="absolute right-0 top-full z-50 mt-1 min-w-24 rounded-xl border border-[var(--br-surface-strong)] bg-white p-1 shadow-lg">
+            {speeds.map((s) => <button key={s} type="button" role="menuitemradio" aria-checked={speed === s} onClick={() => setPlaybackSpeed(s)} className={`block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-bold ${speed === s ? "bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]" : "text-[var(--br-text)] hover:bg-[var(--br-canvas-elevated)]"}`}>{s === 1 ? "1.0×" : `${s}×`}</button>)}
+          </div> : null}
         </div>
-      )}
-
-      {/* Expanded controls — skip + speed */}
-      {expanded && !autoplayBlocked && !isYouTubeAudio && (
-        <div className="flex items-center justify-between gap-1">
-          {/* Skip back 5s */}
-          <button
-            type="button"
-            onClick={() => skip(-5)}
-            aria-label="Back 5 seconds"
-            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-on-dark"
-          >
-            <RotateCcw size={9} />5
-          </button>
-
-          {/* Speed chips */}
-          <div className="flex gap-0.5">
-            {speeds.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setPlaybackSpeed(s)}
-                className={`rounded px-1 py-0.5 text-[9px] font-bold transition
-                  ${speed === s
-                    ? "bg-moss text-on-dark"
-                    : "text-white/50 hover:bg-white/10 hover:text-on-dark"
-                  }`}
-              >
-                {s}x
-              </button>
-            ))}
-          </div>
-
-          {/* Skip forward 5s */}
-          <button
-            type="button"
-            onClick={() => skip(5)}
-            aria-label="Forward 5 seconds"
-            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-on-dark"
-          >
-            5<RotateCcw size={9} className="scale-x-[-1]" />
-          </button>
-        </div>
-      )}
-      {audioError ? <p role="alert" className="max-w-48 text-[10px] text-amber-200">{audioError}</p> : null}
-      {translationError ? <p className="max-w-48 text-[10px] text-amber-200">{translationError}</p> : null}
+      </div>
+      {audioError ? <p role="alert" className="text-[10px] text-red-700">{audioError}</p> : null}
+      {translationError ? <p className="text-[10px] text-red-700">{translationError}</p> : null}
     </div>
   );
 }
@@ -517,6 +489,12 @@ export function BuilderLessonPlayer({
   const autoplayTimerStartedAtRef = useRef<number | null>(null);
   const autoplayTimerExpiredRef = useRef(false);
   const [narrationProgress, setNarrationProgress] = useState({ currentTime: 0, duration: 0 });
+  const [narrationPlaying, setNarrationPlaying] = useState(false);
+  const [narrationSpeed, setNarrationSpeed] = useState(1);
+  const [fullscreenControlsOpen, setFullscreenControlsOpen] = useState(false);
+  const [fullscreenSpeedMenuOpen, setFullscreenSpeedMenuOpen] = useState(false);
+  const fullscreenNarrationControlsRef = useRef<FullscreenNarrationControls | null>(null);
+  const registerFullscreenNarrationControls = useCallback((controls: FullscreenNarrationControls | null) => { fullscreenNarrationControlsRef.current = controls; }, []);
   const [openStudyPanels, setOpenStudyPanels] = useState<Array<"read" | "glossary" | "notes">>([]);
   const subtitleOverridesRef = useRef<Record<string, boolean>>({});
   const isStudyPanelOpen = (panel: "read" | "glossary" | "notes") => openStudyPanels.includes(panel);
@@ -756,7 +734,12 @@ export function BuilderLessonPlayer({
 
   // Narration for current slide
   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
-  const narrationVisible = Boolean(slide) && activeTab !== "practice" && slide.player_phase !== "PRACTICE";
+  // In Learn-And-Practice lessons, switching the content tab should not unmount
+  // the shared slide narration player or interrupt playback. Phase-based LTP
+  // lessons keep their existing rule: narration only belongs to Learn slides.
+  const narrationVisible = Boolean(slide)
+    && slide.player_phase !== "PRACTICE"
+    && (template === "LAP" || activeTab !== "practice");
   const narrationConfig = slide ? narrationConfigMap[slide.id] : undefined;
   const hasTranscript = Boolean(narrationConfig?.transcript?.trim());
   const hasGlossary = narrationGlossary(narrationConfig?.glossary).length > 0;
@@ -764,7 +747,23 @@ export function BuilderLessonPlayer({
   const transcriptWordCount = (narrationConfig?.transcript?.match(/[^\s]+/g) ?? []).filter((token) => /[\p{L}\p{M}\p{N}]/u.test(token)).length;
   const hasSyncedNarration = Boolean(narrationUrl && hasTranscript && transcriptWordCount > 0 && narrationWordTimings.length === transcriptWordCount);
   const fullscreenSubtitleOverlay = hasSyncedNarration && narrationVisible && (isStudyPanelOpen("read") || pinnedReadingGuide)
-    ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={pinnedReadingGuide} onOpenScript={() => setFullScriptOpen(true)} onSelectTerm={setSelectedGlossaryEntry} showControls={false} fullscreenMode />
+    ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={pinnedReadingGuide} onOpenScript={() => setFullScriptOpen(true)} onSelectTerm={setSelectedGlossaryEntry} showControls={false} fullscreenMode trailingAction={<div className="relative ml-1 flex shrink-0 items-center gap-1">
+      <button type="button" onClick={() => fullscreenNarrationControlsRef.current?.toggle()} className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--br-action)] text-on-dark shadow-sm transition hover:brightness-95" aria-label={narrationPlaying ? "Pause narration" : "Play narration"} title={narrationPlaying ? "Pause narration" : "Play narration"}>{narrationPlaying ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" className="ml-0.5" />}</button>
+      <div className="relative shrink-0">
+        <button type="button" onClick={() => setFullscreenControlsOpen((open) => { if (open) setFullscreenSpeedMenuOpen(false); return !open; })} aria-label="More narration controls" aria-expanded={fullscreenControlsOpen} title="More narration controls" className="grid size-9 shrink-0 place-items-center rounded-full text-[var(--br-action)] transition hover:bg-[var(--br-action)]/10"><MoreVertical size={20} /></button>
+        {fullscreenControlsOpen ? <div className="absolute bottom-[calc(100%+9px)] right-0 z-50 flex items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white px-2 py-1.5 shadow-lg">
+          <button type="button" onClick={() => fullscreenNarrationControlsRef.current?.skip(-5)} aria-label="Back 5 seconds" title="Back 5 seconds" className="relative grid size-9 shrink-0 place-items-center rounded-full text-[var(--br-chart-primary)] transition hover:bg-[var(--br-chart-primary)]/10"><RotateCcw size={20} /><span className="absolute text-[10px] font-black leading-none">5</span></button>
+          <button type="button" onClick={() => fullscreenNarrationControlsRef.current?.skip(5)} aria-label="Forward 5 seconds" title="Forward 5 seconds" className="relative grid size-9 shrink-0 place-items-center rounded-full text-[var(--br-chart-primary)] transition hover:bg-[var(--br-chart-primary)]/10"><RotateCcw size={20} className="scale-x-[-1]" /><span className="absolute text-[10px] font-black leading-none">5</span></button>
+          <span aria-hidden="true" className="mx-1 h-6 w-px shrink-0 bg-[var(--br-border)]" />
+          <div className="relative shrink-0">
+            <button type="button" onClick={() => setFullscreenSpeedMenuOpen((open) => !open)} aria-label={`Playback speed ${narrationSpeed.toFixed(1)} times`} aria-haspopup="menu" aria-expanded={fullscreenSpeedMenuOpen} className="flex h-9 items-center gap-1 rounded-full px-2 text-[13px] font-extrabold text-[var(--br-chart-primary)] transition hover:bg-[var(--br-chart-primary)]/10">{narrationSpeed.toFixed(1)}× <ChevronDown size={16} /></button>
+            {fullscreenSpeedMenuOpen ? <div role="menu" aria-label="Playback speed" className="absolute bottom-[calc(100%+8px)] right-0 z-[60] min-w-24 rounded-xl border border-[var(--br-surface-strong)] bg-white p-1 shadow-lg">
+              {[0.75, 1, 1.25, 1.5].map((speed) => <button key={speed} type="button" role="menuitemradio" aria-checked={narrationSpeed === speed} onClick={() => { fullscreenNarrationControlsRef.current?.setSpeed(speed); setFullscreenSpeedMenuOpen(false); }} className={`block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-bold ${narrationSpeed === speed ? "bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]" : "text-[var(--br-text)] hover:bg-[var(--br-canvas-elevated)]"}`}>{speed === 1 ? "1.0×" : `${speed}×`}</button>)}
+            </div> : null}
+          </div>
+        </div> : null}
+      </div>
+    </div>} />
     : undefined;
   const handlePreciseNarrationTimeChange = useCallback((currentTime: number) => {
     setNarrationProgress((previous) => previous.currentTime === currentTime ? previous : { ...previous, currentTime });
@@ -1246,22 +1245,35 @@ export function BuilderLessonPlayer({
           <FullscreenImageSessionProvider>
           <section key={slide.phase_item_id ?? slide.id} className={`rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3 ${autoplayActive ? "animate-lesson-sweep" : ""}`}>
             {/* Slide header */}
-            <div className={`mb-2 rounded-[18px] px-4 py-3 text-white sm:mb-3 ${template === "LAP" ? "bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] text-on-dark" : template === "LTP" || slide.player_phase !== "PRACTICE" ? "bg-[var(--br-brand)]" : "bg-[var(--br-chart-secondary)]"}`}>
-              {/* Line 1 — back navigation (left) + narration pill (right) */}
-              <div className="flex items-center justify-between gap-2">
-                {!instantClass ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"><ArrowLeft size={15} /></Link> : <span />}
-                {narrationVisible && narrationUrl && (
-                  <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} wordTimings={narrationWordTimings} onProgressChange={setNarrationProgress} onPreciseTimeChange={handlePreciseNarrationTimeChange} onEnded={() => setNarrationEnded(true)} autoplayControlled={autoplayConfigured} />
-                )}
-              </div>
-
-              {/* Line 2 — slide title */}
-              <h2 className="mt-1 text-[22px] font-extrabold">{displayedSlideTitle}</h2>
-
-              {/* Line 3 — section label */}
-              {slide.section_label && (
-                <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
-              )}
+            <div className="relative isolate mb-2 overflow-visible rounded-[20px] border border-[var(--br-surface-strong)] bg-white shadow-[var(--br-shadow)] sm:mb-3 sm:rounded-[22px]">
+              {narrationVisible && narrationUrl ? <>
+                {/* Desktop: the navy identity panel sweeps into the white narration panel. */}
+                <svg aria-hidden="true" viewBox="0 0 1000 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block">
+                  <path d="M17 0 H668 C649 0 631 15 629 34 C627.8 45.4 626 56 624 66 C620.4 84 603 100 584 100 H17 C9 100 0 89 0 76 V24 C0 11 9 0 17 0 Z" fill="var(--br-dark-card)" />
+                </svg>
+                  <div className="relative z-10 grid min-h-[128px] grid-cols-1 overflow-hidden rounded-[19px] bg-[var(--br-dark-card)] lg:min-h-[88px] lg:grid-cols-[minmax(0,1.67fr)_minmax(340px,1fr)] lg:overflow-visible lg:rounded-[21px] lg:bg-transparent">
+                  <div className="flex min-w-0 items-center gap-3 bg-[var(--br-dark-card)] px-4 py-3 text-white lg:bg-transparent lg:px-5 lg:py-3">
+                    {!instantClass ? <Link href={backHref} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90 lg:h-9 lg:px-4" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
+                    <span aria-hidden="true" className="hidden h-12 w-px shrink-0 bg-white/55 lg:block" />
+                    <div className="min-w-0 flex-1">
+                      {slide.section_label ? <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/85">{slide.section_label}</p> : null}
+                      <h2 className="mt-1 line-clamp-2 text-[22px] font-extrabold leading-tight text-white">{displayedSlideTitle}</h2>
+                    </div>
+                  </div>
+                  <div className="relative z-10 mx-1 mb-1 mt-1 flex min-w-0 items-center rounded-[20px] border border-[var(--br-surface-strong)] bg-white px-2 py-1.5 shadow-sm lg:mx-0 lg:mb-0 lg:mt-0 lg:rounded-none lg:border-transparent lg:bg-transparent lg:px-2 lg:py-3 lg:shadow-none 2xl:px-5">
+                    <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} wordTimings={narrationWordTimings} onProgressChange={setNarrationProgress} onPreciseTimeChange={handlePreciseNarrationTimeChange} onEnded={() => setNarrationEnded(true)} onPlayingChange={setNarrationPlaying} onSpeedChange={setNarrationSpeed} onFullscreenControlsReady={registerFullscreenNarrationControls} autoplayControlled={autoplayConfigured} />
+                  </div>
+                </div>
+              </> : <div className="min-h-[112px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
+                <div className="flex min-h-[84px] items-center gap-3">
+                  {!instantClass ? <Link href={backHref} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
+                  {!instantClass ? <span aria-hidden="true" className="hidden h-12 w-px shrink-0 bg-white/55 lg:block" /> : null}
+                  <div className="min-w-0">
+                    {slide.section_label ? <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/75">{slide.section_label}</p> : null}
+                    <h2 className="mt-1 line-clamp-2 text-[20px] font-extrabold leading-tight sm:text-[22px]">{displayedSlideTitle}</h2>
+                  </div>
+                </div>
+              </div>}
             </div>
 
             {/* ── Learn / Practice tabs — side by side at every breakpoint ── */}

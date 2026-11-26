@@ -515,7 +515,11 @@ function ZoomableImage({ src, alt, className, fullscreenOverlay, ownerId }: { sr
   const [pan, setPan] = useState<ImagePan>({ x: 0, y: 0 });
   const [mobilePortrait, setMobilePortrait] = useState(false);
   const [landscapeFallback, setLandscapeFallback] = useState(false);
-  const showFullscreenSubtitle = Boolean(fullscreenOverlay && (mobilePortrait || (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches)));
+  const showFullscreenSubtitle = Boolean(fullscreenOverlay && typeof window !== "undefined" && (
+    mobilePortrait
+    || window.matchMedia("(pointer: coarse)").matches
+    || (window.innerWidth < 1024 && window.innerHeight < 500)
+  ));
 
   useEffect(() => () => releaseFullscreen?.(ownerId), [releaseFullscreen, ownerId]);
 
