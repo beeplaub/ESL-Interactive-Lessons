@@ -141,7 +141,7 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
           <h1 className="mt-1 text-[22px] font-extrabold">{title}</h1>
           <p className="mt-1 text-sm text-white/60">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
         </header>
-        <div className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)]">{autoButton}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>{pinnedGatePhase ? <div className="grid size-8 shrink-0 place-items-center rounded-full bg-white"><PhaseGateMarker phase={pinnedGatePhase} onClick={() => onSelectGate?.(pinnedGatePhase)} compact /></div> : null}{slideMap}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button></div>
+        <div className="mb-4 flex w-full items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)]">{autoButton}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>{pinnedGatePhase ? <div className="grid size-8 shrink-0 place-items-center rounded-full bg-white"><PhaseGateMarker phase={pinnedGatePhase} onClick={() => onSelectGate?.(pinnedGatePhase)} compact /></div> : null}{slideMap}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button></div>
         <div className="grid place-items-center px-1 pb-1 sm:px-2 sm:pb-2">
           <div className="relative grid aspect-[9/16] w-full max-w-[360px] place-items-center overflow-hidden rounded-[18px] border border-[var(--br-surface-strong)] bg-[radial-gradient(ellipse_at_20%_15%,var(--br-brand-soft),transparent_55%),linear-gradient(145deg,var(--br-canvas-elevated),var(--br-surface))] p-5 shadow-inner sm:aspect-video sm:max-w-none sm:p-8">
             {imageUrl ? <>
@@ -517,7 +517,10 @@ export function BuilderLessonPlayer({
   const autoplayTimerStartedAtRef = useRef<number | null>(null);
   const autoplayTimerExpiredRef = useRef(false);
   const [narrationProgress, setNarrationProgress] = useState({ currentTime: 0, duration: 0 });
-  const [studyPanel, setStudyPanel] = useState<"read" | "glossary" | "notes" | null>(null);
+  const [openStudyPanels, setOpenStudyPanels] = useState<Array<"read" | "glossary" | "notes">>([]);
+  const subtitleOverridesRef = useRef<Record<string, boolean>>({});
+  const isStudyPanelOpen = (panel: "read" | "glossary" | "notes") => openStudyPanels.includes(panel);
+  const toggleStudyPanel = (panel: "read" | "glossary" | "notes") => setOpenStudyPanels((current) => current.includes(panel) ? current.filter((item) => item !== panel) : [...current, panel]);
   const [fullScriptOpen, setFullScriptOpen] = useState(false);
   const [pinnedReadingGuide, setPinnedReadingGuide] = useState(false);
   const [selectedGlossaryEntry, setSelectedGlossaryEntry] = useState<NarrationGlossaryEntry | null>(null);
@@ -758,18 +761,27 @@ export function BuilderLessonPlayer({
   const hasTranscript = Boolean(narrationConfig?.transcript?.trim());
   const hasGlossary = narrationGlossary(narrationConfig?.glossary).length > 0;
   const narrationWordTimings = useMemo(() => parseNarrationWordTimings(narrationConfig?.wordTimings)?.words ?? [], [narrationConfig?.wordTimings]);
+  const transcriptWordCount = (narrationConfig?.transcript?.match(/[^\s]+/g) ?? []).filter((token) => /[\p{L}\p{M}\p{N}]/u.test(token)).length;
+  const hasSyncedNarration = Boolean(narrationUrl && hasTranscript && transcriptWordCount > 0 && narrationWordTimings.length === transcriptWordCount);
+  const fullscreenSubtitleOverlay = hasSyncedNarration && narrationVisible && (isStudyPanelOpen("read") || pinnedReadingGuide)
+    ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={pinnedReadingGuide} onOpenScript={() => setFullScriptOpen(true)} onSelectTerm={setSelectedGlossaryEntry} showControls={false} />
+    : undefined;
   const handlePreciseNarrationTimeChange = useCallback((currentTime: number) => {
     setNarrationProgress((previous) => previous.currentTime === currentTime ? previous : { ...previous, currentTime });
   }, []);
 
   useEffect(() => {
     setNarrationProgress({ currentTime: 0, duration: 0 });
-    // Keep the learner's reading-guide choice while moving through slides.
-    // Opening the full script is still part of the guide, so navigation returns
-    // to the current slide's preview instead of silently closing it.
+    const slideOverride = slide?.id ? subtitleOverridesRef.current[slide.id] : undefined;
+    const shouldOpenSubtitles = hasSyncedNarration && slide?.player_phase !== "PRACTICE" && slideOverride !== false;
+    setOpenStudyPanels((current) => {
+      const withoutSubtitles = current.filter((panel) => panel !== "read");
+      return shouldOpenSubtitles ? [...withoutSubtitles, "read"] : withoutSubtitles;
+    });
+    setPinnedReadingGuide(false);
     setFullScriptOpen(false);
     setSelectedGlossaryEntry(null);
-  }, [slide?.id]);
+  }, [slide?.id, hasSyncedNarration, slide?.player_phase]);
 
   const instantNotesKey = instantClass ? `brenup:instant-notes:${instantClass.notesKey}:${lesson.id}` : null;
   useEffect(() => {
@@ -1259,7 +1271,7 @@ export function BuilderLessonPlayer({
               onTouchMove={(event) => event.stopPropagation()}
               onTouchEnd={(event) => event.stopPropagation()}
               onTouchCancel={(event) => event.stopPropagation()}
-              className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] [touch-action:pan-x_pan-y]"
+              className="mb-4 flex w-full items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] [touch-action:pan-x_pan-y]"
             >
               {autoplayConfigured ? <button type="button" onClick={() => setAutoplayPaused((value) => !value)} className="flex h-9 w-10 shrink-0 flex-col items-center justify-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-chart-primary)] shadow-sm transition hover:bg-[var(--br-canvas-elevated)]" aria-pressed={!autoplayPaused} aria-label={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"} title={autoplayPaused ? "Resume slide autoplay" : "Pause slide autoplay"}><Timer size={14} /><span className="mt-0.5 text-[7px] font-black uppercase leading-none tracking-wide">{autoplayPaused ? "Paused" : "Auto"}</span></button> : null}
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>
@@ -1277,7 +1289,7 @@ export function BuilderLessonPlayer({
             {/* ── Active panel ── */}
             {activeTab === "learn" ? (
               slideBlocks.length ? (
-                <LessonBlockPreview blocks={slideBlocks} emptyText="No learner-visible content on this slide." checklistState={reviewChecklistState} onChecklistChange={(blockId, checkedItems) => setReviewChecklistState((current) => ({ ...current, [blockId]: checkedItems }))} />
+                <LessonBlockPreview blocks={slideBlocks} emptyText="No learner-visible content on this slide." checklistState={reviewChecklistState} onChecklistChange={(blockId, checkedItems) => setReviewChecklistState((current) => ({ ...current, [blockId]: checkedItems }))} fullscreenOverlay={fullscreenSubtitleOverlay} />
               ) : (
                 <div className="grid min-h-40 place-items-center rounded-[16px] bg-[var(--br-canvas-elevated)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">
                   Take a moment to review this step, then continue when you are ready.
@@ -1344,33 +1356,33 @@ export function BuilderLessonPlayer({
       </div>
 
       {/* ── In-flow study dock and bottom navigation ── */}
-      <div className="mt-5">
-          {narrationVisible && pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview anchor={lessonViewport} transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setStudyPanel("read"); }} onOpenScript={() => { setPinnedReadingGuide(false); setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
+      <div className="mt-2">
+          {narrationVisible && pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview anchor={lessonViewport} transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setOpenStudyPanels((current) => current.includes("read") ? current : [...current, "read"]); }} onOpenScript={() => { setPinnedReadingGuide(false); setOpenStudyPanels((current) => current.includes("read") ? current : [...current, "read"]); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(entry); }} /> : null}
+          {narrationVisible && isStudyPanelOpen("read") && !pinnedReadingGuide ? <div className="mx-auto mb-2 w-full max-w-4xl"><NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={false} onTogglePin={() => { setPinnedReadingGuide(true); setOpenStudyPanels((current) => current.filter((panel) => panel !== "read")); }} onOpenScript={() => setFullScriptOpen(true)} onSelectTerm={setSelectedGlossaryEntry} /></div> : null}
           <div className="mx-auto flex w-fit items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1.5 shadow-[var(--br-shadow)]">
             {narrationVisible ? <>
-              <button type="button" disabled={!hasTranscript} onClick={() => { const guideOpen = studyPanel === "read" || pinnedReadingGuide; setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel(guideOpen ? null : "read"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasTranscript ? studyPanel === "read" || pinnedReadingGuide ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasTranscript ? "Open subtitles" : "No reading script on this slide"}><BookOpenText size={14} />Script</button>
-              <button type="button" disabled={!hasGlossary} onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "glossary" ? null : "glossary"); }} className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasGlossary ? studyPanel === "glossary" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasGlossary ? "Open glossary" : "No glossary on this slide"}><List size={14} />Glossary</button>
+              <button type="button" disabled={!hasTranscript} onClick={() => { const nextOpen = !(isStudyPanelOpen("read") || pinnedReadingGuide); if (slide?.id) subtitleOverridesRef.current = { ...subtitleOverridesRef.current, [slide.id]: nextOpen }; setPinnedReadingGuide(false); setOpenStudyPanels((current) => nextOpen ? current.includes("read") ? current : [...current, "read"] : current.filter((panel) => panel !== "read")); if (!nextOpen) setFullScriptOpen(false); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasTranscript ? isStudyPanelOpen("read") || pinnedReadingGuide ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasTranscript ? "Toggle subtitles" : "No reading script on this slide"}><BookOpenText size={14} />Subtitle</button>
+              <button type="button" disabled={!hasGlossary} onClick={() => toggleStudyPanel("glossary")} className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasGlossary ? isStudyPanelOpen("glossary") ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasGlossary ? "Toggle glossary" : "No glossary on this slide"}><List size={14} />Glossary</button>
             </> : null}
-            <button type="button" onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "notes" ? null : "notes"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${studyPanel === "notes" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`}><NotebookPen size={14} />Notes</button>
+            <button type="button" onClick={() => toggleStudyPanel("notes")} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${isStudyPanelOpen("notes") ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`}><NotebookPen size={14} />Notes</button>
           </div>
-          {(narrationVisible && (studyPanel === "read" || studyPanel === "glossary" || fullScriptOpen || selectedGlossaryEntry)) || studyPanel === "notes" ? <div className="mx-auto mt-2 w-full max-w-xl">
-            {fullScriptOpen ? <NarrationFullScript transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onClose={() => { setFullScriptOpen(false); setStudyPanel("read"); }} onSelectTerm={(entry) => { setFullScriptOpen(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
-            {studyPanel === "read" && !pinnedReadingGuide ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={false} onTogglePin={() => { setPinnedReadingGuide(true); setStudyPanel(null); }} onOpenScript={() => { setStudyPanel("read"); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
-            {studyPanel === "glossary" ? <NarrationGlossaryPanel glossary={narrationConfig?.glossary} /> : null}
-            {studyPanel === "notes" ? <section className="w-full rounded-2xl border-2 border-[var(--br-action)] bg-white p-3 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><NotebookPen size={15} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Notes</p></div><span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[var(--br-chart-secondary)] opacity-100" : "opacity-0"}`}>Saved</span></div><textarea key={slide.id} value={notesMap[slide.id] ?? ""} onChange={handleNotesChange} placeholder="Type your notes here… they save automatically." rows={5} className="mt-3 w-full resize-none rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-action)] focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/15" /><p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">{instantClass ? "Saved per slide on this device." : "Saved per slide."}</p></section> : null}
-            {selectedGlossaryEntry ? <NarrationGlossaryWord entry={selectedGlossaryEntry} onClose={() => { setSelectedGlossaryEntry(null); setStudyPanel("read"); }} /> : null}
+          {(narrationVisible && (isStudyPanelOpen("glossary") || fullScriptOpen || selectedGlossaryEntry)) || isStudyPanelOpen("notes") ? <div className="mx-auto mt-2 w-full max-w-xl space-y-2">
+            {fullScriptOpen ? <NarrationFullScript transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} wordTimings={narrationWordTimings} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onClose={() => setFullScriptOpen(false)} onSelectTerm={(entry) => { setFullScriptOpen(false); setSelectedGlossaryEntry(entry); }} /> : null}
+            {isStudyPanelOpen("glossary") ? <NarrationGlossaryPanel glossary={narrationConfig?.glossary} /> : null}
+            {isStudyPanelOpen("notes") ? <section className="w-full rounded-2xl border-2 border-[var(--br-action)] bg-white p-3 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><NotebookPen size={15} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Notes</p></div><span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[var(--br-chart-secondary)] opacity-100" : "opacity-0"}`}>Saved</span></div><textarea key={slide.id} value={notesMap[slide.id] ?? ""} onChange={handleNotesChange} placeholder="Type your notes here… they save automatically." rows={5} className="mt-3 w-full resize-none rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-action)] focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/15" /><p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">{instantClass ? "Saved per slide on this device." : "Saved per slide."}</p></section> : null}
+            {selectedGlossaryEntry ? <NarrationGlossaryWord entry={selectedGlossaryEntry} onClose={() => setSelectedGlossaryEntry(null)} /> : null}
           </div> : null}
       {/* ── Bottom navigation bar ── */}
-      <div className="mt-2 flex flex-nowrap items-center justify-between gap-1.5 rounded-[22px] border border-[var(--br-surface-strong)] bg-white/95 p-2 shadow-[var(--br-shadow)] backdrop-blur sm:gap-3 sm:p-3">
+      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 rounded-[16px] border border-[var(--br-surface-strong)] bg-white/95 p-2 shadow-[var(--br-shadow)] backdrop-blur sm:gap-3 sm:p-3">
         {!practiceModuleMode ? <button
           type="button"
           onClick={() => move(-1)}
           disabled={index === 0 || (isLiveStudent && liveNavigationLocked) || !canOpenSlide(slides[index - 1])}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 justify-self-start rounded-full border border-[var(--br-surface-strong)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
         >
           <ChevronLeft size={14} className="shrink-0" /> Previous
         </button> : <span />}
-        {!practiceModuleMode && template === "LAP" ? <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
+        {!practiceModuleMode && template === "LAP" ? <div className="relative flex min-w-0 shrink items-center gap-1 justify-self-center rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
           {message ? <span className="hidden text-xs text-[var(--br-danger)] sm:inline">{message}</span> : null}
           <button
             ref={jumpButtonRef}
@@ -1411,14 +1423,14 @@ export function BuilderLessonPlayer({
               ))}
             </div>, document.body
           ) : null}
-        </div> : !practiceModuleMode ? <span className="text-xs font-bold text-[var(--br-text-muted)]">Step {index + 1} of {slides.length}</span> : null}
-        {practiceModuleMode ? completed ? <button type="button" onClick={retakeLesson} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark"><RotateCcw size={13} />Practise again</button> : <button type="button" onClick={finish} disabled={isPending || reviewChecklistBlocked} className="shrink-0 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark disabled:opacity-45">Complete module</button> : index === slides.length - 1 ? (
-          completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
+        </div> : !practiceModuleMode ? <span className="justify-self-center text-xs font-bold text-[var(--br-text-muted)]">{index + 1} of {slides.length}</span> : null}
+        {practiceModuleMode ? completed ? <button type="button" onClick={retakeLesson} className="col-start-3 inline-flex shrink-0 items-center gap-1 justify-self-end rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark"><RotateCcw size={13} />Practise again</button> : <button type="button" onClick={finish} disabled={isPending || reviewChecklistBlocked} className="col-start-3 shrink-0 justify-self-end rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark disabled:opacity-45">Complete module</button> : index === slides.length - 1 ? (
+          completed ? <div className="col-start-3 flex shrink-0 items-center justify-self-end gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
             type="button"
             onClick={finish}
             disabled={isPending || reviewChecklistBlocked}
             title={reviewChecklistBlocked ? "Check every review item before completing the lesson" : undefined}
-            className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:cursor-not-allowed disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
+            className="col-start-3 shrink-0 justify-self-end whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:cursor-not-allowed disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
           >
             Complete<span className="hidden sm:inline"> lesson</span>
           </button>
@@ -1427,7 +1439,7 @@ export function BuilderLessonPlayer({
             type="button"
             onClick={() => move(1)}
                   disabled={isLiveStudent && liveNavigationLocked}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[var(--br-chart-primary)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] transition hover:brightness-110 disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
+            className="col-start-3 inline-flex shrink-0 items-center gap-1 justify-self-end whitespace-nowrap rounded-full bg-[var(--br-chart-primary)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] transition hover:brightness-110 disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
           >
             Next <ArrowRight size={14} className="shrink-0" />
           </button>

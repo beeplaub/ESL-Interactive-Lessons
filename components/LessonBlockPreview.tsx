@@ -182,13 +182,15 @@ type ImageGesture =
   | { kind: "pinch"; distance: number; zoom: number; pan: ImagePan; centerX: number; centerY: number }
   | null;
 
-function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, onZoomChange, onPanChange, onFullscreen, onCloseFullscreen }: {
+function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, controlsAtTopRight = false, rotatedFallback = false, onZoomChange, onPanChange, onFullscreen, onCloseFullscreen }: {
   src: string;
   alt: string;
   imageClassName: string;
   zoom: number;
   pan: ImagePan;
   fullscreen?: boolean;
+  controlsAtTopRight?: boolean;
+  rotatedFallback?: boolean;
   onZoomChange: (zoom: number) => void;
   onPanChange: (pan: ImagePan) => void;
   onFullscreen: () => void;
@@ -199,7 +201,6 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
   const pointersRef = useRef(new Map<number, ImagePointerPoint>());
   const gestureRef = useRef<ImageGesture>(null);
   const suppressClickRef = useRef(false);
-  const lastEdgeFeedbackRef = useRef(0);
   const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsDragRef = useRef<ControlsDrag>(null);
   const [controlsVisible, setControlsVisible] = useState(false);
@@ -223,8 +224,28 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
     const frame = frameRef.current;
     const image = imageRef.current;
     if (!frame || !image) return { x: 0, y: 0 };
-    const maxX = Math.max(0, (image.clientWidth * scale - frame.clientWidth) / 2);
-    const maxY = Math.max(0, (image.clientHeight * scale - frame.clientHeight) / 2);
+    const boxWidth = image.clientWidth;
+    const boxHeight = image.clientHeight;
+    let contentWidth = boxWidth;
+    let contentHeight = boxHeight;
+    if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+      const fit = window.getComputedStyle(image).objectFit;
+      const containScale = Math.min(boxWidth / image.naturalWidth, boxHeight / image.naturalHeight);
+      const fitScale = fit === "cover"
+        ? Math.max(boxWidth / image.naturalWidth, boxHeight / image.naturalHeight)
+        : fit === "none"
+          ? 1
+          : fit === "scale-down"
+            ? Math.min(1, containScale)
+            : containScale;
+      contentWidth = image.naturalWidth * fitScale;
+      contentHeight = image.naturalHeight * fitScale;
+    }
+    // Bound movement by the visible image pixels, not the <img> box. With
+    // object-contain, the box can be much wider/taller than the actual image;
+    // using the box here creates false pan ranges and edge snapping.
+    const maxX = Math.max(0, (contentWidth * scale - frame.clientWidth) / 2);
+    const maxY = Math.max(0, (contentHeight * scale - frame.clientHeight) / 2);
     return {
       x: Math.max(-maxX, Math.min(maxX, value.x)),
       y: Math.max(-maxY, Math.min(maxY, value.y)),
@@ -278,19 +299,28 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
 
   const pointInFrame = (point: { clientX: number; clientY: number }) => {
     const rect = frameRef.current?.getBoundingClientRect();
-    return rect ? { x: point.clientX - rect.left, y: point.clientY - rect.top } : { x: 0, y: 0 };
+    const frame = frameRef.current;
+    if (!rect || !frame) return { x: 0, y: 0 };
+    const screenX = point.clientX - rect.left;
+    const screenY = point.clientY - rect.top;
+    // The iOS landscape fallback rotates the entire stage 90 degrees. Pointer
+    // coordinates are still in screen space, while pan/zoom values are local to
+    // the unrotated stage, so convert them back before applying gestures.
+    return rotatedFallback
+      ? { x: screenY, y: frame.clientHeight - screenX }
+      : { x: screenX, y: screenY };
   };
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     // Toolbar interactions must never start an image pan/pinch gesture.
     if ((event.target as Element | null)?.closest("[data-image-zoom-controls]")) return;
-    const point = { x: event.clientX, y: event.clientY };
+    const point = pointInFrame(event);
     pointersRef.current.set(event.pointerId, point);
     event.currentTarget.setPointerCapture(event.pointerId);
     if (pointersRef.current.size >= 2) {
       const values = [...pointersRef.current.values()];
-      const center = pointInFrame({ clientX: (values[0].x + values[1].x) / 2, clientY: (values[0].y + values[1].y) / 2 });
+      const center = { x: (values[0].x + values[1].x) / 2, y: (values[0].y + values[1].y) / 2 };
       gestureRef.current = {
         kind: "pinch",
         distance: Math.max(1, Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y)),
@@ -308,14 +338,13 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     if (!pointersRef.current.has(event.pointerId)) return;
-    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    event.preventDefault();
+    pointersRef.current.set(event.pointerId, pointInFrame(event));
     const values = [...pointersRef.current.values()];
     const gesture = gestureRef.current;
     if (values.length >= 2 && gesture?.kind === "pinch") {
       const distance = Math.max(1, Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y));
-      const centerClientX = (values[0].x + values[1].x) / 2;
-      const centerClientY = (values[0].y + values[1].y) / 2;
-      const center = pointInFrame({ clientX: centerClientX, clientY: centerClientY });
+      const center = { x: (values[0].x + values[1].x) / 2, y: (values[0].y + values[1].y) / 2 };
       const nextZoom = Math.min(4, Math.max(1, gesture.zoom * (distance / gesture.distance)));
       const centerX = center.x - (frameRef.current?.clientWidth ?? 0) / 2;
       const centerY = center.y - (frameRef.current?.clientHeight ?? 0) / 2;
@@ -329,29 +358,15 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
       return;
     }
     if (gesture?.kind === "pan" && gesture.pointerId === event.pointerId && zoom > 1) {
-      const deltaX = event.clientX - gesture.x;
-      const rawPan = { x: gesture.panX + deltaX, y: gesture.panY + event.clientY - gesture.y };
+      const point = pointInFrame(event);
+      const rawPan = { x: gesture.panX + point.x - gesture.x, y: gesture.panY + point.y - gesture.y };
       const nextPan = boundedPan(rawPan, zoom);
-      onPanChange(nextPan);
-      if (event.pointerType === "touch" && deltaX !== 0) {
-        const frame = frameRef.current;
-        const image = imageRef.current;
-        const maxPanX = frame && image ? Math.max(0, (image.clientWidth * zoom - frame.clientWidth) / 2) : 0;
-        const hitLeftEdge = rawPan.x < -maxPanX && deltaX < 0;
-        const hitRightEdge = rawPan.x > maxPanX && deltaX > 0;
-        const now = performance.now();
-        if ((hitLeftEdge || hitRightEdge) && now - lastEdgeFeedbackRef.current > 450 && image) {
-          lastEdgeFeedbackRef.current = now;
-          const transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${zoom})`;
-          const nudge = hitLeftEdge ? -3 : 3;
-          image.animate([
-            { transform },
-            { transform: `translate(${nextPan.x + nudge}px, ${nextPan.y}px) scale(${zoom})` },
-            { transform },
-          ], { duration: 170, easing: "ease-out" });
-        }
-      }
-      if (Math.abs(event.clientX - gesture.x) + Math.abs(event.clientY - gesture.y) > 4) suppressClickRef.current = true;
+      if (nextPan.x !== gesture.panX || nextPan.y !== gesture.panY) onPanChange(nextPan);
+      // Rebase after every pointer move. Once the image reaches an edge, extra
+      // finger movement is discarded instead of being accumulated; reversing
+      // direction then moves the image immediately without a jump or shake.
+      gestureRef.current = { ...gesture, x: point.x, y: point.y, panX: nextPan.x, panY: nextPan.y };
+      if (Math.abs(point.x - gesture.x) + Math.abs(point.y - gesture.y) > 4) suppressClickRef.current = true;
     }
   }
 
@@ -388,7 +403,7 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
   }
 
   const controlButtonClass = "grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/25 disabled:cursor-default disabled:opacity-40 sm:size-8";
-  const controls = <div ref={controlsRef} data-image-zoom-controls className={`pointer-events-auto absolute bottom-1 left-1/2 z-20 flex max-w-[calc(100%-1rem)] items-center gap-0 rounded-full border border-white/35 bg-[#ff7a59e6] px-1 py-0 text-white shadow-lg shadow-black/20 backdrop-blur-xl transition-opacity sm:gap-1 sm:px-2 sm:py-1 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"}`} style={{ transform: `translateX(calc(-50% + ${controlsOffsetX}px))`, touchAction: "none" }} role="group" aria-label="Image zoom controls" onClick={(event) => event.stopPropagation()} onTouchStart={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onTouchMove={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onTouchEnd={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onTouchCancel={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onPointerDown={handleControlsPointerDown} onPointerMove={handleControlsPointerMove} onPointerUp={finishControlsDrag} onPointerCancel={finishControlsDrag}>
+  const controls = <div ref={controlsRef} data-image-zoom-controls className={`pointer-events-auto absolute z-20 flex max-w-[calc(100%-1rem)] items-center gap-0 rounded-full border border-white/35 bg-[#ff7a59e6] px-1 py-0 text-white shadow-lg shadow-black/20 backdrop-blur-xl transition-opacity sm:gap-1 sm:px-2 sm:py-1 ${controlsAtTopRight ? "right-1 top-1" : "bottom-1 left-1/2"} ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"}`} style={{ transform: controlsAtTopRight ? undefined : `translateX(calc(-50% + ${controlsOffsetX}px))`, touchAction: "none" }} role="group" aria-label="Image zoom controls" onClick={(event) => event.stopPropagation()} onTouchStart={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onTouchMove={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onTouchEnd={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onTouchCancel={(event) => { event.stopPropagation(); revealControlsForTouch(); }} onPointerDown={handleControlsPointerDown} onPointerMove={handleControlsPointerMove} onPointerUp={finishControlsDrag} onPointerCancel={finishControlsDrag}>
     <button type="button" className={controlButtonClass} aria-label="Zoom out" title="Zoom out" disabled={zoom <= 1} onClick={() => setScaleAt(zoom - 0.1)}><Minus size={11} className="sm:size-3.5" /></button>
     <span className="min-w-7 px-0.5 text-center text-[9px] font-bold tabular-nums sm:min-w-11 sm:px-0 sm:text-[11px]">{Math.round(zoom * 100)}%</span>
     <button type="button" className={controlButtonClass} aria-label="Zoom in" title="Zoom in" disabled={zoom >= 4} onClick={() => setScaleAt(zoom + 0.1)}><Plus size={11} className="sm:size-3.5" /></button>
@@ -401,13 +416,19 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
     data-zoomable-image-stage
     data-image-zoom={zoom}
     className={`group relative grid w-full max-w-full place-items-center overflow-hidden ${fullscreen ? "h-full grid-rows-[minmax(0,1fr)]" : "min-h-0"} ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : ""}`}
-    style={{ touchAction: fullscreen || zoom > 1 ? "none" : "pan-y" }}
+    style={{ touchAction: fullscreen || zoom > 1 ? "none" : "pan-y", overscrollBehavior: fullscreen || zoom > 1 ? "none" : undefined }}
     onPointerEnter={(event) => { if (event.pointerType === "mouse") setControlsVisible(true); }}
     onPointerLeave={(event) => { if (event.pointerType === "mouse") setControlsVisible(false); }}
     onPointerDown={handlePointerDown}
     onPointerMove={handlePointerMove}
     onPointerUp={finishPointer}
     onPointerCancel={finishPointer}
+    onTouchMove={(event) => {
+      if (zoom > 1) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }}
     onClick={() => {
       if (suppressClickRef.current) { suppressClickRef.current = false; return; }
       setControlsVisible(true);
@@ -420,12 +441,13 @@ function ZoomableImageStage({ src, alt, imageClassName, zoom, pan, fullscreen, o
   </div>;
 }
 
-function ZoomableImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+function ZoomableImage({ src, alt, className, fullscreenOverlay }: { src: string; alt: string; className: string; fullscreenOverlay?: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<ImagePan>({ x: 0, y: 0 });
   const [mobilePortrait, setMobilePortrait] = useState(false);
   const [landscapeFallback, setLandscapeFallback] = useState(false);
+  const showFullscreenSubtitle = Boolean(fullscreenOverlay && (mobilePortrait || (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches)));
 
   const closeFullscreen = useCallback(() => {
     setOpen(false);
@@ -500,11 +522,11 @@ function ZoomableImage({ src, alt, className }: { src: string; alt: string; clas
   return <>
     <div className="relative max-w-full overflow-hidden">{inlineStage}</div>
     {open && typeof document !== "undefined" ? createPortal(
-      <div className="fixed inset-0 z-[150] bg-black p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" style={{ touchAction: "none" }} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()} onTouchCancel={(event) => event.stopPropagation()} onClick={closeFullscreen}>
-        <div className={`${landscapeFallback && mobilePortrait ? "fixed left-1/2 top-1/2 h-[100vw] w-[100dvh] -translate-x-1/2 -translate-y-1/2 rotate-90 overflow-hidden p-3" : "absolute inset-3 sm:inset-6"}`} onClick={(event) => event.stopPropagation()}>
-          <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} fullscreen onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />
-          <div className="absolute left-1 top-1 text-xs font-semibold text-white/70">Tap outside or press Esc to close</div>
-          <button type="button" onClick={closeFullscreen} className="absolute right-1 top-1 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20" aria-label="Close expanded image"><Minimize size={18} /></button>
+      <div className="fixed inset-0 z-[150] bg-black p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" style={{ touchAction: "none", overscrollBehavior: "none" }} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => { event.preventDefault(); event.stopPropagation(); }} onTouchEnd={(event) => event.stopPropagation()} onTouchCancel={(event) => event.stopPropagation()} onClick={closeFullscreen}>
+        <div data-rotated-image-fallback={landscapeFallback && mobilePortrait ? "true" : undefined} className={`${landscapeFallback && mobilePortrait ? "fixed left-1/2 top-1/2 h-[100vw] w-[100dvh] -translate-x-1/2 -translate-y-1/2 rotate-90 overflow-hidden p-3" : "absolute inset-3 sm:inset-6"}`} onClick={(event) => event.stopPropagation()}>
+          <ZoomableImageStage src={src} alt={alt} imageClassName={className} zoom={zoom} pan={pan} fullscreen controlsAtTopRight={showFullscreenSubtitle} rotatedFallback={landscapeFallback && mobilePortrait} onZoomChange={setZoom} onPanChange={setPan} onFullscreen={openFullscreen} onCloseFullscreen={closeFullscreen} />
+          <button type="button" onClick={closeFullscreen} className={`absolute top-1 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20 ${showFullscreenSubtitle ? "left-1" : "right-1"}`} aria-label="Close expanded image"><Minimize size={18} /></button>
+          {showFullscreenSubtitle ? <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-30">{fullscreenOverlay}</div> : null}
         </div>
       </div>,
       document.body,
@@ -535,12 +557,14 @@ export function LessonBlockPreview({
   checklistState = {},
   onChecklistChange,
   alwaysOpen = false,
+  fullscreenOverlay,
 }: {
   blocks: PreviewLessonBlock[];
   emptyText?: string;
   checklistState?: Record<string, boolean[]>;
   onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void;
   alwaysOpen?: boolean;
+  fullscreenOverlay?: ReactNode;
 }) {
   const visibleBlocks = blocks.filter((block) => asRecord(block.content).hidden_from_learners !== true);
 
@@ -555,7 +579,7 @@ export function LessonBlockPreview({
   return (
     <div className="lesson-block-preview space-y-3 sm:space-y-4">
       {visibleBlocks.map((block) => (
-        <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} />
+        <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} fullscreenOverlay={fullscreenOverlay} />
       ))}
     </div>
   );
@@ -703,7 +727,7 @@ function BulletBlock({ content, alwaysOpen }: { content: Record<string, unknown>
   );
 }
 
-function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = false }: { block: PreviewLessonBlock; checkedItems?: boolean[]; onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void; alwaysOpen?: boolean }) {
+function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = false, fullscreenOverlay }: { block: PreviewLessonBlock; checkedItems?: boolean[]; onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void; alwaysOpen?: boolean; fullscreenOverlay?: ReactNode }) {
   const content = asRecord(block.content);
 
   if (block.block_type === "HEADING") {
@@ -760,7 +784,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     return (
       <figure className="relative mx-auto w-fit max-w-full overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
         {path && isImageUrl(path) ? (
-          <ZoomableImage src={src} alt={asString(content.alt) || ""} className="mx-auto block h-auto max-h-[520px] max-w-full object-contain" />
+          <ZoomableImage src={src} alt={asString(content.alt) || ""} className="mx-auto block h-auto max-h-[520px] max-w-full object-contain" fullscreenOverlay={fullscreenOverlay} />
         ) : (
           <div className="grid aspect-video place-items-center text-sm text-[var(--br-text-muted)]">
             <div className="text-center">
@@ -780,7 +804,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     const images = (["left", "right"] as const).map((side) => ({
       path: asString(content[`${side}_path`]), alt: asString(content[`${side}_alt`]), caption: asString(content[`${side}_caption`])
     }));
-    return <div className="grid gap-4 sm:grid-cols-2">{images.map((image, index) => <figure key={index} className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted shadow-sm">{image.path && isImageUrl(image.path) ? <ZoomableImage src={mediaUrl(image.path, "image")} alt={image.alt} className="max-h-[520px] w-full object-contain" /> : <div className="grid aspect-video place-items-center p-4 text-center text-sm text-[var(--br-text-muted)]">{image.path || "Add an image URL or storage path."}</div>}{image.caption ? <figcaption className="border-t border-[var(--br-border)] bg-surface px-3 py-2 text-sm text-[var(--br-text-muted)]">{image.caption}</figcaption> : null}</figure>)}</div>;
+    return <div className="grid gap-4 sm:grid-cols-2">{images.map((image, index) => <figure key={index} className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted shadow-sm">{image.path && isImageUrl(image.path) ? <ZoomableImage src={mediaUrl(image.path, "image")} alt={image.alt} className="max-h-[520px] w-full object-contain" fullscreenOverlay={fullscreenOverlay} /> : <div className="grid aspect-video place-items-center p-4 text-center text-sm text-[var(--br-text-muted)]">{image.path || "Add an image URL or storage path."}</div>}{image.caption ? <figcaption className="border-t border-[var(--br-border)] bg-surface px-3 py-2 text-sm text-[var(--br-text-muted)]">{image.caption}</figcaption> : null}</figure>)}</div>;
   }
 
   if (block.block_type === "TONGUE_TWISTER") {
@@ -799,7 +823,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     const imageCol = (
       <figure className="relative overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted">
         {src && isImageUrl(src) ? (
-          <ZoomableImage src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" />
+          <ZoomableImage src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" fullscreenOverlay={fullscreenOverlay} />
         ) : (
           <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-[var(--br-text-muted)]">
             <ImageIcon size={28} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, Expand, List, Pin, PinOff, X } from "lucide-react";
+import { Expand, List, Pin, PinOff, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -34,7 +34,7 @@ export function narrationGlossary(glossary: unknown[] = []): NarrationGlossaryEn
 }
 
 export function narrationSentences(transcript = "") {
-  return transcript.trim().match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
+  return transcript.trim().match(/[^.!?]+[.!?]+(?:["'’”»)}\]]+)?|[^.!?]+$/gu)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
 }
 
 function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
@@ -67,11 +67,42 @@ function activeSentenceIndex(sentences: string[], currentTime: number, duration:
   return 0;
 }
 
-function TimedTranscriptText({ text, wordTimings, wordOffset, currentTime, entries, onSelect }: { text: string; wordTimings?: NarrationWordTiming[]; wordOffset: number; currentTime: number; entries: NarrationGlossaryEntry[]; onSelect?: (entry: NarrationGlossaryEntry) => void }) {
+function activeTranscriptWordIndex(text: string, currentTime: number, duration: number, wordTimings: NarrationWordTiming[] = []) {
+  const wordCount = transcriptWordCount(text);
+  if (!wordCount) return 0;
+  if (wordTimings.length) {
+    for (let index = 0; index < Math.min(wordCount, wordTimings.length); index += 1) {
+      const timing = wordTimings[index];
+      if (currentTime >= timing.start && currentTime <= timing.end) return index;
+      if (currentTime < timing.start) return Math.max(0, index - 1);
+    }
+    return Math.min(wordCount - 1, wordTimings.length - 1);
+  }
+  if (!duration || currentTime < 0) return 0;
+  return Math.min(wordCount - 1, Math.floor((currentTime / duration) * wordCount));
+}
+
+function transcriptWindow(tokens: string[], startWord: number, endWord: number) {
+  let wordIndex = 0;
+  let startToken = 0;
+  let endToken = tokens.length;
+  for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex += 1) {
+    if (!/[\p{L}\p{M}\p{N}]/u.test(tokens[tokenIndex])) continue;
+    if (wordIndex === startWord) startToken = tokenIndex;
+    if (wordIndex === endWord) {
+      endToken = tokenIndex;
+      break;
+    }
+    wordIndex += 1;
+  }
+  return { text: tokens.slice(startToken, endToken).join(" "), wordOffset: startWord };
+}
+
+function TimedTranscriptText({ text, wordTimings, wordOffset, windowEndWord, currentTime, entries, onSelect, singleLine = false }: { text: string; wordTimings?: NarrationWordTiming[]; wordOffset: number; windowEndWord?: number; currentTime: number; entries: NarrationGlossaryEntry[]; onSelect?: (entry: NarrationGlossaryEntry) => void; singleLine?: boolean }) {
   const containerRef = useRef<HTMLSpanElement>(null);
   const ribbonRef = useRef<HTMLSpanElement>(null);
   const wordElementsRef = useRef(new Map<number, HTMLElement>());
-  const previousLayoutRef = useRef<{ top: number; containerWidth: number } | null>(null);
+  const previousLayoutRef = useRef<{ top: number; containerWidth: number; wordOffset: number } | null>(null);
   const terms = entries.map((entry) => entry.term).filter(Boolean).sort((a, b) => b.length - a.length);
   const expression = terms.length ? new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "gi") : null;
   const segments = expression ? text.split(expression) : [text];
@@ -93,6 +124,7 @@ function TimedTranscriptText({ text, wordTimings, wordOffset, currentTime, entri
     if (high < wordOffset) return -1;
     const nextWordStart = wordTimings[high + 1]?.start;
     const holdUntil = nextWordStart ?? wordTimings[high].end;
+    if (singleLine && windowEndWord !== undefined && high === windowEndWord - 1 && currentTime > wordTimings[high].end) return -1;
     return currentTime < holdUntil ? high : -1;
   })();
 
@@ -104,29 +136,41 @@ function TimedTranscriptText({ text, wordTimings, wordOffset, currentTime, entri
       if (ribbon) ribbon.style.opacity = "0";
       return;
     }
-    const containerBox = container.getBoundingClientRect();
-    const targetBox = target.getBoundingClientRect();
     const previousLayout = previousLayoutRef.current;
-    const targetTop = targetBox.top - containerBox.top;
-    const containerChanged = previousLayout !== null && Math.abs(containerBox.width - previousLayout.containerWidth) > 1;
+    const positionRibbon = () => {
+      const containerBox = container.getBoundingClientRect();
+      const targetBox = target.getBoundingClientRect();
+      const rotatedFallback = Boolean(container.closest('[data-rotated-image-fallback="true"]'));
+      const leftDelta = targetBox.left - containerBox.left;
+      const topDelta = targetBox.top - containerBox.top;
+      const targetLeft = rotatedFallback ? topDelta : leftDelta;
+      const targetTop = rotatedFallback ? container.offsetHeight - leftDelta - targetBox.width : topDelta;
+      const targetWidth = rotatedFallback ? targetBox.height : targetBox.width;
+      const targetHeight = rotatedFallback ? targetBox.width : targetBox.height;
+      const width = Math.max(32, targetWidth + 4);
+      const height = Math.max(30, targetHeight + 4);
+      ribbon.style.width = `${width}px`;
+      ribbon.style.height = `${height}px`;
+      ribbon.style.transform = `translate3d(${targetLeft + targetWidth / 2 - width / 2}px, ${targetTop + targetHeight / 2 - height / 2}px, 0)`;
+      ribbon.style.opacity = "1";
+      previousLayoutRef.current = { top: targetTop, containerWidth: rotatedFallback ? container.offsetHeight : containerBox.width, wordOffset };
+    };
+    const rotatedFallback = Boolean(container.closest('[data-rotated-image-fallback="true"]'));
+    const containerWidth = rotatedFallback ? container.offsetHeight : container.getBoundingClientRect().width;
+    const containerChanged = previousLayout !== null && Math.abs(containerWidth - previousLayout.containerWidth) > 1;
+    const chunkChanged = previousLayout !== null && previousLayout.wordOffset !== wordOffset;
     const wordDuration = wordTimings?.[activeWordIndex]
       ? (wordTimings[activeWordIndex].end - wordTimings[activeWordIndex].start) * 1000
       : 180;
     const transitionMs = Math.max(100, Math.min(260, wordDuration));
-    ribbon.style.transition = previousLayout === null || containerChanged
+    ribbon.style.transition = previousLayout === null || containerChanged || chunkChanged
       ? "none"
       : `transform ${transitionMs}ms linear, width ${transitionMs}ms linear, height ${transitionMs}ms linear, opacity 100ms linear`;
-    const width = Math.max(32, targetBox.width + 4);
-    const height = Math.max(30, targetBox.height + 4);
-    ribbon.style.width = `${width}px`;
-    ribbon.style.height = `${height}px`;
-    ribbon.style.transform = `translate3d(${targetBox.left - containerBox.left + targetBox.width / 2 - width / 2}px, ${targetTop + targetBox.height / 2 - height / 2}px, 0)`;
-    ribbon.style.opacity = "1";
-    previousLayoutRef.current = { top: targetTop, containerWidth: containerBox.width };
-  }, [activeWordIndex, wordTimings]);
+    positionRibbon();
+  }, [activeWordIndex, wordTimings, singleLine, wordOffset, windowEndWord]);
 
   let wordIndex = wordOffset;
-  return <span ref={containerRef} className="relative block">
+  return <span ref={containerRef} className={`relative block ${singleLine ? "whitespace-nowrap" : ""}`}>
     <span ref={ribbonRef} aria-hidden="true" style={{ border: "1px solid rgba(105, 67, 237, .42)", borderRadius: 9, background: "rgba(105, 67, 237, .22)", boxShadow: "0 3px 12px rgba(105, 67, 237, .12)" }} className="pointer-events-none absolute left-0 top-0 z-0 opacity-0" />
     {segments.map((segment, segmentIndex) => {
     const match = entries.find((entry) => entry.term.toLocaleLowerCase() === segment.toLocaleLowerCase());
@@ -135,7 +179,7 @@ function TimedTranscriptText({ text, wordTimings, wordOffset, currentTime, entri
       const firstWordIndex = wordIndex;
       const active = activeWordIndex >= firstWordIndex && activeWordIndex < firstWordIndex + count;
       wordIndex += count;
-      return <button key={`${segment}-${segmentIndex}`} ref={(element) => { for (let offset = 0; offset < count; offset += 1) { const index = firstWordIndex + offset; if (element) wordElementsRef.current.set(index, element); else wordElementsRef.current.delete(index); } }} type="button" onClick={() => onSelect?.(match)} style={active ? { color: "#5130bb" } : undefined} className="relative z-[1] cursor-pointer rounded px-0.5 font-semibold text-[var(--br-action)] transition-colors duration-100 hover:bg-[var(--br-action)]/10 focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/35">{segment}</button>;
+      return <button key={`${segment}-${segmentIndex}`} ref={(element) => { for (let offset = 0; offset < count; offset += 1) { const index = firstWordIndex + offset; if (element) wordElementsRef.current.set(index, element); else wordElementsRef.current.delete(index); } }} type="button" onClick={() => onSelect?.(match)} style={active ? { color: "var(--br-action)" } : undefined} className="relative z-[1] cursor-pointer rounded px-0.5 font-semibold text-[var(--br-action)] transition-colors duration-100 hover:bg-[var(--br-action)]/10 focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/35">{segment}</button>;
     }
     return <span key={`segment-${segmentIndex}`}>{segment.split(/(\s+)/).map((part, partIndex) => {
       if (!part || /^\s+$/.test(part)) return <span key={`space-${partIndex}`}>{part}</span>;
@@ -160,13 +204,57 @@ function HighlightedText({ text, entries, onSelect }: { text: string; entries: N
 }
 
 /** Small pop-down used by the sticky learner study dock. */
-export function NarrationReadPreview({ transcript = "", glossary = [], wordTimings, currentTime, duration, onOpenScript, onSelectTerm, pinned = false, onTogglePin }: SharedProps & { wordTimings?: NarrationWordTiming[]; onOpenScript: () => void; onSelectTerm: (entry: NarrationGlossaryEntry) => void; pinned?: boolean; onTogglePin?: () => void }) {
-  const sentences = useMemo(() => narrationSentences(transcript), [transcript]);
+export function NarrationReadPreview({ transcript = "", glossary = [], wordTimings, currentTime, duration, onOpenScript, onSelectTerm, pinned = false, onTogglePin, showControls = true }: SharedProps & { wordTimings?: NarrationWordTiming[]; onOpenScript: () => void; onSelectTerm: (entry: NarrationGlossaryEntry) => void; pinned?: boolean; onTogglePin?: () => void; showControls?: boolean }) {
   const entries = useMemo(() => narrationGlossary(glossary), [glossary]);
-  const activeIndex = activeSentenceIndex(sentences, currentTime, duration, wordTimings);
-  const sentence = sentences[activeIndex] || "";
-  const wordOffset = sentences.slice(0, activeIndex).reduce((sum, item) => sum + transcriptWordCount(item), 0);
-  return <section className="w-full max-w-xl rounded-2xl border-2 border-[var(--br-action)] bg-white p-3 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><BookOpenText size={16} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Subtitle</p></div><div className="flex items-center gap-1.5"><button type="button" onClick={onOpenScript} className="grid size-8 place-items-center rounded-lg border border-[var(--br-border)] text-[var(--br-action)] transition hover:bg-[var(--br-action)]/10" aria-label="Open full script" title="Open full script"><Expand size={15} /></button>{onTogglePin ? <button type="button" onClick={onTogglePin} className={`grid size-8 place-items-center rounded-lg border transition ${pinned ? "border-[var(--br-action)] bg-[var(--br-action)] text-on-dark" : "border-[var(--br-border)] text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`} aria-label={pinned ? "Return reading guide to page" : "Keep reading guide on screen"} title={pinned ? "Unpin" : "Keep on screen"}>{pinned ? <PinOff size={15} /> : <Pin size={15} />}</button> : null}</div></div><p className="mt-2 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5 text-[15px] font-semibold leading-7 text-ink"><TimedTranscriptText text={sentence || "Your teacher has not added a reading script for this narration yet."} wordTimings={wordTimings} wordOffset={wordOffset} currentTime={currentTime} entries={entries} onSelect={onSelectTerm} /></p></section>;
+  const tokens = useMemo(() => transcript.match(/\S+/gu) ?? [], [transcript]);
+  const wordCount = transcriptWordCount(transcript);
+  const activeWordIndex = activeTranscriptWordIndex(transcript, currentTime, duration, wordTimings);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [chunks, setChunks] = useState<Array<{ start: number; end: number }>>([]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !wordCount) return;
+    const updateChunks = () => {
+      const style = window.getComputedStyle(viewport);
+      const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+      const availableWidth = Math.max(1, viewport.clientWidth - horizontalPadding - 8);
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const spaceWidth = context.measureText(" ").width;
+      const widths = tokens.filter((token) => /[\p{L}\p{M}\p{N}]/u.test(token)).map((token) => context.measureText(token).width + 4);
+      if (!widths.length) return;
+
+      const nextChunks: Array<{ start: number; end: number }> = [];
+      let start = 0;
+      while (start < widths.length) {
+        let end = start;
+        let usedWidth = 0;
+        while (end < widths.length) {
+          const nextWidth = widths[end] + (end > start ? spaceWidth : 0);
+          if (end > start && usedWidth + nextWidth > availableWidth) break;
+          usedWidth += nextWidth;
+          end += 1;
+          if (usedWidth >= availableWidth) break;
+        }
+        if (end === start) end += 1;
+        nextChunks.push({ start, end });
+        start = end;
+      }
+      setChunks((previous) => previous.length === nextChunks.length && previous.every((chunk, index) => chunk.start === nextChunks[index].start && chunk.end === nextChunks[index].end) ? previous : nextChunks);
+    };
+    updateChunks();
+    const observer = new ResizeObserver(updateChunks);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [tokens, wordCount, transcript]);
+
+  const currentChunk = chunks.find((chunk) => activeWordIndex >= chunk.start && activeWordIndex < chunk.end) ?? chunks[0] ?? { start: 0, end: 0 };
+  const visibleTranscript = currentChunk.end > currentChunk.start ? transcriptWindow(tokens, currentChunk.start, currentChunk.end) : { text: "", wordOffset: 0 };
+  return <section className="mx-auto flex w-full max-w-4xl items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white px-1 py-2 shadow-[var(--br-shadow)] sm:px-2">{showControls ? <button type="button" onClick={onOpenScript} className="grid size-7 shrink-0 place-items-center rounded-lg text-[var(--br-action)] transition hover:bg-[var(--br-action)]/10" aria-label="Open full script" title="Open full script"><Expand size={15} /></button> : null}<div ref={viewportRef} className="min-w-0 flex-1 py-1 text-center text-base font-semibold leading-7 text-ink"><TimedTranscriptText text={visibleTranscript.text || "Your teacher has not added a reading script for this narration yet."} wordTimings={wordTimings} wordOffset={visibleTranscript.wordOffset} windowEndWord={currentChunk.end} currentTime={currentTime} entries={entries} onSelect={onSelectTerm} singleLine /></div>{showControls && onTogglePin ? <button type="button" onClick={onTogglePin} className={`grid size-7 shrink-0 place-items-center rounded-lg transition ${pinned ? "bg-[var(--br-action)]/10 text-[var(--br-action)]" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`} aria-label={pinned ? "Unpin reading guide" : "Pin reading guide"} title={pinned ? "Unpin" : "Pin reading guide"}>{pinned ? <PinOff size={16} /> : <Pin size={16} />}</button> : null}</section>;
 }
 
 /** Escapes transformed lesson containers so the guide stays fixed to the device viewport. */
@@ -175,8 +263,8 @@ export function PinnedNarrationReadPreview({ anchor, ...props }: Parameters<type
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
   return createPortal(
-    <div style={anchor ? { left: anchor.left, width: anchor.width } : undefined} className={`fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[110] ${anchor ? "px-2" : "inset-x-2 mx-auto w-auto max-w-xl sm:inset-x-auto sm:left-1/2 sm:w-full sm:-translate-x-1/2"}`}>
-      <div className="mx-auto w-full max-w-xl">
+    <div style={anchor ? { left: anchor.left, width: anchor.width } : undefined} className={`fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[110] ${anchor ? "px-2" : "inset-x-2 mx-auto w-auto max-w-3xl sm:inset-x-auto sm:left-1/2 sm:w-full sm:-translate-x-1/2"}`}>
+      <div className="mx-auto w-full max-w-3xl">
       <NarrationReadPreview {...props} />
       </div>
     </div>,
