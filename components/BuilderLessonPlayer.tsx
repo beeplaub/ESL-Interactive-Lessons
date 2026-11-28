@@ -1283,7 +1283,7 @@ export function BuilderLessonPlayer({
                   </div>
                 </div>
               </> : <div className="min-h-[96px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
-                <div className="flex min-h-0 min-w-0 flex-col justify-center gap-1.5 lg:min-h-[84px] lg:flex-row lg:items-center lg:gap-3">
+                <div className="flex min-h-0 min-w-0 flex-col justify-center gap-1.5 lg:min-h-[84px] lg:flex-row lg:items-center lg:justify-start lg:gap-3">
                   <div className="flex min-w-0 items-center gap-2 lg:hidden">
                     {!instantClass ? <Link href={backHref} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 text-[12px] font-extrabold text-white transition hover:text-white/80" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
                     {!instantClass && slide.section_label ? <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/55" /> : null}
