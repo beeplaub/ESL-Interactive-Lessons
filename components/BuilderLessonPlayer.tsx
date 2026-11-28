@@ -139,7 +139,7 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
     <div className="grid min-w-0 grid-cols-1">
       <section className="min-w-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
         <header className="mb-2 min-h-[96px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:mb-3 sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
-          <div className="flex min-h-0 min-w-0 flex-col justify-center gap-1.5 lg:min-h-[84px] lg:flex-row lg:items-center lg:gap-3">
+          <div className="flex min-h-0 min-w-0 flex-col justify-center gap-1.5 lg:min-h-[84px] lg:flex-row lg:items-center lg:justify-start lg:gap-3">
             <div className="flex min-w-0 items-center gap-2 lg:hidden">
               {backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 text-[12px] font-extrabold text-white transition hover:text-white/80"><ArrowLeft size={15} />Course</Link> : null}
               {backHref ? <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/55" /> : null}
