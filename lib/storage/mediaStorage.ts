@@ -176,6 +176,50 @@ export async function createSignedR2MediaUrl(object: { bucket: string; path: str
   return url;
 }
 
+/** Uploads course downloads into a dedicated, private R2 bucket. */
+export async function uploadPrivateCourseResource(input: { path: string; body: Uint8Array; contentType: string }) {
+  const bucket = process.env.COURSE_RESOURCES_R2_BUCKET;
+  if (!bucket) throw new Error("COURSE_RESOURCES_R2_BUCKET is missing.");
+  await getR2Client().send(new PutObjectCommand({
+    Bucket: bucket,
+    Key: input.path,
+    Body: input.body,
+    ContentType: input.contentType,
+    CacheControl: "private, no-store",
+  }));
+  return { bucket, path: input.path };
+}
+
+/** Signs a short-lived download from the private course resources bucket. */
+export async function createSignedCourseResourceUrl(input: { bucket: string; path: string; fileName: string }, expiresIn = 60) {
+  const safeName = input.fileName.replace(/[\r\n"\\]/g, "_");
+  return getSignedUrl(
+    getR2Client(),
+    new GetObjectCommand({
+      Bucket: input.bucket,
+      Key: input.path,
+      ResponseContentDisposition: `attachment; filename="${safeName}"`,
+      ResponseCacheControl: "private, no-store",
+    }),
+    { expiresIn },
+  );
+}
+
+/** Signs a short-lived inline URL for an enrolled learner's image thumbnail. */
+export async function createSignedCourseResourcePreviewUrl(input: { bucket: string; path: string; fileName: string }, expiresIn = 300) {
+  const safeName = input.fileName.replace(/[\r\n"\\]/g, "_");
+  return getSignedUrl(
+    getR2Client(),
+    new GetObjectCommand({
+      Bucket: input.bucket,
+      Key: input.path,
+      ResponseContentDisposition: `inline; filename="${safeName}"`,
+      ResponseCacheControl: "private, no-store",
+    }),
+    { expiresIn },
+  );
+}
+
 /** Creates a short-lived upload URL for an app-owned R2 object. */
 export async function createSignedR2UploadUrl(input: { path: string; contentType: string }, expiresIn = 300) {
   const bucket = r2Bucket();

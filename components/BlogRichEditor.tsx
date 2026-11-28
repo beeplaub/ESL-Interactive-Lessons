@@ -6,8 +6,8 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Node, mergeAttributes, type JSONContent } from "@tiptap/core";
-import { Bold, Italic, Link2, List, ListOrdered, Quote, Redo2, Undo2, Minus, Code2 } from "lucide-react";
+import { Mark, Node, mergeAttributes, type JSONContent } from "@tiptap/core";
+import { Bold, Italic, Link2, List, ListOrdered, Quote, Redo2, Undo2, Minus, Code2, Heading2, Heading3 } from "lucide-react";
 import { useEffect } from "react";
 
 const BlogCallout = Node.create({
@@ -34,6 +34,13 @@ const BlogCta = Node.create({
   renderHTML: ({ HTMLAttributes }) => ["aside", mergeAttributes(HTMLAttributes, { "data-blog-cta": "true", class: "blog-cta" }), ["strong", {}, HTMLAttributes.label], ["p", {}, HTMLAttributes.description]],
 });
 
+const TextColor = Mark.create({
+  name: "textColor",
+  addAttributes: () => ({ color: { default: null } }),
+  parseHTML: () => [{ tag: "span[style*='color']", getAttrs: (element) => ({ color: (element as HTMLElement).style.color || null }) }],
+  renderHTML: ({ HTMLAttributes }) => ["span", mergeAttributes(HTMLAttributes, { style: HTMLAttributes.color ? `color: ${HTMLAttributes.color}` : null }), 0],
+});
+
 function NodeField({ value, onChange, placeholder, multiline = false }: { value: string; onChange: (value: string) => void; placeholder: string; multiline?: boolean }) {
   const className = "w-full rounded-lg border border-[var(--br-border)] bg-white/70 px-2.5 py-2 text-sm text-ink outline-none focus:border-[var(--br-brand)]";
   return multiline ? <textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} rows={2} className={className} /> : <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={className} />;
@@ -51,7 +58,7 @@ function CtaView({ node, updateAttributes }: { node: { attrs: { label?: string; 
   return <NodeViewWrapper className="blog-cta"><div className="grid gap-2"><NodeField value={node.attrs.label || ""} onChange={(label) => updateAttributes({ label })} placeholder="Button label" /><NodeField value={node.attrs.description || ""} onChange={(description) => updateAttributes({ description })} placeholder="Supporting copy" multiline /><NodeField value={node.attrs.href || ""} onChange={(href) => updateAttributes({ href })} placeholder="Link URL" /></div></NodeViewWrapper>;
 }
 
-export function BlogRichEditor({ content, editable = true, onChange }: { content: JSONContent; editable?: boolean; onChange: (content: JSONContent) => void }) {
+export function BlogRichEditor({ content, editable = true, onChange, courseOverview = false }: { content: JSONContent; editable?: boolean; onChange: (content: JSONContent) => void; courseOverview?: boolean }) {
   const editor = useEditor({
     immediatelyRender: false,
     editable,
@@ -60,10 +67,11 @@ export function BlogRichEditor({ content, editable = true, onChange }: { content
       StarterKit.configure({ heading: { levels: [2, 3, 4] } }),
       Image.configure({ allowBase64: false }),
       Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
+      TextColor,
       Placeholder.configure({ placeholder: "Start writing your article… Press / for quick actions." }),
       BlogCallout, BlogImage, BlogCta,
     ],
-    editorProps: { attributes: { class: "blog-rich-editor", spellcheck: "true" } },
+    editorProps: { attributes: { class: courseOverview ? "blog-rich-editor course-overview-rich-editor" : "blog-rich-editor", spellcheck: "true" } },
     onUpdate: ({ editor: current }) => onChange(current.getJSON()),
   });
 
@@ -72,19 +80,30 @@ export function BlogRichEditor({ content, editable = true, onChange }: { content
 
   return (
     <div className="relative">
-      <BubbleMenu editor={editor} className="flex items-center gap-1 rounded-xl border border-[var(--br-border)] bg-[var(--br-dark-card)] p-1.5 text-on-dark shadow-xl">
+      {editable && !courseOverview ? <BubbleMenu editor={editor} className="flex items-center gap-1 rounded-xl border border-[var(--br-border)] bg-[var(--br-dark-card)] p-1.5 text-on-dark shadow-xl">
         <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`rounded-lg p-2 ${editor.isActive("bold") ? "bg-[var(--br-action)]" : "hover:bg-white/10"}`} aria-label="Bold"><Bold size={15} /></button>
         <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`rounded-lg p-2 ${editor.isActive("italic") ? "bg-[var(--br-action)]" : "hover:bg-white/10"}`} aria-label="Italic"><Italic size={15} /></button>
         <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`rounded-lg p-2 ${editor.isActive("bulletList") ? "bg-[var(--br-action)]" : "hover:bg-white/10"}`} aria-label="Bulleted list"><List size={15} /></button>
         <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`rounded-lg p-2 ${editor.isActive("orderedList") ? "bg-[var(--br-action)]" : "hover:bg-white/10"}`} aria-label="Numbered list"><ListOrdered size={15} /></button>
         <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`rounded-lg p-2 ${editor.isActive("blockquote") ? "bg-[var(--br-action)]" : "hover:bg-white/10"}`} aria-label="Quote"><Quote size={15} /></button>
         <button type="button" onClick={() => { const href = window.prompt("Link URL"); if (href) editor.chain().focus().setLink({ href }).run(); }} className="rounded-lg p-2 hover:bg-white/10" aria-label="Add link"><Link2 size={15} /></button>
-      </BubbleMenu>
-      <FloatingMenu editor={editor} options={{ placement: "top-start", offset: 8, flip: { fallbackAxisSideDirection: "none" } }} className="z-20 max-w-[calc(100vw-2rem)] overflow-x-auto rounded-xl border border-[var(--br-border)] bg-surface p-1 shadow-lg">
+      </BubbleMenu> : null}
+      {editable && !courseOverview ? <FloatingMenu editor={editor} options={{ placement: "top-start", offset: 8, flip: { fallbackAxisSideDirection: "none" } }} className="z-20 max-w-[calc(100vw-2rem)] overflow-x-auto rounded-xl border border-[var(--br-border)] bg-surface p-1 shadow-lg">
         <div className="flex w-max flex-nowrap items-center gap-1 whitespace-nowrap"><button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-ink hover:bg-[var(--br-surface-muted)]">H2</button><button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-ink hover:bg-[var(--br-surface-muted)]">H3</button><button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()} className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-ink hover:bg-[var(--br-surface-muted)]">H4</button><button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className="rounded-lg p-1.5 text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]" aria-label="Add bulleted list"><List size={15} /></button><button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className="rounded-lg p-1.5 text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]" aria-label="Add numbered list"><ListOrdered size={15} /></button><button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className="rounded-lg p-1.5 text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]" aria-label="Add quote"><Quote size={15} /></button><button type="button" onClick={() => editor.chain().focus().setHorizontalRule().run()} className="rounded-lg p-1.5 text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]" aria-label="Add divider"><Minus size={15} /></button><button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} className="rounded-lg p-1.5 text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]" aria-label="Add code block"><Code2 size={15} /></button><button type="button" onClick={() => editor.chain().focus().insertContent({ type: "blogCallout", attrs: { tone: "TIP", text: "" } }).run()} className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]">Callout</button><button type="button" onClick={() => editor.chain().focus().insertContent({ type: "blogImage", attrs: { src: "", alt: "", caption: "" } }).run()} className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]">Image</button><button type="button" onClick={() => editor.chain().focus().insertContent({ type: "blogCta", attrs: { label: "", href: "", description: "" } }).run()} className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]">CTA</button></div>
-      </FloatingMenu>
+      </FloatingMenu> : null}
+      {editable && courseOverview ? <div className="mb-3 flex flex-wrap items-center gap-1 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-1.5">
+        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`rounded-lg p-2 ${editor.isActive("heading", { level: 2 }) ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white"}`} aria-label="Heading 2"><Heading2 size={16} /></button>
+        <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`rounded-lg p-2 ${editor.isActive("heading", { level: 3 }) ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white"}`} aria-label="Heading 3"><Heading3 size={16} /></button>
+        <span className="mx-1 h-6 border-l border-[var(--br-border)]" />
+        <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`rounded-lg p-2 ${editor.isActive("bold") ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white"}`} aria-label="Bold"><Bold size={16} /></button>
+        <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`rounded-lg p-2 ${editor.isActive("italic") ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white"}`} aria-label="Italic"><Italic size={16} /></button>
+        <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`rounded-lg p-2 ${editor.isActive("bulletList") ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white"}`} aria-label="Bulleted list"><List size={16} /></button>
+        <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`rounded-lg p-2 ${editor.isActive("orderedList") ? "bg-white text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)] hover:bg-white"}`} aria-label="Numbered list"><ListOrdered size={16} /></button>
+        <span className="mx-1 h-6 border-l border-[var(--br-border)]" />
+        {[{ name: "Navy", value: "#252644" }, { name: "Violet", value: "#653cff" }, { name: "Coral", value: "#ff765d" }, { name: "Teal", value: "#149b83" }].map((color) => <button key={color.name} type="button" onClick={() => editor.chain().focus().setMark("textColor", { color: color.value }).run()} className="size-6 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: color.value }} aria-label={`${color.name} text`} title={`${color.name} text`} />)}
+      </div> : null}
       <EditorContent editor={editor} />
-      <div className="mt-3 flex items-center gap-1 border-t border-[var(--br-border)] pt-3"><button type="button" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="rounded-lg p-2 text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] disabled:opacity-30" aria-label="Undo"><Undo2 size={15} /></button><button type="button" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="rounded-lg p-2 text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] disabled:opacity-30" aria-label="Redo"><Redo2 size={15} /></button><span className="ml-auto text-[11px] text-[var(--br-text-muted)]">Select text for formatting</span></div>
+      {editable ? <div className="mt-3 flex items-center gap-1 border-t border-[var(--br-border)] pt-3"><button type="button" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} className="rounded-lg p-2 text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] disabled:opacity-30" aria-label="Undo"><Undo2 size={15} /></button><button type="button" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} className="rounded-lg p-2 text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] disabled:opacity-30" aria-label="Redo"><Redo2 size={15} /></button><span className="ml-auto text-[11px] text-[var(--br-text-muted)]">Format your course overview</span></div> : null}
     </div>
   );
 }

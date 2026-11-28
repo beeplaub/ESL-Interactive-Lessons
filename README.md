@@ -114,9 +114,12 @@ R2_SECRET_ACCESS_KEY=
 R2_BUCKET=
 R2_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
 R2_PUBLIC_BASE_URL=https://media.brenup.com
+COURSE_RESOURCES_R2_BUCKET=your-private-course-resources-bucket
 ```
 
 `R2_PUBLIC_BASE_URL` should be a custom domain attached to the R2 bucket in Cloudflare. Configure these values in **both Production and Preview** on Vercel. The access key and secret must remain server-only.
+
+`COURSE_RESOURCES_R2_BUCKET` must name a **private** R2 bucket with public access disabled. Course downloads are signed only after the app verifies an active or completed enrollment (or course management access); do not point this setting at the public media bucket.
 
 ### Reconcile legacy media
 

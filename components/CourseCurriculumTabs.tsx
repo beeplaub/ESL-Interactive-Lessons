@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 
-type TabKey = "curriculum" | "overview" | "questions";
+type TabKey = "curriculum" | "overview" | "questions" | "resources";
 
 const TAB_TITLES: Record<TabKey, string> = {
   curriculum: "Course Curriculum",
   overview: "Overview",
   questions: "Questions",
+  resources: "Resources",
 };
 
 export function CourseCurriculumTabs({
@@ -15,16 +16,19 @@ export function CourseCurriculumTabs({
   curriculumContent,
   overviewContent,
   questionsContent,
+  resourcesContent,
 }: {
   curriculumSubtitle: string;
   curriculumContent: React.ReactNode;
   overviewContent: React.ReactNode | null;
   questionsContent: React.ReactNode | null;
+  resourcesContent: React.ReactNode | null;
 }) {
   const tabs: { key: TabKey; label: string; available: boolean }[] = [
     { key: "curriculum", label: "Curriculum", available: true },
     { key: "overview", label: "Overview", available: Boolean(overviewContent) },
     { key: "questions", label: "Questions", available: Boolean(questionsContent) },
+    { key: "resources", label: "Resources", available: Boolean(resourcesContent) },
   ];
   const [active, setActive] = useState<TabKey>("curriculum");
 
@@ -60,6 +64,7 @@ export function CourseCurriculumTabs({
       <div className={active === "curriculum" ? "block" : "hidden"}>{curriculumContent}</div>
       {overviewContent ? <div className={active === "overview" ? "block" : "hidden"}>{overviewContent}</div> : null}
       {questionsContent ? <div className={active === "questions" ? "block" : "hidden"}>{questionsContent}</div> : null}
+      {resourcesContent ? <div className={active === "resources" ? "block" : "hidden"}>{resourcesContent}</div> : null}
     </div>
   );
 }

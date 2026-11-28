@@ -24,6 +24,9 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { CourseItemsList } from "@/app/admin/courses/[id]/builder/CourseItemsList";
 import { CourseTeamManager, type CourseTeamRow } from "@/components/CourseTeamManager";
 import { CourseNarrationTimingSync } from "@/components/CourseNarrationTimingSync";
+import { CourseOverviewField } from "@/components/CourseOverviewField";
+import { CourseResourcesManager } from "@/components/CourseResourcesManager";
+import type { CourseResourceView } from "@/components/courseResourcesTypes";
 import {
   addCourseFaq,
   addCourseItem,
@@ -131,6 +134,10 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   const canManageTeam = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.manage_course_staff);
   const canEditDetails = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.edit_course_details);
   const canManageCurriculum = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.manage_curriculum);
+  const { data: courseResourcesData } = canManageCurriculum
+    ? await (admin as any).from("course_resources").select("id,title,description,file_name,mime_type,file_size,resource_type,external_url").eq("course_id", id).order("position", { ascending: true }).order("created_at", { ascending: true })
+    : { data: [] };
+  const courseResources = (courseResourcesData ?? []) as CourseResourceView[];
   const canPublish = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.publish_content);
 
   const courseItems = (items ?? []) as CourseItem[];
@@ -396,6 +403,15 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
       </section>
 
       <DraggableBuilderGrid storageKey={`brenup-course-builder-cards:${course.id}`}>
+        {canManageCurriculum ? <BuilderDialog
+          icon="resources"
+          triggerLabel="Course resources"
+          countLabel={`${courseResources.length} files · Private R2`}
+          title="Course resources"
+          description="Upload downloadable files for enrolled learners. Files are stored in private R2 and downloads are access checked."
+        >
+          <CourseResourcesManager courseId={course.id} initialResources={courseResources} />
+        </BuilderDialog> : null}
         <BuilderDialog
           icon="outcomes"
           triggerLabel="Assessment map"
@@ -489,9 +505,8 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 <input name="durationMinutes" type="number" min="0" defaultValue={course.duration_minutes ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium sm:col-span-2">
-                Description
-                <textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
-                <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Paste a URL to make it clickable, or add link text with Markdown: [Visit our site](https://example.com).</span>
+                Course overview
+                <CourseOverviewField value={course.description ?? null} />
               </label>
             </div>
             <p className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 text-xs leading-5 text-[var(--br-text-muted)]">Private courses remain published, but they are hidden from public lists and direct links. Add learners from <strong>Course analytics → Learner access</strong>.</p>

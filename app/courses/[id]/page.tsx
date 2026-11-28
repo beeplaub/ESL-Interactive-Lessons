@@ -22,6 +22,12 @@ import { getCourseInstructorMap } from "@/lib/courseInstructors";
 import { CourseDisplayStats } from "@/components/CourseDisplayStats";
 import { getCourseDisplayStats } from "@/lib/courseDisplayStats";
 import { ProfileSocialIconLinks } from "@/components/ProfileSocialLinks";
+import { CourseFaqList } from "@/components/CourseFaqList";
+import { CourseOverviewDisplay } from "@/components/CourseOverviewDisplay";
+import { parseCourseOverview } from "@/lib/courseOverview";
+import { CourseResourcesList } from "@/components/CourseResourcesList";
+import type { CourseResourceView } from "@/components/courseResourcesTypes";
+import { createSignedCourseResourcePreviewUrl } from "@/lib/storage/mediaStorage";
 
 // Keep the assessment card implementation available for a later relaunch.
 const ENABLE_COURSE_ASSESSMENT_CARD = false;
@@ -167,6 +173,22 @@ export default async function CourseLandingPage({
   const isCourseManager = Boolean(user && isStaff(profile?.role) && (
     course.owner_id === user.id || course.created_by === user.id || profile?.role === "ADMIN"
   ));
+  const { data: courseResourcesData } = isEnrolled || isCourseManager
+    ? await (admin as any).from("course_resources").select("id,title,description,file_name,mime_type,file_size,resource_type,external_url,bucket,path").eq("course_id", id).order("position", { ascending: true }).order("created_at", { ascending: true })
+    : { data: [] };
+  const courseResources = await Promise.all((courseResourcesData ?? []).map(async (resource: CourseResourceView & { bucket?: string | null; path?: string | null }) => {
+    const { bucket, path, ...view } = resource;
+    if (!resource.mime_type.startsWith("image/")) return view;
+    if (resource.resource_type === "UPLOAD" && bucket && path) {
+      try {
+        const previewUrl = await createSignedCourseResourcePreviewUrl({ bucket, path, fileName: resource.file_name });
+        return { ...view, preview_url: previewUrl };
+      } catch {
+        return { ...view, preview_url: null };
+      }
+    }
+    return { ...view, preview_url: resource.external_url };
+  })) as CourseResourceView[];
   if (course.visibility === "PRIVATE" && !isEnrolled && !isCourseManager) notFound();
   const completedIds = new Set((itemProgress ?? []).filter((item) => item.completed).map((item) => item.course_item_id));
 
@@ -477,17 +499,18 @@ export default async function CourseLandingPage({
 
 
 
+  const richOverview = parseCourseOverview(course.description);
   const overviewContent = course.description ? (
-    <CourseDescription text={course.description} />
+    richOverview ? <CourseOverviewDisplay content={richOverview} /> : <CourseDescription text={course.description} />
   ) : null;
 
   const questionsContent = (faqs ?? []).length ? (
-    <div className="grid gap-2.5">
-      {(faqs ?? []).map((faq, index) => (
-        <FaqAccordionItem key={faq.id} question={faq.question} answer={faq.answer} defaultOpen={index === 0} />
-      ))}
-    </div>
+    <CourseFaqList faqs={(faqs ?? []).map(({ id, question, answer }) => ({ id, question, answer }))} />
   ) : null;
+
+  const resourcesContent = isEnrolled || isCourseManager
+    ? <CourseResourcesList courseId={course.id} resources={courseResources} />
+    : null;
 
   const curriculumSubtitle = `${courseStats.moduleCount} modules · ${courseStats.lessonCount} lessons`;
 
@@ -497,6 +520,7 @@ export default async function CourseLandingPage({
       curriculumContent={curriculumContent}
       overviewContent={overviewContent}
       questionsContent={questionsContent}
+      resourcesContent={resourcesContent}
     />
   );
 
@@ -596,18 +620,6 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
         </span>
       )}
     </div>
-  );
-}
-
-function FaqAccordionItem({ question, answer, defaultOpen }: { question: string; answer: string; defaultOpen?: boolean }) {
-  return (
-    <details className="group rounded-[16px] border border-[var(--br-surface-strong)] bg-surface px-4 py-3 shadow-[var(--br-shadow)] open:shadow-[var(--br-shadow)]" open={defaultOpen}>
-      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden [&::-webkit-details-marker]:hidden">
-        <p className="min-w-0 break-words text-sm font-extrabold leading-5 text-[var(--br-dark-card)]">{question}</p>
-        <ChevronDown className="mt-0.5 size-4 shrink-0 text-[var(--br-text-muted)] transition group-open:rotate-180" />
-      </summary>
-      <p className="mt-2.5 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--br-text-muted)]">{answer}</p>
-    </details>
   );
 }
 

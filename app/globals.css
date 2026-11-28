@@ -304,6 +304,55 @@ select {
   pointer-events: none;
 }
 
+.course-overview-rich-editor {
+  min-height: 10rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.course-overview-rich-editor p {
+  min-height: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.course-overview-rich-editor ul,
+.course-overview-display .blog-rich-editor ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.course-overview-rich-editor ol,
+.course-overview-display .blog-rich-editor ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+
+.course-overview-display .blog-rich-editor {
+  min-height: 0;
+  padding: 0;
+  color: var(--br-text-muted);
+}
+
+.course-overview-display .blog-rich-editor > * + * {
+  margin-top: 0.75rem;
+}
+
+.course-overview-display .blog-rich-editor p {
+  min-height: 0;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.course-overview-display .blog-rich-editor h2,
+.course-overview-display .blog-rich-editor h3,
+.course-overview-display .blog-rich-editor h4 {
+  color: var(--br-dark-card);
+}
+
+.course-overview-display .blog-rich-editor h2 { font-size: 1.2rem; }
+.course-overview-display .blog-rich-editor h3 { font-size: 1.1rem; }
+.course-overview-display .blog-rich-editor h4 { font-size: 1rem; }
+
 .blog-rich-editor .blog-callout,
 .blog-rich-editor .blog-cta,
 .blog-rich-editor .blog-image {
