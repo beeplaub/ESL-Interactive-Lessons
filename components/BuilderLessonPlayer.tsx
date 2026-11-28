@@ -138,14 +138,22 @@ export function SystemLessonGate({ title, phase, buttonLabel, imageUrl, slides, 
   return <main className="mx-auto max-w-7xl overflow-x-hidden px-1 py-3 sm:px-4 sm:py-5 min-[1180px]:px-0">
     <div className="grid min-w-0 grid-cols-1">
       <section className="min-w-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[var(--br-shadow)] sm:p-3">
-        <header className="mb-2 min-h-[112px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:mb-3 sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
-          <div className="flex min-h-[84px] items-center gap-3">
-            {backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90"><ArrowLeft size={15} />Course</Link> : null}
-            {backHref ? <span aria-hidden="true" className="hidden h-12 w-px shrink-0 bg-white/55 lg:block" /> : null}
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
-              <h1 className="mt-1 line-clamp-2 text-[20px] font-extrabold leading-tight sm:text-[22px]">{title}</h1>
+        <header className="mb-2 min-h-[96px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:mb-3 sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
+          <div className="flex min-h-0 min-w-0 flex-col justify-center gap-1.5 lg:min-h-[84px] lg:flex-row lg:items-center lg:gap-3">
+            <div className="flex min-w-0 items-center gap-2 lg:hidden">
+              {backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 text-[12px] font-extrabold text-white transition hover:text-white/80"><ArrowLeft size={15} />Course</Link> : null}
+              {backHref ? <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/55" /> : null}
+              <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/75">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
             </div>
+            <div className="hidden min-w-0 items-center gap-3 lg:flex">
+              {backHref ? <Link href={backHref} aria-label="Back to courses" title="Back to courses" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90"><ArrowLeft size={15} />Course</Link> : null}
+              {backHref ? <span aria-hidden="true" className="h-12 w-px shrink-0 bg-white/55" /> : null}
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">{phase === "PRACTICE" || practiceOnlyStart ? "Start Practicing Here" : "Start Learning Here"}</p>
+                <h1 className="mt-1 line-clamp-2 text-[20px] font-extrabold leading-tight sm:text-[22px]">{title}</h1>
+              </div>
+            </div>
+            <h1 className="min-w-0 line-clamp-2 text-[20px] font-extrabold leading-tight sm:text-[22px] lg:hidden">{title}</h1>
           </div>
         </header>
         <div className="mb-4 flex w-full items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)]">{autoButton}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>{pinnedGatePhase ? <div className="grid size-8 shrink-0 place-items-center rounded-full bg-white"><PhaseGateMarker phase={pinnedGatePhase} onClick={() => onSelectGate?.(pinnedGatePhase)} compact /></div> : null}{slideMap}<button type="button" onClick={() => mobileGateRailRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button></div>
@@ -1251,27 +1259,45 @@ export function BuilderLessonPlayer({
                 <svg aria-hidden="true" viewBox="0 0 1000 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block">
                   <path d="M17 0 H668 C649 0 631 15 629 34 C627.8 45.4 626 56 624 66 C620.4 84 603 100 584 100 H17 C9 100 0 89 0 76 V24 C0 11 9 0 17 0 Z" fill="var(--br-dark-card)" />
                 </svg>
-                  <div className="relative z-10 grid min-h-[128px] grid-cols-1 overflow-hidden rounded-[19px] bg-[var(--br-dark-card)] lg:min-h-[88px] lg:grid-cols-[minmax(0,1.67fr)_minmax(340px,1fr)] lg:overflow-visible lg:rounded-[21px] lg:bg-transparent">
-                  <div className="flex min-w-0 items-center gap-3 bg-[var(--br-dark-card)] px-4 py-3 text-white lg:bg-transparent lg:px-5 lg:py-3">
-                    {!instantClass ? <Link href={backHref} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90 lg:h-9 lg:px-4" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
-                    <span aria-hidden="true" className="hidden h-12 w-px shrink-0 bg-white/55 lg:block" />
-                    <div className="min-w-0 flex-1">
-                      {slide.section_label ? <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/85">{slide.section_label}</p> : null}
-                      <h2 className="mt-1 line-clamp-2 text-[22px] font-extrabold leading-tight text-white">{displayedSlideTitle}</h2>
+                  <div className="relative z-10 grid min-h-[96px] grid-cols-1 overflow-hidden rounded-[19px] bg-[var(--br-dark-card)] lg:min-h-[88px] lg:grid-cols-[minmax(0,1.67fr)_minmax(340px,1fr)] lg:overflow-visible lg:rounded-[21px] lg:bg-transparent">
+                  <div className="min-w-0 bg-[var(--br-dark-card)] px-4 py-3 text-white lg:bg-transparent lg:px-5 lg:py-3">
+                    <div className="flex min-w-0 flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-3">
+                      <div className="flex min-w-0 items-center gap-2 lg:hidden">
+                        {!instantClass ? <Link href={backHref} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 text-[12px] font-extrabold text-white transition hover:text-white/80" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
+                        {!instantClass && slide.section_label ? <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/55" /> : null}
+                        {slide.section_label ? <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/85">{slide.section_label}</p> : null}
+                      </div>
+                      <div className="hidden min-w-0 items-center gap-3 lg:flex">
+                        {!instantClass ? <Link href={backHref} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90 lg:px-4" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
+                        {!instantClass ? <span aria-hidden="true" className="h-12 w-px shrink-0 bg-white/55" /> : null}
+                        <div className="min-w-0 flex-1">
+                          {slide.section_label ? <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/85">{slide.section_label}</p> : null}
+                          <h2 className="mt-1 line-clamp-2 text-[22px] font-extrabold leading-tight text-white">{displayedSlideTitle}</h2>
+                        </div>
+                      </div>
+                      <h2 className="min-w-0 line-clamp-2 text-[22px] font-extrabold leading-tight text-white lg:hidden">{displayedSlideTitle}</h2>
                     </div>
                   </div>
                   <div className="relative z-10 mx-1 mb-1 mt-1 flex min-w-0 items-center rounded-[20px] border border-[var(--br-surface-strong)] bg-white px-2 py-1.5 shadow-sm lg:mx-0 lg:mb-0 lg:mt-0 lg:rounded-none lg:border-transparent lg:bg-transparent lg:px-2 lg:py-3 lg:shadow-none 2xl:px-5">
                     <NarrationPill key={slide.phase_item_id ?? slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} wordTimings={narrationWordTimings} onProgressChange={setNarrationProgress} onPreciseTimeChange={handlePreciseNarrationTimeChange} onEnded={() => setNarrationEnded(true)} onPlayingChange={setNarrationPlaying} onSpeedChange={setNarrationSpeed} onFullscreenControlsReady={registerFullscreenNarrationControls} autoplayControlled={autoplayConfigured} />
                   </div>
                 </div>
-              </> : <div className="min-h-[112px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
-                <div className="flex min-h-[84px] items-center gap-3">
-                  {!instantClass ? <Link href={backHref} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
-                  {!instantClass ? <span aria-hidden="true" className="hidden h-12 w-px shrink-0 bg-white/55 lg:block" /> : null}
-                  <div className="min-w-0">
+              </> : <div className="min-h-[96px] rounded-[19px] bg-[var(--br-dark-card)] px-4 py-3 text-white sm:min-h-[88px] sm:rounded-[21px] sm:px-5">
+                <div className="flex min-h-0 min-w-0 flex-col justify-center gap-1.5 lg:min-h-[84px] lg:flex-row lg:items-center lg:gap-3">
+                  <div className="flex min-w-0 items-center gap-2 lg:hidden">
+                    {!instantClass ? <Link href={backHref} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 text-[12px] font-extrabold text-white transition hover:text-white/80" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
+                    {!instantClass && slide.section_label ? <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/55" /> : null}
                     {slide.section_label ? <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/75">{slide.section_label}</p> : null}
-                    <h2 className="mt-1 line-clamp-2 text-[20px] font-extrabold leading-tight sm:text-[22px]">{displayedSlideTitle}</h2>
                   </div>
+                  <div className="hidden min-w-0 items-center gap-3 lg:flex">
+                    {!instantClass ? <Link href={backHref} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-extrabold text-[var(--br-dark-card)] shadow-sm transition hover:bg-white/90 lg:px-4" aria-label="Back to course" title="Back to course"><ArrowLeft size={15} />Course</Link> : null}
+                    {!instantClass ? <span aria-hidden="true" className="h-12 w-px shrink-0 bg-white/55" /> : null}
+                    <div className="min-w-0">
+                      {slide.section_label ? <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-white/75">{slide.section_label}</p> : null}
+                      <h2 className="mt-1 line-clamp-2 text-[20px] font-extrabold leading-tight sm:text-[22px]">{displayedSlideTitle}</h2>
+                    </div>
+                  </div>
+                  <h2 className="min-w-0 line-clamp-2 text-[20px] font-extrabold leading-tight lg:hidden">{displayedSlideTitle}</h2>
                 </div>
               </div>}
             </div>
