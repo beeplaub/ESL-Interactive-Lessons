@@ -189,7 +189,7 @@ export default async function AccountPage() {
 
           <section>
             <SectionHeader title="My Courses" href="/courses" />
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               {activeCourseEnrollments.map((enrollment) => {
                 const course = Array.isArray(enrollment.courses) ? enrollment.courses[0] : enrollment.courses;
                 return course ? <MarketingCourseCard key={enrollment.id} course={course} stats={enrolledCourseStats.get(enrollment.course_id) ?? { moduleCount: 0, lessonCount: 0, activityCount: 0 }} instructors={instructorMap.get(enrollment.course_id)} /> : null;
