@@ -504,10 +504,10 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 Content duration (minutes)
                 <input name="durationMinutes" type="number" min="0" defaultValue={course.duration_minutes ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
-              <label className="text-sm font-medium sm:col-span-2">
-                Course overview
+              <div role="group" aria-labelledby="course-overview-label" className="text-sm font-medium sm:col-span-2">
+                <span id="course-overview-label">Course overview</span>
                 <CourseOverviewField value={course.description ?? null} />
-              </label>
+              </div>
             </div>
             <p className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 text-xs leading-5 text-[var(--br-text-muted)]">Private courses remain published, but they are hidden from public lists and direct links. Add learners from <strong>Course analytics → Learner access</strong>.</p>
             <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-4">
