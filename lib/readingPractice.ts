@@ -235,7 +235,7 @@ export function compareReadingText(target: string, transcript: string): ReadingM
 /** Connected function-word strings share the short lead-in to the next stressed beat. */
 export function readingCadence(text: string, paceWpm: number, level = "B1") {
   const tokens = readingTokens(text);
-  const beatMs = 60_000 / Math.max(50, Math.min(240, paceWpm));
+  const beatMs = 60_000 / Math.max(20, Math.min(240, paceWpm));
   const breathingRatio: Record<string, number> = { A1: 0.9, A2: 0.82, B1: 0.74, B2: 0.68, C1: 0.62, C2: 0.58 };
   const paragraphPauseMs = beatMs * (breathingRatio[level] ?? breathingRatio.B1);
   const groups: Array<{ start: number; end: number; tokenIndices: number[]; punctuation: string }> = [];

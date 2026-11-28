@@ -153,7 +153,7 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     return { groups: allGroups, paragraphStarts: starts };
   }, [paragraphs, effectivePace, config.level, config.chunking_enabled]);
   const cadenceSteps = useMemo<CadenceStep[]>(() => {
-    const beatMs = 60_000 / Math.max(50, Math.min(240, effectivePace));
+    const beatMs = 60_000 / Math.max(20, Math.min(240, effectivePace));
     const syllableWeight = (tokenIndex: number, syllableIndex: number, unit: "weak" | "anchor") => {
       if (unit === "weak") return 0.48;
       return tokens[tokenIndex]?.stressIndex === syllableIndex ? 2.7 : 0.68;
@@ -243,7 +243,6 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
   const syllableRefs = useRef(new Map<string, HTMLSpanElement>());
   const wordRefs = useRef(new Map<number, HTMLSpanElement>());
   const ribbonParagraphRef = useRef<number | null>(null);
-  const ribbonSizeRef = useRef<{ width: number; height: number } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -278,32 +277,50 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     } catch { /* The in-memory limit still works when browser storage is unavailable. */ }
   }, [config.usage_key]);
 
-  const ribbonLayoutRef = useRef<{ top: number; containerWidth: number } | null>(null);
+  useEffect(() => {
+    if ((phase !== "transcribing" && phase !== "result" && phase !== "error") || currentParagraph !== 0) return;
+    const ribbon = ribbonRef.current;
+    const container = readingTextRef.current;
+    const firstWord = wordRefs.current.get(0);
+    if (!ribbon || !container || !firstWord) return;
+    const positionAtFirstWord = () => {
+      const box = container.getBoundingClientRect();
+      const target = firstWord.getBoundingClientRect();
+      const width = Math.max(32, target.width + 4);
+      const height = Math.max(30, target.height + 4);
+      ribbon.style.transition = "none";
+      ribbon.style.width = `${width}px`;
+      ribbon.style.height = `${height}px`;
+      ribbon.style.transform = `translate3d(${target.left - box.left + target.width / 2 - width / 2}px, ${target.top - box.top + target.height / 2 - height / 2}px, 0)`;
+      ribbon.style.opacity = "1";
+      ribbonParagraphRef.current = groups[0]?.paragraphIndex ?? 0;
+    };
+    positionAtFirstWord();
+    const observer = new ResizeObserver(positionAtFirstWord);
+    observer.observe(container);
+    observer.observe(firstWord);
+    return () => observer.disconnect();
+  }, [phase, currentParagraph, groups]);
 
   function moveRibbon(cue: Extract<CadenceCue, { kind: "syllable" }>) {
     const ribbon = ribbonRef.current;
     const container = readingTextRef.current;
-    const syllable = syllableRefs.current.get(`${cue.tokenIndex}:${cue.syllableIndex}`);
     const word = wordRefs.current.get(cue.tokenIndex);
-    if (!ribbon || !container || !syllable || !word) return;
+    if (!ribbon || !container || !word) return;
     const box = container.getBoundingClientRect();
-    const target = syllable.getBoundingClientRect();
-    const wordBox = word.getBoundingClientRect();
-    if (!ribbonSizeRef.current) ribbonSizeRef.current = { width: Math.max(32, wordBox.width + 4), height: Math.max(30, target.height + 4) };
-    const { width, height } = ribbonSizeRef.current;
+    const target = word.getBoundingClientRect();
+    const width = Math.max(32, target.width + 4);
+    const height = Math.max(30, target.height + 4);
     const isNewParagraph = ribbonParagraphRef.current !== groups[cue.groupIndex]?.paragraphIndex;
-    const targetTop = target.top - box.top;
-    const previousLayout = ribbonLayoutRef.current;
-    // Use rendered coordinates so wrapped lines follow the actual viewport and font layout.
-    // A line return must not consume the first syllable's short reading cue.
-    const isNewLine = previousLayout !== null && Math.abs(targetTop - previousLayout.top) > target.height / 2;
-    const layoutChanged = previousLayout !== null && Math.abs(box.width - previousLayout.containerWidth) > 1;
     ribbon.style.width = `${width}px`;
     ribbon.style.height = `${height}px`;
-    ribbon.style.transition = isNewParagraph || isNewLine || layoutChanged ? "none" : `transform ${Math.max(1, cue.durationMs)}ms ${cue.slowAtEnd ? "cubic-bezier(.35,0,.55,1)" : "linear"}`;
+    const transitionMs = Math.max(100, Math.min(260, cue.durationMs));
+    const easing = cue.slowAtEnd ? "cubic-bezier(.35,0,.55,1)" : "linear";
+    ribbon.style.transition = isNewParagraph
+      ? "none"
+      : `transform ${transitionMs}ms ${easing}, width ${transitionMs}ms ${easing}, height ${transitionMs}ms ${easing}`;
     ribbon.style.transform = `translate3d(${target.left - box.left + target.width / 2 - width / 2}px, ${target.top - box.top + target.height / 2 - height / 2}px, 0)`;
     ribbonParagraphRef.current = groups[cue.groupIndex]?.paragraphIndex ?? null;
-    ribbonLayoutRef.current = { top: targetTop, containerWidth: box.width };
   }
 
   useEffect(() => () => {
@@ -442,6 +459,12 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     clearClocks();
     setCountdown(null);
     setActiveSyllable(null);
+    currentParagraphRef.current = 0;
+    setCurrentParagraph(0);
+    if (ribbonRef.current) {
+      ribbonRef.current.style.transition = "none";
+      ribbonRef.current.style.opacity = "0";
+    }
     const media = recorderRef.current;
     if (media && media.state !== "inactive") {
       setPhase("transcribing");
@@ -503,7 +526,7 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
     if (!tokens.length) { setError("This reading passage is empty."); setPhase("error"); return; }
     setError(""); setResult(null); setPracticeDone(false); setAudioUrl(null); if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null;
     setElapsed(0); elapsedRef.current = 0; setSecondsLeft(config.time_limit_seconds ?? 0); secondsLeftRef.current = config.time_limit_seconds ?? 0;
-    groupIndexRef.current = 0; chunksRef.current = []; setActiveSyllable(null); setResumeGroupIndex(0); setResumeWordIndex(0); setShowClarityModal(false); currentParagraphRef.current = 0; setCurrentParagraph(0); ribbonParagraphRef.current = null; ribbonSizeRef.current = null;
+    groupIndexRef.current = 0; chunksRef.current = []; setActiveSyllable(null); setResumeGroupIndex(0); setResumeWordIndex(0); setShowClarityModal(false); currentParagraphRef.current = 0; setCurrentParagraph(0); ribbonParagraphRef.current = null;
     modeRef.current = mode;
     startParagraphCountdown(0, 0);
   }
@@ -545,7 +568,7 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
   function stop() { finishSession(); }
   function reset() {
     if (activeRef.current) finishSession();
-    clearClocks(); activeRef.current = false; modeRef.current = null; setPhase("ready"); setCountdown(null); setPracticeDone(false); setResult(null); setError(""); setActiveSyllable(null); setResumeGroupIndex(0); setResumeWordIndex(0); setShowClarityModal(false); currentParagraphRef.current = 0; setCurrentParagraph(0); setElapsed(0); setSecondsLeft(config.time_limit_seconds ?? 0); secondsLeftRef.current = config.time_limit_seconds ?? 0; ribbonParagraphRef.current = null; ribbonSizeRef.current = null;
+    clearClocks(); activeRef.current = false; modeRef.current = null; setPhase("ready"); setCountdown(null); setPracticeDone(false); setResult(null); setError(""); setActiveSyllable(null); setResumeGroupIndex(0); setResumeWordIndex(0); setShowClarityModal(false); currentParagraphRef.current = 0; setCurrentParagraph(0); setElapsed(0); setSecondsLeft(config.time_limit_seconds ?? 0); secondsLeftRef.current = config.time_limit_seconds ?? 0; ribbonParagraphRef.current = null;
   }
 
   function renderText() {
@@ -601,7 +624,7 @@ export function ReadingPracticePlayer({ config, disabled = false, onResult }: { 
         {phase === "countdown" || phase === "starting" ? <div className={styles.countdownOverlay} aria-live="assertive"><span className={styles.countdownCircle}>{phase === "starting" ? "GO" : countdown}</span></div> : null}
       </div>
       <div className={styles.bottomTools}>
-        <label className={styles.paceControl}><span>Pace</span><input type="range" min={70} max={190} step={5} value={timed ? effectivePace : paceWpm} disabled={isRunning || timed} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()} onTouchCancel={(event) => event.stopPropagation()} onChange={(event) => setPaceWpm(Number(event.target.value))} aria-label="Reading pace" /><output>{effectivePace} WPM</output></label>
+        <label className={styles.paceControl}><span>Pace</span><input type="range" min={20} max={190} step={5} value={timed ? effectivePace : paceWpm} disabled={isRunning || timed} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()} onTouchCancel={(event) => event.stopPropagation()} onChange={(event) => setPaceWpm(Number(event.target.value))} aria-label="Reading pace" /><output>{effectivePace} WPM</output></label>
         <div className={styles.rhythmLegend} aria-label="Text emphasis key"><span><i className={`${styles.swatch} ${styles.swatchBeat}`} /><b className={`${styles.legendSample} ${styles.legendBeat}`}>Stressed word</b></span><span><i className={`${styles.swatch} ${styles.swatchWeak}`} /><b className={`${styles.legendSample} ${styles.legendWeak}`}>Function-word group</b></span></div>
       </div>
       {!isRunning ? <div className={styles.startOptions}>

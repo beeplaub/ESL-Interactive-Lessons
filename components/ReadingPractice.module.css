@@ -46,7 +46,7 @@
 .syllableText, .syllableSizer { grid-area: 1 / 1; white-space: pre; }
 .syllableText { transition: color .08s linear; }
 .syllableSizer { visibility: hidden; font-weight: 900; pointer-events: none; }
-.syllableActive { color: #5130bb; font-weight: 900; }
+.syllableActive { color: #5130bb; font-size: inherit; font-weight: inherit; line-height: inherit; }
 .active { padding: 3px 7px; background: #6943ed; color: #fff !important; box-shadow: 0 4px 16px #6943ed40; font-weight: 850; }
 .done { color: inherit; }
 .bottomTools { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; }
