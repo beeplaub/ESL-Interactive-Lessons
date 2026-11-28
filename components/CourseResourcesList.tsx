@@ -73,15 +73,11 @@ export function CourseResourcesList({ courseId, resources }: { courseId: string;
     return matchesFilter && (!term || `${resource.title} ${resource.description ?? ""} ${resource.file_name}`.toLowerCase().includes(term));
   }), [filter, query, resources]);
 
-  return <section aria-labelledby="course-resources-title">
-    <div>
-      <h2 id="course-resources-title" className="text-lg font-extrabold text-[var(--br-text)]">Course Resources</h2>
-      <p className="mt-1 text-sm text-[var(--br-text-muted)]">Files shared by your course creator.</p>
-    </div>
+  return <section className="min-w-0" aria-label="Course resources">
     <div className="mt-4 flex min-w-0 flex-col items-stretch gap-2.5 sm:flex-row sm:items-center sm:gap-3">
       <label className="relative block min-w-0 w-full sm:flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)]" /><span className="sr-only">Search resources</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search resources" className="h-10 w-full rounded-xl border border-[var(--br-border)] bg-white pl-9 pr-2 text-xs outline-none shadow-none ring-0 transition-colors placeholder:text-[var(--br-text-muted)] focus:border-[#653cff] focus:outline-none focus:ring-0 focus:shadow-none sm:pr-3 sm:text-sm" /></label>
-      <div className="grid w-full grid-cols-5 gap-1.5 sm:flex sm:w-auto sm:shrink-0 sm:gap-2" role="group" aria-label="Filter resources">
-      {filters.map((item) => <button key={item} type="button" onClick={() => setFilter(item)} aria-pressed={filter === item} className={`h-9 w-full whitespace-nowrap rounded-xl border px-1 text-[10px] font-bold transition-colors sm:w-auto sm:px-2.5 sm:text-xs ${filter === item ? "border-[#653cff] bg-[#653cff] text-white shadow-sm" : "border-[var(--br-border)] bg-white text-[var(--br-text-muted)] hover:border-[#653cff]/60 hover:text-[#653cff]"}`}>{item}</button>)}
+      <div className="grid w-full min-w-0 grid-cols-[repeat(5,minmax(0,1fr))] gap-1.5 sm:flex sm:w-auto sm:shrink-0 sm:gap-2" role="group" aria-label="Filter resources">
+      {filters.map((item) => <button key={item} type="button" onClick={() => setFilter(item)} aria-pressed={filter === item} className={`h-9 min-w-0 w-full whitespace-nowrap rounded-xl border px-0.5 text-[10px] font-bold transition-colors sm:w-auto sm:px-2.5 sm:text-xs ${filter === item ? "border-[#653cff] bg-[#653cff] text-white shadow-sm" : "border-[var(--br-border)] bg-white text-[var(--br-text-muted)] hover:border-[#653cff]/60 hover:text-[#653cff]"}`}>{item}</button>)}
       </div>
     </div>
     {filtered.length ? <div className="mt-4 grid gap-3 lg:grid-cols-2">{filtered.map((resource) => <article key={resource.id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-[var(--br-border)] bg-surface p-3.5 shadow-[var(--br-shadow)] sm:gap-4 sm:p-4">
